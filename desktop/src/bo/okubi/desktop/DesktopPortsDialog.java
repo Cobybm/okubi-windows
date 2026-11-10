@@ -365,10 +365,10 @@ public final class DesktopPortsDialog extends JDialog {
         DesktopPortArtworkService.Ref previewRef =
                 DesktopPortArtworkService.forCandidate(candidate);
         DesktopPortArtwork preview = new DesktopPortArtwork(
-                artwork, previewRef, 115, 145);
-        JPanel illustrated = new JPanel(new BorderLayout(10, 0));
+                artwork, previewRef, 420, 155);
+        JPanel illustrated = new JPanel(new BorderLayout(0, 9));
         illustrated.setOpaque(false);
-        illustrated.add(preview, BorderLayout.WEST);
+        illustrated.add(preview, BorderLayout.NORTH);
         illustrated.add(content, BorderLayout.CENTER);
         panel.add(illustrated, BorderLayout.CENTER);
 
@@ -394,8 +394,8 @@ public final class DesktopPortsDialog extends JDialog {
             for (int i = 0; i < onlineResults.size(); i += 2) {
                 JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
                 row.setOpaque(false);
-                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 285));
-                row.setPreferredSize(new Dimension(0, 285));
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+                row.setPreferredSize(new Dimension(0, 400));
                 row.setAlignmentX(LEFT_ALIGNMENT);
                 row.add(candidateCard(onlineResults.get(i)));
                 if (i + 1 < onlineResults.size()) row.add(candidateCard(onlineResults.get(i + 1)));
@@ -680,10 +680,10 @@ public final class DesktopPortsDialog extends JDialog {
         DesktopPortArtworkService.Ref previewRef =
                 DesktopPortArtworkService.forPort(port);
         DesktopPortArtwork preview = new DesktopPortArtwork(
-                artwork, previewRef, 115, 145);
-        JPanel illustrated = new JPanel(new BorderLayout(10, 0));
+                artwork, previewRef, 420, 155);
+        JPanel illustrated = new JPanel(new BorderLayout(0, 9));
         illustrated.setOpaque(false);
-        illustrated.add(preview, BorderLayout.WEST);
+        illustrated.add(preview, BorderLayout.NORTH);
         illustrated.add(description, BorderLayout.CENTER);
         panel.add(illustrated, BorderLayout.CENTER);
 
@@ -724,8 +724,8 @@ public final class DesktopPortsDialog extends JDialog {
             for (int i = 0; i < visible.size(); i += 2) {
                 JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
                 row.setBackground(BACKGROUND);
-                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 325));
-                row.setPreferredSize(new Dimension(0, 325));
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+                row.setPreferredSize(new Dimension(0, 400));
                 row.setAlignmentX(LEFT_ALIGNMENT);
                 row.add(card(visible.get(i)));
                 if (i + 1 < visible.size()) row.add(card(visible.get(i + 1)));
