@@ -19,6 +19,7 @@ public final class DesktopPortArtwork extends JPanel {
     private final DesktopPortArtworkService service;
     private final DesktopPortArtworkService.Ref ref;
     private final int imageCount;
+    private final boolean fitEntireImage;
     private volatile int imageIndex;
     private volatile long requestVersion;
     private javax.swing.JLabel counter;
@@ -26,9 +27,18 @@ public final class DesktopPortArtwork extends JPanel {
     public DesktopPortArtwork(DesktopPortArtworkService service,
                               DesktopPortArtworkService.Ref ref,
                               int width, int height) {
+        this(service, ref, width, height, 0, false);
+    }
+
+    /** Large CINEMA viewer preserves the whole screenshot and current slide. */
+    DesktopPortArtwork(DesktopPortArtworkService service,
+                       DesktopPortArtworkService.Ref ref,
+                       int width, int height, int initialIndex,
+                       boolean fitEntireImage) {
         this.service = service;
         this.ref = ref;
         this.imageCount = DesktopOfficialPortArtwork.gallery(ref).size();
+        this.fitEntireImage = fitEntireImage;
         setOpaque(false);
         setPreferredSize(new Dimension(width, height));
         setMinimumSize(new Dimension(Math.min(78, width), Math.min(94, height)));
@@ -59,7 +69,32 @@ public final class DesktopPortArtwork extends JPanel {
         getAccessibleContext().setAccessibleDescription(
                 imageCount > 1 ? "Galería de capturas verificadas por proyecto"
                         : "Imagen verificada del proyecto o fondo CINEMA");
-        if (service != null) requestImage(0);
+        if (service != null) requestImage(
+                Math.max(0, Math.min(imageCount - 1, initialIndex)));
+    }
+
+    /** Enlarges the image on click/keyboard, without adding cramped card buttons. */
+    void enableViewer(Runnable open) {
+        if (open == null) return;
+        setFocusable(true);
+        setCursor(java.awt.Cursor.getPredefinedCursor(java.awt.Cursor.HAND_CURSOR));
+        getAccessibleContext().setAccessibleDescription(
+                "Activar para ampliar imagen del proyecto; Enter o espacio");
+        addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mouseClicked(java.awt.event.MouseEvent event) {
+                if (javax.swing.SwingUtilities.isLeftMouseButton(event))
+                    open.run();
+            }
+        });
+        getInputMap(WHEN_FOCUSED).put(javax.swing.KeyStroke.getKeyStroke("ENTER"),
+                "open-port-gallery");
+        getInputMap(WHEN_FOCUSED).put(javax.swing.KeyStroke.getKeyStroke("SPACE"),
+                "open-port-gallery");
+        getActionMap().put("open-port-gallery", new javax.swing.AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+                open.run();
+            }
+        });
     }
 
     private static javax.swing.JButton arrow(String symbol, String description,
@@ -149,14 +184,20 @@ public final class DesktopPortArtwork extends JPanel {
                 // Banner aspect ratio: fill landscape screenshots; preserve
                 // portrait game logos to avoid cutting their main subject.
                 boolean landscape = image.getWidth() * 10L >= image.getHeight() * 13L;
-                double scale = landscape
-                        ? Math.max((w - 4.) / image.getWidth(),
-                                (h - 4.) / image.getHeight())
-                        : Math.min((w - 8.) / image.getWidth(),
-                                (h - 8.) / image.getHeight());
+                int visibleHeight = fitEntireImage && counter != null
+                        ? Math.max(12, h - 45) : h;
+                double scale = fitEntireImage
+                        ? Math.min((w - 18.) / image.getWidth(),
+                                (visibleHeight - 16.) / image.getHeight())
+                        : landscape
+                            ? Math.max((w - 4.) / image.getWidth(),
+                                    (h - 4.) / image.getHeight())
+                            : Math.min((w - 8.) / image.getWidth(),
+                                    (h - 8.) / image.getHeight());
                 int rw = Math.max(1, (int) Math.ceil(image.getWidth() * scale));
                 int rh = Math.max(1, (int) Math.ceil(image.getHeight() * scale));
-                g.drawImage(image, (w - rw) / 2, (h - rh) / 2, rw, rh, null);
+                g.drawImage(image, (w - rw) / 2,
+                        (visibleHeight - rh) / 2, rw, rh, null);
             } else {
                 g.setFont(new Font("Segoe UI", Font.BOLD, Math.max(17, w / 5)));
                 g.setColor(new Color(158, 127, 206));
