@@ -27,7 +27,7 @@ public final class DesktopMaintenanceService {
     public record Report(int files, long bytes, boolean cacheExists) {}
     private static boolean link(Path path) {
         return Files.isSymbolicLink(path) || (Files.exists(path, LinkOption.NOFOLLOW_LINKS)
-                && Files.isOther(path, LinkOption.NOFOLLOW_LINKS));
+                && Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS).isOther());
     }
     private void validate() throws IOException {
         // Reject symlinks at ANY ancestor, including the intended cache directory.
