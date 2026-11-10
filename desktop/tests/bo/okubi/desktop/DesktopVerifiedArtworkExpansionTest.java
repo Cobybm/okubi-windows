@@ -49,18 +49,37 @@ public final class DesktopVerifiedArtworkExpansionTest {
     public static void main(String[] args) throws Exception {
         check(DesktopPortsCatalog.all().size() == 32,
                 "Port catalog count is unchanged");
-        check(DesktopOfficialPortArtwork.curatedCount() == 17,
-                "Exactly 17 owned sources, no guessed coverage");
-        check(DesktopOfficialPortArtwork.galleryImageCount() == 39,
-                "17 primary and 22 secondary verified images");
+        check(DesktopOfficialPortArtwork.curatedCount() == 18,
+                "Exactly 18 project-owned sources, no guessed coverage");
+        check(DesktopOfficialPortArtwork.galleryImageCount() == 40,
+                "18 primary and 22 secondary verified images");
         var gzdoom = DesktopPortsCatalog.byId("gzdoom");
         var vcmi = DesktopPortsCatalog.byId("vcmi");
         var scummvm = DesktopPortsCatalog.byId("scummvm");
         var forceEngine = DesktopPortsCatalog.byId("theforceengine");
+        var xash = DesktopPortsCatalog.byId("xash3d");
         expectGallery(vcmi, "vcmi/VCMI.eu", "/static/img/screenshots/");
         expectGallery(gzdoom, "ZDoom/gzdoom", "/src/posix/freedesktop/screenshot_");
         expectGallery(scummvm, "scummvm/scummvm", "/doc/docportal/images/Launcher/");
         expectGallery(forceEngine, "TheForceEngine/TheForceEngine.github.io", "/screenshots/DarkForces");
+        // Xash3D documentation includes genuine GoldSrc gameplay with its own touch UI.
+        // Generic logos and unrelated project screenshots must never be substituted.
+        var xashRef = DesktopPortArtworkService.forPort(xash);
+        var xashGallery = DesktopOfficialPortArtwork.gallery(xashRef);
+        check(xashGallery.size() == 1, "One visually audited Xash3D in-engine screenshot");
+        URI xashScreenshot = URI.create(
+                "https://raw.githubusercontent.com/FWGS/xash3d-fwgs/"
+                + "707596f4905689ec224e993fcaa4d4ad66aa67d6/"
+                + "Documentation/images/ios-touch-ingame.jpg");
+        check(xashGallery.get(0).equals(xashScreenshot),
+                "Xash3D must use the exact upstream gameplay capture");
+        check(DesktopOfficialPortArtwork.permitted(xashScreenshot),
+                "Pinned Xash3D gameplay capture is allowlisted");
+        check(!DesktopOfficialPortArtwork.permitted(URI.create(
+                "https://raw.githubusercontent.com/other/game/"
+                + "707596f4905689ec224e993fcaa4d4ad66aa67d6/"
+                + "Documentation/images/ios-touch-ingame.jpg")),
+                "Never accept images copied under a different game identity");
         check(DesktopOfficialPortArtwork.gallery(
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("openmw")))
                 .isEmpty(), "OpenMW must not receive an unrelated image or game cover");
@@ -82,11 +101,15 @@ public final class DesktopVerifiedArtworkExpansionTest {
         try (var service = new DesktopPortArtworkService(temp.resolve("artwork"))) {
             var vcmiRef = DesktopPortArtworkService.forPort(vcmi);
             var gzRef = DesktopPortArtworkService.forPort(gzdoom);
+            var xashCacheRef = DesktopPortArtworkService.forPort(xash);
             var vcmiPhoto = image(service.cachePath(vcmiRef), Color.GREEN);
             var gzPhoto = image(service.cachePath(gzRef), Color.BLUE);
+            var xashPhoto = image(service.cachePath(xashCacheRef), Color.CYAN);
             image(service.galleryCachePath(vcmiRef, 1), Color.YELLOW);
             image(service.galleryCachePath(gzRef, 1), Color.RED);
             check(!vcmiPhoto.equals(gzPhoto), "Primary images have separate caches");
+            check(!xashPhoto.equals(gzPhoto) && !xashPhoto.equals(vcmiPhoto),
+                    "Xash3D screenshot cache cannot collide with another port");
             check(!service.galleryCachePath(vcmiRef, 1)
                     .equals(service.galleryCachePath(gzRef, 1)),
                     "Extra gallery images have separate caches");
@@ -110,6 +133,8 @@ public final class DesktopVerifiedArtworkExpansionTest {
             check(service.localGallery(vcmiRef, 0).getRGB(10, 10)
                     == Color.GREEN.getRGB(), "Clearing override returns to verified cache");
             check(Files.exists(gzPhoto), "Other port cache must survive");
+            check(service.local(xashCacheRef).getRGB(10, 10) == Color.CYAN.getRGB(),
+                    "Xash3D screenshot stays separate from manual VCMI image");
         }
         System.out.println("DesktopVerifiedArtworkExpansionTest: PASS");
     }
