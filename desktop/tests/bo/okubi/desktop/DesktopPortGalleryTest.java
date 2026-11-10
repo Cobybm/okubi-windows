@@ -60,7 +60,9 @@ public final class DesktopPortGalleryTest {
                 DesktopPortsCatalog.byId("supertuxkart"),
                 DesktopPortsCatalog.byId("openttd"),
                 DesktopPortsCatalog.byId("warzone2100"),
-                DesktopPortsCatalog.byId("arxlibertatis"));
+                DesktopPortsCatalog.byId("arxlibertatis"),
+                DesktopPortsCatalog.byId("vcmi"),
+                DesktopPortsCatalog.byId("gzdoom"));
         int multi = 0;
         for (var port : refs) {
             var ref = DesktopPortArtworkService.forPort(port);
@@ -78,16 +80,16 @@ public final class DesktopPortGalleryTest {
                 multi++;
             }
         }
-        check(DesktopOfficialPortArtwork.curatedCount() == 13, "All 13 projects retained");
-        check(DesktopOfficialPortArtwork.galleryImageCount() == 27,
-                "14 extra images plus 13 original ones");
+        check(DesktopOfficialPortArtwork.curatedCount() == 15, "15 verified projects including VCMI and GZDoom");
+        check(DesktopOfficialPortArtwork.galleryImageCount() == 33,
+                "18 extra images plus 15 original ones");
         check(DesktopOfficialPortArtwork.gallery(
                 new DesktopPortArtworkService.Ref("random", "unverified")).isEmpty(),
                 "Unknown project never gets artwork of another game");
         check(!DesktopOfficialPortArtwork.permitted(
                 java.net.URI.create("https://opengraph.githubassets.com/1/OpenRA/OpenRA")),
                 "Never fall back to a GitHub social-preview card");
-        check(multi == 22, "Eight galleries contribute 22 approved images");
+        check(multi == 28, "Ten galleries contribute 28 approved images");
 
         Path folder = Files.createTempDirectory("okubi-gallery-fixture");
         var ref = DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("openra"));
