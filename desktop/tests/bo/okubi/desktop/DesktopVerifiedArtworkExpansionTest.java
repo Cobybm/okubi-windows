@@ -49,20 +49,25 @@ public final class DesktopVerifiedArtworkExpansionTest {
     public static void main(String[] args) throws Exception {
         check(DesktopPortsCatalog.all().size() == 32,
                 "Port catalog count is unchanged");
-        check(DesktopOfficialPortArtwork.curatedCount() == 15,
-                "Exactly 15 owned sources, no guessed coverage");
-        check(DesktopOfficialPortArtwork.galleryImageCount() == 33,
-                "15 primary and 18 secondary verified images");
+        check(DesktopOfficialPortArtwork.curatedCount() == 17,
+                "Exactly 17 owned sources, no guessed coverage");
+        check(DesktopOfficialPortArtwork.galleryImageCount() == 39,
+                "17 primary and 22 secondary verified images");
         var gzdoom = DesktopPortsCatalog.byId("gzdoom");
         var vcmi = DesktopPortsCatalog.byId("vcmi");
+        var scummvm = DesktopPortsCatalog.byId("scummvm");
+        var forceEngine = DesktopPortsCatalog.byId("theforceengine");
         expectGallery(vcmi, "vcmi/VCMI.eu", "/static/img/screenshots/");
         expectGallery(gzdoom, "ZDoom/gzdoom", "/src/posix/freedesktop/screenshot_");
+        expectGallery(scummvm, "scummvm/scummvm", "/doc/docportal/images/Launcher/");
+        expectGallery(forceEngine, "TheForceEngine/TheForceEngine.github.io", "/screenshots/DarkForces");
         check(DesktopOfficialPortArtwork.gallery(
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("openmw")))
                 .isEmpty(), "OpenMW must not receive an unrelated image or game cover");
-        check(DesktopOfficialPortArtwork.gallery(
-                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("scummvm")))
-                .isEmpty(), "ScummVM should not be illustrated with an arbitrary adventure game");
+        check(DesktopOfficialPortArtwork.gallery(scummvm == null ? null
+                : DesktopPortArtworkService.forPort(scummvm)).stream().allMatch(
+                        url -> url.getPath().contains("/Launcher/")),
+                "ScummVM uses its own launcher, not an arbitrary adventure-game screenshot");
         check(DesktopOfficialPortArtwork.gallery(
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("dosboxstaging")))
                 .isEmpty(), "DOSBox should not use artwork from an unrelated DOS game");
