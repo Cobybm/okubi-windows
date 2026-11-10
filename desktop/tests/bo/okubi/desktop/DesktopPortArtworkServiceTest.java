@@ -45,6 +45,30 @@ public final class DesktopPortArtworkServiceTest {
         check(ref.preview().toString().equals(
                 "https://opengraph.githubassets.com/1/arx/ArxLibertatis"),
                 "Official GitHub preview only");
+        DesktopPortArtworkService.Ref devilution =
+                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("devilutionx"));
+        DesktopPortArtworkService.Ref augustus =
+                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("augustus"));
+        DesktopPortArtworkService.Ref dhewm =
+                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("dhewm3"));
+        check(DesktopOfficialPortArtwork.curatedCount() == 3,
+                "Three verified upstream official image sources");
+        for (var pin : java.util.List.of(devilution, augustus, dhewm)) {
+            var url = DesktopOfficialPortArtwork.source(pin);
+            check(url != null && DesktopOfficialPortArtwork.permitted(url),
+                    "Pinned upstream project source must be GitHub raw");
+            check(url.getPath().matches(
+                    "/[^/]+/[^/]+/[0-9a-f]{40}/.+\\.png"),
+                    "Project screenshots must use immutable 40-digit commit IDs");
+        }
+        check(DesktopOfficialPortArtwork.source(ref) == null,
+                "Unreviewed projects must not get unrelated artwork");
+        check(!DesktopOfficialPortArtwork.permitted(
+                java.net.URI.create("https://example.com/art.png")),
+                "Never accept arbitrary image domain");
+        check(!DesktopOfficialPortArtwork.permitted(
+                java.net.URI.create("https://raw.githubusercontent.com/evil/owner/main/a.png")),
+                "Never accept unknown raw files");
         check(DesktopPortArtworkService.forPort(
                 DesktopPortsCatalog.byId("arxlibertatis")).equals(ref),
                 "Curated artwork identity");
@@ -124,7 +148,14 @@ public final class DesktopPortArtworkServiceTest {
                 // Windows CI can prohibit symlink creation without developer mode.
             }
 
+            check(!service.cachePath(ref).equals(service.cachePath(devilution)),
+                    "Curated upstream screenshot must use a distinct cache namespace");
+            check(service.cachePath(devilution).toString()
+                    .contains("official-screenshots-v1"),
+                    "Fresh curated screenshot must replace stale GitHub webpage thumbnail");
             DesktopPortArtwork panel = new DesktopPortArtwork(service, ref, 118, 150);
+            check(panel.getToolTipText() == null,
+                    "No long tooltip may cover Download/Link buttons");
             panel.setSize(118, 150);
             BufferedImage frame = new BufferedImage(118, 150, BufferedImage.TYPE_INT_ARGB);
             SwingUtilities.invokeAndWait(() -> {
