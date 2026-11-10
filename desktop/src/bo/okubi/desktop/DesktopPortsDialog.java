@@ -41,6 +41,8 @@ public final class DesktopPortsDialog extends JDialog {
     private static final Color MUTED = new Color(189, 176, 207);
 
     private final DesktopPortsLibrary library;
+    private final DesktopPortArtworkService artwork =
+            new DesktopPortArtworkService(DesktopPortArtworkService.defaultDirectory());
     private final JTextField search = new JTextField();
     private final JComboBox<String> genre = new JComboBox<>();
     private final JComboBox<String> assetType = new JComboBox<>(new String[]{
@@ -83,6 +85,11 @@ public final class DesktopPortsDialog extends JDialog {
         setSize(1020, 720);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) {
+                artwork.close();
+            }
+        });
         getContentPane().setBackground(BACKGROUND);
         setLayout(new BorderLayout(13, 13));
 
@@ -355,13 +362,22 @@ public final class DesktopPortsDialog extends JDialog {
             label.setToolTipText(linked.toString());
             content.add(label);
         }
-        panel.add(content, BorderLayout.CENTER);
+        DesktopPortArtworkService.Ref previewRef =
+                DesktopPortArtworkService.forCandidate(candidate);
+        DesktopPortArtwork preview = new DesktopPortArtwork(
+                artwork, previewRef, 115, 145);
+        JPanel illustrated = new JPanel(new BorderLayout(10, 0));
+        illustrated.setOpaque(false);
+        illustrated.add(preview, BorderLayout.WEST);
+        illustrated.add(content, BorderLayout.CENTER);
+        panel.add(illustrated, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         actions.setOpaque(false);
         actions.add(action("REVISAR GITHUB", () -> browse(candidate.github())));
         actions.add(action("RELEASES", () -> browse(candidate.releases())));
         actions.add(action("VINCULAR .EXE", () -> linkCandidate(candidate)));
+        actions.add(action("IMAGEN", () -> chooseArtwork(previewRef, preview)));
         if (linked != null) {
             actions.add(action("▶ JUGAR", () -> launchCandidate(candidate)));
             actions.add(action("QUITAR", () -> unlinkCandidate(candidate)));
@@ -394,6 +410,43 @@ public final class DesktopPortsDialog extends JDialog {
         }
         onlineTiles.revalidate();
         onlineTiles.repaint();
+    }
+
+    /** Preview refresh and manual override never alter ROMs, EXEs or saves. */
+    private void chooseArtwork(DesktopPortArtworkService.Ref ref,
+                               DesktopPortArtwork panel) {
+        String[] options = {
+                "Elegir imagen local", "Actualizar desde GitHub",
+                "Quitar imagen personalizada", "Cancelar"
+        };
+        int choice = JOptionPane.showOptionDialog(this,
+                "Imagen para " + ref.fullName() + "\n\n"
+                + "GitHub puede ofrecer un logo o una tarjeta del proyecto,\n"
+                + "no necesariamente una portada o captura del juego.\n"
+                + "Tu imagen personal tiene prioridad y solo se copia al caché local.",
+                "OKUBI · Artwork Online",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
+                null, options, options[0]);
+        if (choice == 0) {
+            JFileChooser chooser = new JFileChooser();
+            chooser.setDialogTitle("Seleccionar imagen para " + ref.fullName());
+            chooser.setFileFilter(new FileNameExtensionFilter(
+                    "Imagen PNG, JPEG o GIF (máximo 2 MB)",
+                    "png", "jpg", "jpeg", "gif"));
+            chooser.setAcceptAllFileFilterUsed(false);
+            if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
+                artwork.chooseManualAsync(ref, chooser.getSelectedFile().toPath(),
+                        panel::showImage, this::warning);
+        } else if (choice == 1) {
+            artwork.refresh(ref, panel::showImage);
+        } else if (choice == 2) {
+            try {
+                artwork.clearManual(ref);
+                artwork.refresh(ref, panel::showImage);
+            } catch (IOException error) {
+                warning("No se pudo quitar la imagen: " + error.getMessage());
+            }
+        }
     }
 
     private void linkCandidate(DesktopGitHubPortsSearch.Candidate candidate) {
@@ -624,7 +677,15 @@ public final class DesktopPortsDialog extends JDialog {
                 : linked.toString());
         description.add(Box.createVerticalStrut(7));
         description.add(linkedLabel);
-        panel.add(description, BorderLayout.CENTER);
+        DesktopPortArtworkService.Ref previewRef =
+                DesktopPortArtworkService.forPort(port);
+        DesktopPortArtwork preview = new DesktopPortArtwork(
+                artwork, previewRef, 115, 145);
+        JPanel illustrated = new JPanel(new BorderLayout(10, 0));
+        illustrated.setOpaque(false);
+        illustrated.add(preview, BorderLayout.WEST);
+        illustrated.add(description, BorderLayout.CENTER);
+        panel.add(illustrated, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
         actions.setOpaque(false);
@@ -632,6 +693,7 @@ public final class DesktopPortsDialog extends JDialog {
         releases.setToolTipText("Consultar la página oficial del proyecto en GitHub");
         actions.add(releases);
         actions.add(action("VINCULAR .EXE", () -> link(port)));
+        actions.add(action("IMAGEN", () -> chooseArtwork(previewRef, preview)));
         if (linked != null) {
             JButton launch = action("▶ JUGAR", () -> launch(port));
             launch.setBackground(new Color(130, 40, 94));
