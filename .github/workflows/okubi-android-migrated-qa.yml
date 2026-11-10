@@ -1,0 +1,144 @@
+name: OKUBI Android — Migrated QA (safe side-by-side)
+on:
+  push:
+    branches: [migration/okubi-android-preserved]
+    paths:
+      - 'android-app/**'
+      - 'retro-module/**'
+      - 'catalogs/**'
+      - 'tools/**'
+      - '.github/workflows/okubi-android-migrated-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: okubi-android-migrated-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-qa:
+    name: Android retro and preservation regression tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Java 17 for deterministic JVM tests
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Run retro Python safety/regression suite
+        run: python3 -m unittest discover -s retro-module/tests -v
+      - name: Verify portable save archive and patching (synthetic data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/android-migration-tests
+          javac -encoding UTF-8 -d build/android-migration-tests \
+            retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiSaveArchiveTest.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiPortableSaveContractTest.java \
+            retro-module/java/bo/nexoplay/app/retro/OkubiPatchEngine.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiPatchEngineTest.java
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiSaveArchiveTest
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiPortableSaveContractTest
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiPatchEngineTest
+      - name: Verify no ROM, BIOS or keystore was committed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib, subprocess, sys
+          names = subprocess.check_output(["git","ls-files","-z"]).decode().split("\0")
+          forbidden = (".gba",".gb",".gbc",".nes",".sfc",".smc",".iso",".chd",".sav",".srm",".jks",".keystore",".p12",".pfx",".apk")
+          unexpected = [p for p in names if p.lower().endswith(forbidden)]
+          if unexpected:
+              print("Forbidden private artifact names detected", file=sys.stderr)
+              sys.exit(1)
+          print("PASS: no committed ROMs, game saves, private signing keys or APKs")
+          PY
+
+  android-qa-apk:
+    name: Build Android beta in separate installation namespace
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v4
+      - name: Install pinned SDK/NDK/CMake versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: Configure Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Integrate existing editable Android app and retro engine
+        run: python3 retro-module/integrate.py --repo . --output build/okubi-android
+      - name: Build pinned SameBoy source (MIT)
+        run: python3 retro-module/build_sameboy.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Build pinned mGBA source (MPL-2.0)
+        run: python3 retro-module/build_mgba.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Build pinned Supafaust source (GPL-2.0+)
+        run: python3 retro-module/build_supafaust.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Verify all expected compiled core ABIs and source licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            for core in sameboy mgba supafaust; do
+              test -s "build/okubi-android/app/src/main/jniLibs/$abi/lib${core}_libretro_android.so"
+            done
+          done
+          test -s build/okubi-android/app/src/main/assets/licenses/SameBoy-LICENSE.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/mGBA-LICENSE.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-GPL-2.0.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-SOURCE.txt
+      - name: Assemble separate QA APK (never replace canonical app)
+        working-directory: build/okubi-android
+        run: gradle :app:assembleDebug -PokubiQaSideBySide=true --no-daemon --stacktrace
+      - name: Verify APK identity, signature, allowed contents and ZIP integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/okubi-android-artifact
+          APK=build/okubi-android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "name='bo.nexoplay.app.unified.qa57'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          f=Path('build/okubi-android/app/build/outputs/apk/debug/app-debug.apk')
+          with zipfile.ZipFile(f) as z:
+              members=z.namelist()
+              assert z.testzip() is None, 'corrupt APK'
+              assert 'AndroidManifest.xml' in members and 'classes.dex' in members
+              for abi in ('arm64-v8a','armeabi-v7a','x86','x86_64'):
+                  for core in ('sameboy','mgba','supafaust'):
+                      assert f'lib/{abi}/lib{core}_libretro_android.so' in members
+                  assert f'lib/{abi}/libokubi_sameboy_bridge.so' in members
+              for license in ('mGBA-LICENSE.txt','Supafaust-GPL-2.0.txt','Supafaust-SOURCE.txt'):
+                  assert f'assets/licenses/{license}' in members
+              deny=('.gba','.gb','.gbc','.sav','.srm','.jks','.keystore','.p12','.pfx')
+              assert not any(m.lower().endswith(deny) or m.startswith('assets/personal-roms/') for m in members)
+          print('PASS: APK isolated and contents checked; real phone QA remains pending')
+          PY
+          cp "$APK" build/okubi-android-artifact/OKUBI-Android-Migration-QA57.apk
+          cd build/okubi-android-artifact
+          sha256sum OKUBI-Android-Migration-QA57.apk > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - name: Upload unsigned-for-release QA artifact (debug signature only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-Android-Migration-QA57-Side-by-Side
+          path: build/okubi-android-artifact/*
+          if-no-files-found: error
+          retention-days: 14

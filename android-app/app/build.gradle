@@ -1,0 +1,73 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'bo.nexoplay.app'
+    compileSdk 35
+
+    defaultConfig {
+        // One canonical app identity from Phase 6 onwards. Existing personal,
+        // dpadtest and indietest applications are never overwritten by this APK.
+        // Keep this applicationId for every future UNIFIED update.
+        applicationId 'bo.nexoplay.app.unified'
+        manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
+        minSdk 26
+        targetSdk 34
+        versionCode 36
+        versionName '1.0.0-unified-beta17'
+    }
+
+    // Release signing is opt-in and owner-managed. Never check the keystore
+    // or passwords into source control. Without these values CI only builds
+    // a DEBUG migration-preview APK (not a long-term updatable release).
+    signingConfigs {
+        unifiedOwner {
+            if (System.getenv('OKUBI_KEYSTORE_PATH') &&
+                System.getenv('OKUBI_KEYSTORE_PASSWORD') &&
+                System.getenv('OKUBI_KEY_ALIAS') &&
+                System.getenv('OKUBI_KEY_PASSWORD')) {
+                storeFile file(System.getenv('OKUBI_KEYSTORE_PATH'))
+                storePassword System.getenv('OKUBI_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('OKUBI_KEY_ALIAS')
+                keyPassword System.getenv('OKUBI_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        // QA57 runs beside an existing Android install instead of upgrading
+        // it. The canonical applicationId above, signing configuration and
+        // owner release variant remain completely unchanged.
+        debug {
+            if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
+                applicationIdSuffix '.qa57'
+                versionNameSuffix '-qa57'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI QA57 遊']
+            }
+        }
+        release {
+            minifyEnabled false
+            if (System.getenv('OKUBI_KEYSTORE_PATH') &&
+                System.getenv('OKUBI_KEYSTORE_PASSWORD') &&
+                System.getenv('OKUBI_KEY_ALIAS') &&
+                System.getenv('OKUBI_KEY_PASSWORD')) {
+                signingConfig signingConfigs.unifiedOwner
+            }
+        }
+    }
+
+    // Personalized APKs are repackaged with player-provided cartridge assets.
+    // Force Android to extract the native emulators at install time instead
+    // of relying on lost zipalign padding after the private repack/sign step.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
