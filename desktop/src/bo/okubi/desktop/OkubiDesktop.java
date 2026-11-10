@@ -225,6 +225,10 @@ public final class OkubiDesktop {
                     javax.swing.KeyStroke.getKeyStroke(filterKeys[i]),
                     javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         }
+        window.getRootPane().registerKeyboardAction(
+                event -> showUnifiedLibrary(),
+                javax.swing.KeyStroke.getKeyStroke("control U"),
+                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         bindConsoleKeys();
 
         JPanel root = panel(BG);
@@ -318,12 +322,14 @@ public final class OkubiDesktop {
         sidebar.add(Box.createVerticalStrut(12));
         // No duplicates of Importar ROM, CLOUD SAVE, Estadísticas or Motores:
         // those functions remain in the six upper buttons.
-        String[] utilityItems = {"▤   Importar carpeta", "Portadas en Internet",
-                "✦   PORTS PC · GITHUB", "⇄   Cross Save local", "◈   SAVE VAULT",
+        String[] utilityItems = {"▣   CINEMA · MIS JUEGOS", "▤   Importar carpeta",
+                "Portadas en Internet", "✦   PORTS PC · GITHUB",
+                "⇄   Cross Save local", "◈   SAVE VAULT",
                 "◈   SMART PC · PS1/PS2/PS3"};
-        Runnable[] utilityActions = {this::importFolder, this::refreshOnlineCovers,
-                this::showPcPorts, this::showBackupNotice,
-                this::showSaveVault, this::showSmartPerformance};
+        Runnable[] utilityActions = {this::showUnifiedLibrary, this::importFolder,
+                this::refreshOnlineCovers, this::showPcPorts,
+                this::showBackupNotice, this::showSaveVault,
+                this::showSmartPerformance};
         for (int i = 0; i < utilityItems.length; i++) {
             JButton link = button(utilityItems[i], false, utilityActions[i]);
             link.setMaximumSize(new Dimension(Integer.MAX_VALUE, 43));
@@ -2116,6 +2122,27 @@ public final class OkubiDesktop {
                             + selected.title());
                 });
         });
+    }
+
+    /** One read-only view of both locally linked libraries, with manual launching. */
+    private void showUnifiedLibrary() {
+        if (EmbeddedPlayerWindow.hasActiveSession() || cloudBusy
+                || crossSaveBusy || saveGuardBusy) {
+            JOptionPane.showMessageDialog(window,
+                    "Cierra el juego o termina el respaldo antes de abrir CINEMA.",
+                    "OKUBI · Biblioteca unificada", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        try {
+            DesktopPortsLibrary linked =
+                    new DesktopPortsLibrary(DesktopPortsLibrary.defaultFile());
+            java.util.List<DesktopUnifiedLibrary.Item> items =
+                    DesktopUnifiedLibrary.collect(library, statistics, linked);
+            new DesktopUnifiedLibraryDialog(window, items, coverService,
+                    this::play, this::showPcPorts).setVisible(true);
+        } catch (IOException error) {
+            showError("CINEMA UNIFIED: " + error.getMessage());
+        }
     }
 
     /** PC-only ports browser; never downloads, installs or copies Android APKs. */

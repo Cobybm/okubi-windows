@@ -162,6 +162,47 @@ public final class DesktopPortsLibrary {
         return new ProcessBuilder(exe.toString()).directory(exe.getParent().toFile()).start();
     }
 
+    /**
+     * Read-only snapshot of the user's linked PC ports. This does not inspect
+     * arbitrary directories or launch executables. Unknown preference keys
+     * were rejected when loading the links file.
+     */
+    public record LinkedPort(String id, String title, Path executable, boolean reviewed) {
+        public LinkedPort {
+            if (id == null || title == null || executable == null)
+                throw new IllegalArgumentException("Linked port");
+        }
+    }
+
+    public synchronized java.util.List<LinkedPort> linkedEntries() {
+        java.util.ArrayList<LinkedPort> result = new java.util.ArrayList<>();
+        int cap = 1000;
+        for (String key : links.stringPropertyNames()) {
+            if (result.size() >= cap) break; // bad preferences must not freeze the UI
+            boolean reviewed = key.startsWith(PREFIX)
+                    && DesktopPortsCatalog.byId(key.substring(PREFIX.length())) != null;
+            boolean github = key.matches(
+                    "github\\.[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9._-]*");
+            if (!reviewed && !github) continue;
+            String value = links.getProperty(key);
+            if (value == null || value.isBlank()) continue;
+            try {
+                Path path = Path.of(value).toAbsolutePath().normalize();
+                if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)
+                        || Files.isSymbolicLink(path)) continue;
+                String title = reviewed
+                        ? DesktopPortsCatalog.byId(key.substring(PREFIX.length())).title()
+                        : key.substring("github.".length());
+                result.add(new LinkedPort(key, title, path, reviewed));
+            } catch (RuntimeException ignored) {
+                // A stale local path never crashes the library. No writes.
+            }
+        }
+        result.sort(java.util.Comparator.comparing(
+                LinkedPort::title, String.CASE_INSENSITIVE_ORDER));
+        return java.util.List.copyOf(result);
+    }
+
     private void save() throws IOException {
         Path parent = propertiesFile.getParent();
         if (parent == null) throw new IOException("Ruta de configuración inválida.");
