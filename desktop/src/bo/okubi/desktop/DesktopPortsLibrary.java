@@ -29,8 +29,11 @@ public final class DesktopPortsLibrary {
             }
         }
         // Untrusted old preferences cannot introduce arbitrary project IDs.
-        links.stringPropertyNames().removeIf(key -> !key.startsWith(PREFIX)
-                || DesktopPortsCatalog.byId(key.substring(PREFIX.length())) == null);
+        for (String key : new java.util.HashSet<>(links.stringPropertyNames())) {
+            if (!key.startsWith(PREFIX)
+                    || DesktopPortsCatalog.byId(key.substring(PREFIX.length())) == null)
+                links.remove(key);
+        }
     }
 
     public static Path defaultFile() {
