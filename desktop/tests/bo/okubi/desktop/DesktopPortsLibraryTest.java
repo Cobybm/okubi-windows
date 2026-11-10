@@ -69,6 +69,19 @@ public final class DesktopPortsLibraryTest {
             // Windows may disallow symlinks without developer privileges.
         }
 
+        DesktopGitHubPortsSearch.Candidate discovered =
+                new DesktopGitHubPortsSearch.Candidate(
+                        "ExampleOrg", "PublicGame", "A discovered project",
+                        "C++", 12, java.net.URI.create(
+                                "https://github.com/ExampleOrg/PublicGame"));
+        library.link(discovered, exe);
+        yes(library.linked(discovered).equals(exe), "Discovered port shortcut saved");
+        DesktopPortsLibrary again = new DesktopPortsLibrary(settings);
+        yes(again.linked(discovered).equals(exe), "Discovered shortcut persists");
+        again.unlink(discovered);
+        yes(again.linked(discovered) == null, "Discovered shortcut can be removed");
+        yes(Files.isRegularFile(exe), "Unlink never uninstalls a linked game");
+
         Properties badProps = new Properties();
         badProps.setProperty("port.custom-malware", root.resolve("bad.exe").toString());
         badProps.setProperty("port.openttd", exe.toString());
