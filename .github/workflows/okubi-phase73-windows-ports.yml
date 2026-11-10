@@ -2,7 +2,7 @@ name: OKUBI Windows - Phase 73 Ports Catalog QA
 
 on:
   push:
-    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer]
+    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer, feat/okubi-phase75-smart-ports]
   pull_request:
     branches: [audit/okubi-phase72-source-signing-readiness, feat/okubi-phase73-windows-ports-catalog]
   workflow_dispatch:
@@ -40,12 +40,13 @@ jobs:
           $tests = @(
             'desktop/tests/bo/okubi/desktop/DesktopPortsCatalogTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopGitHubPortsSearchTest.java',
+            'desktop/tests/bo/okubi/desktop/DesktopInstalledPortsScannerTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopPortsLibraryTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopLibraryTest.java'
           )
           & javac -encoding UTF-8 -cp build/phase73/classes -d build/phase73/classes @tests
           if ($LASTEXITCODE -ne 0) { throw 'Tests failed to compile' }
-          foreach ($test in @('DesktopPortsCatalogTest','DesktopGitHubPortsSearchTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
+          foreach ($test in @('DesktopPortsCatalogTest','DesktopGitHubPortsSearchTest','DesktopInstalledPortsScannerTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
             & java -ea -cp build/phase73/classes "bo.okubi.desktop.$test"
             if ($LASTEXITCODE -ne 0) { throw "$test regression" }
           }
