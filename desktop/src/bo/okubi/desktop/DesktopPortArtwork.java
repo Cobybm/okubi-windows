@@ -16,31 +16,118 @@ public final class DesktopPortArtwork extends JPanel {
     private static final Color BG = new Color(19, 14, 34);
     private BufferedImage image;
     private String state = "PORT PC";
+    private final DesktopPortArtworkService service;
+    private final DesktopPortArtworkService.Ref ref;
+    private final int imageCount;
+    private volatile int imageIndex;
+    private volatile long requestVersion;
+    private javax.swing.JLabel counter;
 
     public DesktopPortArtwork(DesktopPortArtworkService service,
                               DesktopPortArtworkService.Ref ref,
                               int width, int height) {
+        this.service = service;
+        this.ref = ref;
+        this.imageCount = DesktopOfficialPortArtwork.gallery(ref).size();
         setOpaque(false);
         setPreferredSize(new Dimension(width, height));
         setMinimumSize(new Dimension(Math.min(78, width), Math.min(94, height)));
-        // A long Swing tooltip covered DESCARGAS and VINCULAR .EXE in the
-        // user's 77A screenshot; metadata belongs in the normal card text.
+        // Small CINEMA library tiles show the primary cover only. Large PORTS
+        // cards get accessible, explicitly requested, lazy gallery controls.
+        if (service != null && imageCount > 1 && width >= 220) {
+            setLayout(new java.awt.BorderLayout());
+            javax.swing.JPanel controls = new javax.swing.JPanel(
+                    new java.awt.FlowLayout(java.awt.FlowLayout.CENTER, 7, 4));
+            controls.setOpaque(false);
+            javax.swing.JButton previous = arrow("◀", "Captura anterior", () -> moveGallery(-1));
+            javax.swing.JButton next = arrow("▶", "Captura siguiente", () -> moveGallery(1));
+            counter = new javax.swing.JLabel("1 / " + imageCount);
+            counter.setFont(new Font("Segoe UI", Font.BOLD, 11));
+            counter.setForeground(Color.WHITE);
+            counter.setOpaque(true);
+            counter.setBackground(new Color(28, 16, 45));
+            counter.setBorder(javax.swing.BorderFactory.createEmptyBorder(4, 7, 4, 7));
+            counter.getAccessibleContext().setAccessibleName(
+                    "Captura 1 de " + imageCount);
+            controls.add(previous);
+            controls.add(counter);
+            controls.add(next);
+            add(controls, java.awt.BorderLayout.SOUTH);
+        }
+        // No long tooltip that could hide DESCARGAS / VINCULAR .EXE.
         getAccessibleContext().setAccessibleName("Imagen de " + ref.fullName());
         getAccessibleContext().setAccessibleDescription(
-                "Vista previa del proyecto; podría mostrar una tarjeta GitHub");
-        if (service != null) service.load(ref, this::showImage);
+                imageCount > 1 ? "Galería de capturas verificadas por proyecto"
+                        : "Imagen verificada del proyecto o fondo CINEMA");
+        if (service != null) requestImage(0);
     }
 
+    private static javax.swing.JButton arrow(String symbol, String description,
+                                              Runnable action) {
+        javax.swing.JButton button = new javax.swing.JButton(symbol);
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI());
+        button.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        button.setBackground(new Color(28, 16, 45));
+        button.setForeground(Color.WHITE);
+        button.setOpaque(true);
+        button.setFocusPainted(true);
+        button.setPreferredSize(new Dimension(32, 26));
+        button.setBorder(javax.swing.BorderFactory.createLineBorder(
+                new Color(245, 58, 155), 1));
+        button.getAccessibleContext().setAccessibleName(description);
+        button.addActionListener(event -> action.run());
+        return button;
+    }
+
+    /** Navigate only on click; skip obsolete results from earlier async requests. */
+    void moveGallery(int delta) {
+        if (!javax.swing.SwingUtilities.isEventDispatchThread()) {
+            javax.swing.SwingUtilities.invokeLater(() -> moveGallery(delta));
+            return;
+        }
+        if (service == null || imageCount < 2) return;
+        requestImage(Math.floorMod(imageIndex + delta, imageCount));
+    }
+
+    private void requestImage(int index) {
+        imageIndex = index;
+        long ticket = ++requestVersion;
+        image = null;
+        state = "PORT PC";
+        if (counter != null) {
+            counter.setText((index + 1) + " / " + imageCount);
+            counter.getAccessibleContext().setAccessibleName(
+                    "Captura " + (index + 1) + " de " + imageCount);
+        }
+        repaint();
+        service.loadGallery(ref, index, result -> {
+            if (ticket != requestVersion || imageIndex != index) return;
+            image = result;
+            state = result == null ? "PORT PC" : "";
+            repaint();
+        });
+    }
+
+    /** Manual artwork changes always return to the personal/primary cover. */
     public void showImage(BufferedImage next) {
         if (!javax.swing.SwingUtilities.isEventDispatchThread()) {
             javax.swing.SwingUtilities.invokeLater(() -> showImage(next));
             return;
+        }
+        ++requestVersion;
+        imageIndex = 0;
+        if (counter != null) {
+            counter.setText("1 / " + imageCount);
+            counter.getAccessibleContext().setAccessibleName(
+                    "Captura 1 de " + imageCount);
         }
         image = next;
         state = next == null ? "PORT PC" : "";
         repaint();
     }
 
+    int gallerySize() { return imageCount; }
+    int selectedImageIndex() { return imageIndex; }
     public boolean hasImage() { return image != null; }
 
     @Override protected void paintComponent(Graphics source) {

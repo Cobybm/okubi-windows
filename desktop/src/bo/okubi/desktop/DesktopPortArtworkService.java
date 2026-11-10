@@ -141,6 +141,70 @@ public final class DesktopPortArtworkService implements AutoCloseable {
                 .resolve(key(ref) + ".png");
     }
 
+    /** Extra image has a URL-derived, per-game cache key, never shared with a different title. */
+    static String galleryKey(Ref ref, int index) {
+        java.util.List<URI> images = DesktopOfficialPortArtwork.gallery(ref);
+        if (index < 1 || index >= images.size())
+            throw new IllegalArgumentException("Unapproved gallery image index");
+        try {
+            byte[] data = (key(ref) + "|" + images.get(index)).getBytes(
+                    java.nio.charset.StandardCharsets.UTF_8);
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(data));
+        } catch (java.security.NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException(impossible);
+        }
+    }
+
+    Path galleryCachePath(Ref ref, int index) {
+        return root.resolve("official-gallery-v1").resolve(galleryKey(ref, index) + ".png");
+    }
+
+    /** Offline gallery lookup; index 0 retains user's manual image priority. */
+    public BufferedImage localGallery(Ref ref, int index) {
+        if (index == 0) return local(ref);
+        if (index < 1 || index >= DesktopOfficialPortArtwork.gallery(ref).size()) return null;
+        String hash = galleryKey(ref, index);
+        synchronized (memory) {
+            BufferedImage hit = memory.get(hash);
+            if (hit != null) return hit;
+        }
+        BufferedImage image = readFile(galleryCachePath(ref, index));
+        if (image != null) synchronized (memory) { memory.put(hash, image); }
+        return image;
+    }
+
+    /** One requested screenshot at a time; never prefetches or changes the main cover. */
+    public void loadGallery(Ref ref, int index, Consumer<BufferedImage> callback) {
+        if (index == 0) {
+            load(ref, callback);
+            return;
+        }
+        java.util.List<URI> urls = DesktopOfficialPortArtwork.gallery(ref);
+        if (index < 1 || index >= urls.size()) {
+            publish(callback, null);
+            return;
+        }
+        URI approved = urls.get(index);
+        String hash = galleryKey(ref, index);
+        submit(() -> {
+            BufferedImage image = localGallery(ref, index);
+            if (image == null && failedUntil.getOrDefault(hash, 0L)
+                    < System.currentTimeMillis()) {
+                try {
+                    image = fetchImage(approved);
+                    synchronized (memory) { memory.put(hash, image); }
+                    try { savePng(galleryCachePath(ref, index), image); }
+                    catch (IOException ignored) { /* cache optional */ }
+                } catch (IOException | InterruptedException failed) {
+                    if (failed instanceof InterruptedException)
+                        Thread.currentThread().interrupt();
+                    failedUntil.put(hash, System.currentTimeMillis() + MISS_TTL_MILLIS);
+                }
+            }
+            publish(callback, image);
+        });
+    }
+
     private static BufferedImage safeDecode(byte[] bytes) throws IOException {
         if (bytes == null || bytes.length == 0 || bytes.length > MAX_BYTES)
             throw new IOException("Image size exceeds limit");
