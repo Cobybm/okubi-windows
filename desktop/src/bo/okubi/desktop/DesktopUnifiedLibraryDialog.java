@@ -46,6 +46,8 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
 
     private final List<DesktopUnifiedLibrary.Item> all;
     private final OnlineCoverService covers;
+    private final DesktopPortArtworkService pcArtwork =
+            new DesktopPortArtworkService(DesktopPortArtworkService.defaultDirectory());
     private final Consumer<DesktopLibrary.Game> onPlayRetro;
     private final Runnable onOpenPorts;
     private final JTextField query = new JTextField();
@@ -78,6 +80,11 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
         setSize(1070, 750);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) {
+                pcArtwork.close();
+            }
+        });
         getContentPane().setBackground(BG);
         setLayout(new BorderLayout(0, 10));
 
@@ -245,22 +252,20 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
             cover.setPreferredSize(new Dimension(102, 147));
             card.add(cover, BorderLayout.WEST);
         } else {
-            JPanel pcArt = new JPanel(new BorderLayout()) {
-                @Override protected void paintComponent(Graphics original) {
-                    Graphics2D g = (Graphics2D) original.create();
-                    try {
-                        g.setPaint(new GradientPaint(0, 0, new Color(50, 28, 76),
-                                getWidth(), getHeight(), new Color(22, 58, 69)));
-                        g.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
-                    } finally { g.dispose(); }
-                }
-            };
-            pcArt.setOpaque(false);
-            pcArt.setPreferredSize(new Dimension(80, 143));
-            JLabel pc = label("PC", 25, accent, true);
-            pc.setHorizontalAlignment(JLabel.CENTER);
-            pcArt.add(pc, BorderLayout.CENTER);
-            card.add(pcArt, BorderLayout.WEST);
+            DesktopPortArtworkService.Ref ref =
+                    DesktopPortArtworkService.forLibraryId(item.id());
+            if (ref != null) {
+                DesktopPortArtwork art = new DesktopPortArtwork(pcArtwork, ref, 110, 147);
+                card.add(art, BorderLayout.WEST);
+            } else {
+                JPanel fallback = new JPanel(new BorderLayout());
+                fallback.setOpaque(false);
+                fallback.setPreferredSize(new Dimension(96, 147));
+                JLabel pc = label("PC", 25, accent, true);
+                pc.setHorizontalAlignment(JLabel.CENTER);
+                fallback.add(pc, BorderLayout.CENTER);
+                card.add(fallback, BorderLayout.WEST);
+            }
         }
         JPanel details = new JPanel();
         details.setOpaque(false);
