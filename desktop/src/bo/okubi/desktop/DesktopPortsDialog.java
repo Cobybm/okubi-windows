@@ -23,6 +23,8 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.SwingWorker;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
@@ -48,6 +50,23 @@ public final class DesktopPortsDialog extends JDialog {
     private final JLabel count = text("", 12, MUTED, false);
     private final JPanel tiles = new JPanel();
     private final JScrollPane scroll = new JScrollPane(tiles);
+    private final JTabbedPane sections = new JTabbedPane();
+    private final JPanel onlineTiles = new JPanel();
+    private final JScrollPane onlineScroll = new JScrollPane(onlineTiles);
+    private final JTextField onlineQuery = new JTextField();
+    private final JComboBox<DesktopGitHubPortsSearch.Scope> onlineScope =
+            new JComboBox<>(DesktopGitHubPortsSearch.Scope.values());
+    private final JLabel onlineStatus = text(
+            "Explora repositorios públicos. Son candidatos, no ports Windows verificados.",
+            12, MUTED, false);
+    private final java.util.ArrayList<DesktopGitHubPortsSearch.Candidate> onlineResults =
+            new java.util.ArrayList<>();
+    private JButton onlineSearchButton;
+    private JButton onlineMoreButton;
+    private int onlinePage;
+    private int onlineTotal;
+    private int searchGeneration;
+    private boolean onlineBusy;
 
     public DesktopPortsDialog(Window owner, DesktopPortsLibrary library) {
         super(owner, "OKUBI 遊 · PORTS PC / GITHUB", ModalityType.APPLICATION_MODAL);
@@ -99,7 +118,12 @@ public final class DesktopPortsDialog extends JDialog {
         scroll.setBackground(BACKGROUND);
         scroll.getViewport().setBackground(BACKGROUND);
         scroll.getVerticalScrollBar().setUnitIncrement(22);
-        add(scroll, BorderLayout.CENTER);
+        sections.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        sections.setBackground(CARD);
+        sections.setForeground(FOREGROUND);
+        sections.addTab("PORTS SELECCIONADOS", scroll);
+        sections.addTab("EXPLORAR TODO GITHUB", createOnlineExplorer());
+        add(sections, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new BorderLayout(10, 0));
         bottom.setBackground(BACKGROUND);
@@ -107,8 +131,8 @@ public final class DesktopPortsDialog extends JDialog {
         JLabel caution = text("Requisitos orientativos · Algunos ports necesitan tu juego original.",
                 11, MUTED, false);
         bottom.add(caution, BorderLayout.CENTER);
-        JButton discover = action("BUSCAR MÁS EN GITHUB",
-                () -> browse(URI.create("https://github.com/search?q=windows+source+port&type=repositories")));
+        JButton discover = action("EXPLORAR MÁS REPOSITORIOS",
+                () -> sections.setSelectedIndex(1));
         bottom.add(discover, BorderLayout.EAST);
         add(bottom, BorderLayout.SOUTH);
 
@@ -120,6 +144,254 @@ public final class DesktopPortsDialog extends JDialog {
         genre.addActionListener(e -> render());
         assetType.addActionListener(e -> render());
         render();
+    }
+
+    private JPanel createOnlineExplorer() {
+        JPanel root = new JPanel(new BorderLayout(10, 10));
+        root.setBackground(BACKGROUND);
+
+        JPanel top = new JPanel();
+        top.setBackground(BACKGROUND);
+        top.setBorder(BorderFactory.createEmptyBorder(12, 16, 6, 16));
+        top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
+        top.add(text("DESCUBRIMIENTO EN VIVO DE GITHUB", 16, PINK, true));
+        top.add(Box.createVerticalStrut(5));
+        top.add(text("Muchos resultados por categoría · Candidatos sin verificar · Sin descargas automáticas",
+                11, MUTED, false));
+        top.add(Box.createVerticalStrut(9));
+
+        JPanel inputs = new JPanel(new BorderLayout(8, 0));
+        inputs.setOpaque(false);
+        onlineQuery.setToolTipText("Búsqueda libre: nombre, motor o palabras clave (máximo 80 caracteres)");
+        onlineQuery.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        onlineQuery.setBackground(CARD);
+        onlineQuery.setForeground(FOREGROUND);
+        onlineQuery.setCaretColor(PINK);
+        onlineQuery.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(87, 59, 117)),
+                BorderFactory.createEmptyBorder(8, 9, 8, 9)));
+        onlineScope.setBackground(CARD);
+        onlineScope.setForeground(FOREGROUND);
+        onlineScope.setToolTipText("Categoría de consulta; cambia la búsqueda cuando el texto está vacío");
+        onlineScope.setPreferredSize(new Dimension(195, 38));
+        onlineQuery.setToolTipText("Vacío: busca la categoría elegida. O escribe cualquier proyecto.");
+        onlineQuery.addActionListener(e -> searchOnline(false));
+        onlineSearchButton = action("BUSCAR EN GITHUB", () -> searchOnline(false));
+        inputs.add(onlineScope, BorderLayout.WEST);
+        inputs.add(onlineQuery, BorderLayout.CENTER);
+        inputs.add(onlineSearchButton, BorderLayout.EAST);
+        top.add(inputs);
+        top.add(Box.createVerticalStrut(8));
+        top.add(onlineStatus);
+        root.add(top, BorderLayout.NORTH);
+
+        onlineTiles.setBackground(BACKGROUND);
+        onlineTiles.setBorder(BorderFactory.createEmptyBorder(5, 16, 10, 16));
+        onlineTiles.setLayout(new BoxLayout(onlineTiles, BoxLayout.Y_AXIS));
+        onlineScroll.setBorder(null);
+        onlineScroll.getViewport().setBackground(BACKGROUND);
+        onlineScroll.getVerticalScrollBar().setUnitIncrement(20);
+        root.add(onlineScroll, BorderLayout.CENTER);
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        footer.setBackground(BACKGROUND);
+        footer.add(text("Los resultados de GitHub NO garantizan compatibilidad con Windows.",
+                11, MUTED, false));
+        onlineMoreButton = action("CARGAR 40 MÁS", () -> searchOnline(true));
+        onlineMoreButton.setEnabled(false);
+        footer.add(onlineMoreButton);
+        root.add(footer, BorderLayout.SOUTH);
+        onlineTiles.add(text(
+                "Elige una categoría o escribe algo y pulsa BUSCAR EN GITHUB.",
+                13, MUTED, false));
+        return root;
+    }
+
+    private void searchOnline(boolean nextPage) {
+        if (onlineBusy) return;
+        int page = nextPage ? onlinePage + 1 : 1;
+        DesktopGitHubPortsSearch.Scope scope =
+                (DesktopGitHubPortsSearch.Scope) onlineScope.getSelectedItem();
+        String query = onlineQuery.getText();
+        try {
+            DesktopGitHubPortsSearch.endpoint(scope, query, page);
+        } catch (IllegalArgumentException error) {
+            warning("Búsqueda no válida: " + error.getMessage());
+            return;
+        }
+        onlineBusy = true;
+        final int generation = ++searchGeneration;
+        onlineSearchButton.setEnabled(false);
+        onlineMoreButton.setEnabled(false);
+        onlineStatus.setText("Consultando repositorios públicos en GitHub... página " + page);
+        new SwingWorker<DesktopGitHubPortsSearch.SearchPage, Void>() {
+            @Override protected DesktopGitHubPortsSearch.SearchPage doInBackground()
+                    throws Exception {
+                return DesktopGitHubPortsSearch.fetch(scope, query, page);
+            }
+
+            @Override protected void done() {
+                if (generation != searchGeneration) return;
+                onlineBusy = false;
+                onlineSearchButton.setEnabled(true);
+                try {
+                    DesktopGitHubPortsSearch.SearchPage response = get();
+                    if (!nextPage) onlineResults.clear();
+                    java.util.HashSet<String> known = new java.util.HashSet<>();
+                    for (DesktopGitHubPortsSearch.Candidate c : onlineResults)
+                        known.add(c.fullName().toLowerCase(java.util.Locale.ROOT));
+                    for (DesktopGitHubPortsSearch.Candidate c : response.candidates()) {
+                        if (known.add(c.fullName().toLowerCase(java.util.Locale.ROOT)))
+                            onlineResults.add(c);
+                    }
+                    onlinePage = response.page();
+                    onlineTotal = response.total();
+                    onlineMoreButton.setEnabled(response.hasNext());
+                    onlineStatus.setText(onlineResults.size() + " proyectos mostrados · "
+                            + onlineTotal + " coincidencias estimadas en GitHub"
+                            + (response.incomplete() ? " · búsqueda parcial" : "")
+                            + " · no verificados");
+                    renderOnline();
+                    if (!nextPage) onlineScroll.getVerticalScrollBar().setValue(0);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    onlineStatus.setText("Búsqueda interrumpida. Puedes intentarlo otra vez.");
+                } catch (java.util.concurrent.ExecutionException failed) {
+                    Throwable cause = failed.getCause();
+                    onlineStatus.setText("No se pudo completar la consulta. Conservamos la lista anterior.");
+                    warning(cause == null ? "Fallo al consultar GitHub."
+                            : "Búsqueda GitHub: " + cause.getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private JPanel candidateCard(DesktopGitHubPortsSearch.Candidate candidate) {
+        JPanel panel = new JPanel(new BorderLayout(7, 7));
+        panel.setBackground(CARD);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(86, 52, 118)),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+        String full = candidate.fullName();
+        JLabel title = text(full, 14, FOREGROUND, true);
+        title.setToolTipText(full);
+        panel.add(title, BorderLayout.NORTH);
+
+        JPanel content = new JPanel();
+        content.setOpaque(false);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.add(text("★ " + candidate.stars() + "  ·  "
+                + (candidate.language().isBlank() ? "Lenguaje no indicado" : candidate.language()),
+                11, new Color(202, 174, 239), false));
+        content.add(Box.createVerticalStrut(5));
+        JTextArea summary = new JTextArea(candidate.description().isBlank()
+                ? "Repositorio sin descripción. Revisa su documentación y sistema operativo."
+                : candidate.description());
+        summary.setRows(3);
+        summary.setEditable(false);
+        summary.setFocusable(false);
+        summary.setLineWrap(true);
+        summary.setWrapStyleWord(true);
+        summary.setBackground(CARD);
+        summary.setForeground(MUTED);
+        summary.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        content.add(summary);
+        content.add(Box.createVerticalStrut(7));
+        content.add(text("POR REVISAR · No sabemos si incluye un port Windows ni datos libres",
+                10, new Color(255, 190, 132), true));
+        Path linked = library.linked(candidate);
+        if (linked != null) {
+            content.add(Box.createVerticalStrut(5));
+            JLabel label = text("VINCULADO · " + linked.getFileName(),
+                    11, new Color(130, 220, 175), true);
+            label.setToolTipText(linked.toString());
+            content.add(label);
+        }
+        panel.add(content, BorderLayout.CENTER);
+
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 0));
+        actions.setOpaque(false);
+        actions.add(action("REVISAR GITHUB", () -> browse(candidate.github())));
+        actions.add(action("RELEASES", () -> browse(candidate.releases())));
+        actions.add(action("VINCULAR .EXE", () -> linkCandidate(candidate)));
+        if (linked != null) {
+            actions.add(action("▶ JUGAR", () -> launchCandidate(candidate)));
+            actions.add(action("QUITAR", () -> unlinkCandidate(candidate)));
+        }
+        panel.add(actions, BorderLayout.SOUTH);
+        return panel;
+    }
+
+    private void renderOnline() {
+        onlineTiles.removeAll();
+        if (onlineResults.isEmpty())
+            onlineTiles.add(text("GitHub no encontró resultados para esta consulta.", 13, MUTED, false));
+        else {
+            for (int i = 0; i < onlineResults.size(); i += 2) {
+                JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
+                row.setOpaque(false);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 225));
+                row.setPreferredSize(new Dimension(0, 225));
+                row.setAlignmentX(LEFT_ALIGNMENT);
+                row.add(candidateCard(onlineResults.get(i)));
+                if (i + 1 < onlineResults.size()) row.add(candidateCard(onlineResults.get(i + 1)));
+                else {
+                    JPanel empty = new JPanel();
+                    empty.setOpaque(false);
+                    row.add(empty);
+                }
+                onlineTiles.add(row);
+                onlineTiles.add(Box.createVerticalStrut(12));
+            }
+        }
+        onlineTiles.revalidate();
+        onlineTiles.repaint();
+    }
+
+    private void linkCandidate(DesktopGitHubPortsSearch.Candidate candidate) {
+        int response = JOptionPane.showConfirmDialog(this,
+                "Este repositorio apareció en GitHub, pero OKUBI no confirmó\n"
+                + "que sea un port funcional para Windows, ni que su código sea seguro.\n\n"
+                + candidate.github()
+                + "\n\nRevisa licencia, archivos, procedencia y requisitos.\n"
+                + "SOLO vincula un .exe que hayas instalado y comprobado tú.",
+                "OKUBI · Proyecto aún no verificado",
+                JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        if (response != JOptionPane.YES_OPTION) return;
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Elegir .exe Windows para " + candidate.fullName());
+        chooser.setFileFilter(new FileNameExtensionFilter("Windows .exe", "exe"));
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        try {
+            library.link(candidate, chooser.getSelectedFile().toPath());
+            renderOnline();
+        } catch (IOException error) {
+            warning("No se pudo vincular: " + error.getMessage());
+        }
+    }
+
+    private void launchCandidate(DesktopGitHubPortsSearch.Candidate candidate) {
+        Path exe = library.linked(candidate);
+        if (exe == null) { warning("El .exe no existe. Revisa el vínculo."); return; }
+        int answer = JOptionPane.showConfirmDialog(this,
+                "EJECUTAR PROGRAMA DE TERCEROS\n\nRepositorio: " + candidate.fullName()
+                + "\nArchivo: " + exe
+                + "\n\nGitHub no garantiza que sea seguro ni que funcione en Windows.\n"
+                + "OKUBI no lo instala, actualiza ni le da privilegios adicionales.",
+                "OKUBI · Confirmar ejecución", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (answer != JOptionPane.YES_OPTION) return;
+        try { library.launch(candidate); }
+        catch (IOException error) { warning("No se pudo iniciar el .exe: " + error.getMessage()); }
+    }
+
+    private void unlinkCandidate(DesktopGitHubPortsSearch.Candidate candidate) {
+        try {
+            library.unlink(candidate);
+            renderOnline();
+        } catch (IOException error) {
+            warning("No se pudo quitar el vínculo: " + error.getMessage());
+        }
     }
 
     private static JLabel text(String content, int size, Color color, boolean bold) {
