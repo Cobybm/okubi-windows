@@ -45,7 +45,9 @@ public final class DesktopUnifiedLibrary {
                     : (kind == Kind.PC_PORT ? "PORT PC revisado" : "GitHub vinculado");
         }
         public String searchText() {
-            return (title + " " + platform + " " + subtitle()).toLowerCase(Locale.ROOT);
+            return (title + " " + platform + " " + subtitle() + " "
+                    + (retro == null ? "port pc" : retro.console.name()))
+                    .toLowerCase(Locale.ROOT);
         }
     }
 
