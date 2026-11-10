@@ -81,7 +81,9 @@ public final class DesktopPortArtworkServiceTest {
                         DesktopPortsCatalog.byId("warzone2100")))
                         .getPath().contains("doc/images/"),
                 "Warzone2100 must use upstream gameplay imagery");
-        check(DesktopOfficialPortArtwork.source(ref) == null,
+        DesktopPortArtworkService.Ref unreviewed =
+                new DesktopPortArtworkService.Ref("UnknownOwner", "UnknownGame");
+        check(DesktopOfficialPortArtwork.source(unreviewed) == null,
                 "Unreviewed projects must not get unrelated artwork");
         check(!DesktopOfficialPortArtwork.permitted(
                 java.net.URI.create("https://example.com/art.png")),
@@ -168,8 +170,10 @@ public final class DesktopPortArtworkServiceTest {
                 // Windows CI can prohibit symlink creation without developer mode.
             }
 
-            check(!service.cachePath(ref).equals(service.cachePath(devilution)),
+            check(!service.cachePath(unreviewed).equals(service.cachePath(devilution)),
                     "Curated upstream screenshot must use a distinct cache namespace");
+            check(service.cachePath(unreviewed).toString().contains("cache"),
+                    "Unknown projects use only social-preview cache");
             check(service.cachePath(devilution).toString()
                     .contains("official-screenshots-v1"),
                     "Fresh curated screenshot must replace stale GitHub webpage thumbnail");
