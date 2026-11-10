@@ -40,9 +40,12 @@ jobs:
           $env:GIT_CONFIG_COUNT = "1"
           $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
           $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $encoded"
+          # Clone complete history of this branch: a queued run may reference an
+          # older reachable SHA if another commit arrived before checkout.
+          # A depth-1 clone would lack that tree and fail intermittently.
           $source = Join-Path $env:RUNNER_TEMP "okubi-desktop-source"
           try {
-            & git clone --quiet --depth 1 --no-checkout --single-branch --branch $env:OKUBI_REF "https://github.com/$env:GITHUB_REPOSITORY" $source
+            & git clone --quiet --no-checkout --single-branch --branch $env:OKUBI_REF "https://github.com/$env:GITHUB_REPOSITORY" $source
             if ($LASTEXITCODE -ne 0) { throw "Clone failed" }
             & git -C $source checkout --quiet --detach $env:OKUBI_COMMIT
             if ($LASTEXITCODE -ne 0) { throw "Checkout failed" }
