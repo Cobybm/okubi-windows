@@ -2,7 +2,7 @@ name: OKUBI Windows - Phase 73 Ports Catalog QA
 
 on:
   push:
-    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer, feat/okubi-phase75-smart-ports, fix/okubi-phase75b-ports-ui-contrast-layout, feat/okubi-phase76-cinema-unified-library, feat/okubi-phase77-ports-artwork-online, fix/okubi-phase77b-artwork-wide-gameplay, feat/okubi-phase77c-game-screenshots-curated, feat/okubi-phase77d-authentic-port-screenshots, feat/okubi-phase77e-cinema-port-gallery, feat/okubi-phase77f-cinema-fullscreen-viewer]
+    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer, feat/okubi-phase75-smart-ports, fix/okubi-phase75b-ports-ui-contrast-layout, feat/okubi-phase76-cinema-unified-library, feat/okubi-phase77-ports-artwork-online, fix/okubi-phase77b-artwork-wide-gameplay, feat/okubi-phase77c-game-screenshots-curated, feat/okubi-phase77d-authentic-port-screenshots, feat/okubi-phase77e-cinema-port-gallery, feat/okubi-phase77f-cinema-fullscreen-viewer, feat/okubi-phase77g-smart-cinema-library]
   pull_request:
     branches: [audit/okubi-phase72-source-signing-readiness, feat/okubi-phase73-windows-ports-catalog]
   workflow_dispatch:
@@ -46,12 +46,13 @@ jobs:
             'desktop/tests/bo/okubi/desktop/DesktopPortArtworkServiceTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopPortGalleryTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopPortGalleryViewerTest.java',
+            'desktop/tests/bo/okubi/desktop/DesktopCinemaArtworkPolicyTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopPortsLibraryTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopLibraryTest.java'
           )
           & javac -encoding UTF-8 -cp build/phase73/classes -d build/phase73/classes @tests
           if ($LASTEXITCODE -ne 0) { throw 'Tests failed to compile' }
-          foreach ($test in @('DesktopPortsCatalogTest','DesktopGitHubPortsSearchTest','DesktopInstalledPortsScannerTest','DesktopPortsThemeTest','DesktopUnifiedLibraryTest','DesktopPortArtworkServiceTest','DesktopPortGalleryTest','DesktopPortGalleryViewerTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
+          foreach ($test in @('DesktopPortsCatalogTest','DesktopGitHubPortsSearchTest','DesktopInstalledPortsScannerTest','DesktopPortsThemeTest','DesktopUnifiedLibraryTest','DesktopPortArtworkServiceTest','DesktopPortGalleryTest','DesktopPortGalleryViewerTest','DesktopCinemaArtworkPolicyTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
             & java -ea -cp build/phase73/classes "bo.okubi.desktop.$test"
             if ($LASTEXITCODE -ne 0) { throw "$test regression" }
           }

@@ -134,6 +134,19 @@ public final class DesktopPortArtworkService implements AutoCloseable {
     }
 
     Path manualPath(Ref ref) { return root.resolve("manual").resolve(key(ref) + ".png"); }
+
+    /** Fast metadata-only hint for CINEMA cards; never loads an image on Swing EDT. */
+    public boolean hasManualChoice(Ref ref) {
+        Path file = manualPath(ref);
+        try {
+            return !Files.isSymbolicLink(file)
+                    && Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)
+                    && Files.size(file) > 0 && Files.size(file) <= MAX_BYTES;
+        } catch (IOException | SecurityException unavailable) {
+            return false;
+        }
+    }
+
     Path cachePath(Ref ref) {
         // New, versioned official image namespace never trusts previously
         // downloaded GitHub social preview cards as gameplay imagery.

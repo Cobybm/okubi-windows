@@ -255,7 +255,14 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
             DesktopPortArtworkService.Ref ref =
                     DesktopPortArtworkService.forLibraryId(item.id());
             if (ref != null) {
-                DesktopPortArtwork art = new DesktopPortArtwork(pcArtwork, ref, 110, 147);
+                // Wide gameplay captures must be letterboxed on compact cards,
+                // never cropped into indistinguishable fragments.
+                DesktopPortArtwork art = new DesktopPortArtwork(
+                        pcArtwork, ref, 110, 147, 0, true);
+                if (DesktopCinemaArtworkPolicy.source(pcArtwork, ref)
+                        != DesktopCinemaArtworkPolicy.Source.UNVERIFIED) {
+                    art.enableViewer(() -> openPortGallery(item, ref));
+                }
                 card.add(art, BorderLayout.WEST);
             } else {
                 JPanel fallback = new JPanel(new BorderLayout());
@@ -281,7 +288,20 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
                         : item.available() ? "● DISPONIBLE" : "● ARCHIVO NO DISPONIBLE",
                 10, item.available() ? TEAL : new Color(255, 191, 131), true));
         if (item.isPort()) {
-            details.add(Box.createVerticalStrut(6));
+            details.add(Box.createVerticalStrut(5));
+            DesktopPortArtworkService.Ref artworkRef =
+                    DesktopPortArtworkService.forLibraryId(item.id());
+            DesktopCinemaArtworkPolicy.Source imageSource =
+                    DesktopCinemaArtworkPolicy.source(pcArtwork, artworkRef);
+            details.add(label(DesktopCinemaArtworkPolicy.label(imageSource), 10,
+                    imageSource == DesktopCinemaArtworkPolicy.Source.UNVERIFIED
+                            ? MUTED : TEAL, true));
+            String hint = DesktopCinemaArtworkPolicy.galleryHint(artworkRef);
+            if (!hint.isBlank()) {
+                details.add(Box.createVerticalStrut(3));
+                details.add(label(hint + " · ABRIR EN GRANDE", 10, MUTED, false));
+            }
+            details.add(Box.createVerticalStrut(5));
             details.add(description("Ejecutable externo · horas no medidas", 10, MUTED, 2));
         }
         card.add(details, BorderLayout.CENTER);
@@ -291,8 +311,27 @@ public final class DesktopUnifiedLibraryDialog extends JDialog {
                 () -> play(item));
         play.setEnabled(item.available());
         actions.add(play);
+        if (item.isPort()) {
+            DesktopPortArtworkService.Ref imageRef =
+                    DesktopPortArtworkService.forLibraryId(item.id());
+            if (imageRef != null
+                    && DesktopCinemaArtworkPolicy.source(pcArtwork, imageRef)
+                    != DesktopCinemaArtworkPolicy.Source.UNVERIFIED) {
+                actions.add(DesktopPortsTheme.button("▣ GALERÍA",
+                        () -> openPortGallery(item, imageRef)));
+            }
+        }
         card.add(actions, BorderLayout.SOUTH);
         return card;
+    }
+
+    /** Open the same official/gallery/manual media used in the Windows ports catalog. */
+    private void openPortGallery(DesktopUnifiedLibrary.Item item,
+                                 DesktopPortArtworkService.Ref ref) {
+        if (ref == null || !item.isPort()) return;
+        DesktopPortGalleryDialog gallery = new DesktopPortGalleryDialog(
+                this, item.title(), pcArtwork, ref, 0);
+        gallery.setVisible(true);
     }
 
     private void play(DesktopUnifiedLibrary.Item item) {

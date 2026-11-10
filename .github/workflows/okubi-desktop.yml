@@ -108,6 +108,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "CINEMA gallery and manual artwork regression failed" }
           & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopPortGalleryViewerTest
           if ($LASTEXITCODE -ne 0) { throw "CINEMA full-size viewer, mouse and XInput mapping regression failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopCinemaArtworkPolicyTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA unified source priority, fallback or thumbnail regression failed" }
           & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopAppearanceTest
           if ($LASTEXITCODE -ne 0) { throw "Desktop Windows contrast tests failed" }
           $mock = (Resolve-Path build/desktop/native/mock_libretro_core.dll).Path
