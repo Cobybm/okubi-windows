@@ -42,6 +42,50 @@ public final class DesktopOfficialPortArtwork {
                     "https://raw.githubusercontent.com/supertuxkart/stk-website/548be5907f993074fa503232e518a1bd9e1d6b68/assets/gallery/SuperTuxKart_1.5_1.jpg"))
     );
 
+    // Optional extra screenshots from each game's OWN official GitHub website
+    // or documentation repository. Each URL is pinned to an audited commit.
+    // Primary images remain exactly as in Phase 77D, preserving its cache.
+    private static final Map<String, java.util.List<URI>> EXTRAS = Map.ofEntries(
+            Map.entry("arx/arxlibertatis", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/arx/arx-libertatis.org/c3ea1a3dccd90c15042f3432aaca8bc19849ca21/htdocs/images/spellcasting-2x.jpg"))),
+            Map.entry("openttd/openttd", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/OpenTTD/website/37ddb47c5d3b861195aff7a6b997837fdc433b2f/_screenshots/1.9-coldice_2.png"),
+                    URI.create("https://raw.githubusercontent.com/OpenTTD/website/37ddb47c5d3b861195aff7a6b997837fdc433b2f/_screenshots/1.9-coldice_3.png"))),
+            Map.entry("warzone2100/warzone2100", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/Warzone2100/warzone2100/253e370c2af78228a822df6afa82b6261dc94656/doc/images/artillery-far-away.jpg"),
+                    URI.create("https://raw.githubusercontent.com/Warzone2100/warzone2100/253e370c2af78228a822df6afa82b6261dc94656/doc/images/building.jpg"))),
+            Map.entry("openra/openra", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/OpenRA/OpenRAWebsiteV3/adb7b675f4a045b5986c6496d42bb8dcce860aba/images/appdata/ingame-cnc.png"),
+                    URI.create("https://raw.githubusercontent.com/OpenRA/OpenRAWebsiteV3/adb7b675f4a045b5986c6496d42bb8dcce860aba/images/appdata/ingame-d2k.png"))),
+            Map.entry("openloco/openloco", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/OpenLoco/OpenLoco.io/661dacf3180a81795aa215f7611c5045881e2985/assets/img/gallery-screenshot-1.png"),
+                    URI.create("https://raw.githubusercontent.com/OpenLoco/OpenLoco.io/661dacf3180a81795aa215f7611c5045881e2985/assets/img/gallery-screenshot-2.png"))),
+            Map.entry("corsixth/corsixth", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/CorsixTH/corsixth.github.io/3cf60d196e64dc8d3773e97de2997945e85ccbd1/assets/media/screenshots/2-medium.jpg"))),
+            Map.entry("endless-sky/endless-sky", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/endless-sky/endless-sky.github.io/26142313e628bc98e68e0f600d0527fded30d604/images/screenshots/trading.jpg"),
+                    URI.create("https://raw.githubusercontent.com/endless-sky/endless-sky.github.io/26142313e628bc98e68e0f600d0527fded30d604/images/screenshots/shipyard.jpg"))),
+            Map.entry("supertuxkart/stk-code", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/supertuxkart/stk-website/548be5907f993074fa503232e518a1bd9e1d6b68/assets/gallery/SuperTuxKart_1.5_2.jpg"),
+                    URI.create("https://raw.githubusercontent.com/supertuxkart/stk-website/548be5907f993074fa503232e518a1bd9e1d6b68/assets/gallery/SuperTuxKart_1.5_3.jpg")))
+    );
+
+    /** Index 0 is the established cover; following images load only on demand. */
+    public static java.util.List<URI> gallery(DesktopPortArtworkService.Ref ref) {
+        URI first = source(ref);
+        if (first == null) return java.util.List.of();
+        java.util.List<URI> more = EXTRAS.getOrDefault(
+                ref.fullName().toLowerCase(Locale.ROOT), java.util.List.of());
+        java.util.ArrayList<URI> all = new java.util.ArrayList<>(1 + more.size());
+        all.add(first);
+        all.addAll(more);
+        return java.util.List.copyOf(all);
+    }
+
+    public static int galleryImageCount() {
+        return SOURCES.size() + EXTRAS.values().stream().mapToInt(java.util.List::size).sum();
+    }
+
     private DesktopOfficialPortArtwork() {}
 
     public static URI source(DesktopPortArtworkService.Ref ref) {
@@ -58,6 +102,7 @@ public final class DesktopOfficialPortArtwork {
                 && url.getPort() == -1
                 && url.getRawQuery() == null
                 && url.getRawFragment() == null
-                && SOURCES.containsValue(url);
+                && (SOURCES.containsValue(url)
+                    || EXTRAS.values().stream().anyMatch(images -> images.contains(url)));
     }
 }
