@@ -14,6 +14,10 @@ import java.util.Map;
  */
 public final class DesktopOfficialPortArtwork {
     private static final Map<String, URI> SOURCES = Map.ofEntries(
+            Map.entry("theforceengine/theforceengine", URI.create(
+                    "https://raw.githubusercontent.com/TheForceEngine/TheForceEngine.github.io/ce05c844fe9c782bd969985b514ec21c17f3826f/screenshots/DarkForces1.jpg")),
+            Map.entry("scummvm/scummvm", URI.create(
+                    "https://raw.githubusercontent.com/scummvm/scummvm/b3982d0d4ca3dbfce2e5dbc42a0c93ad0ca27f2b/doc/docportal/images/Launcher/launcher_grid.png")),
             Map.entry("vcmi/vcmi", URI.create(
                     "https://raw.githubusercontent.com/vcmi/VCMI.eu/626f5b12a30590d04cfce7e2b610c69d2a4889fc/static/img/screenshots/1.4.0/Siege.jpg")),
             Map.entry("zdoom/gzdoom", URI.create(
@@ -50,6 +54,12 @@ public final class DesktopOfficialPortArtwork {
     // or documentation repository. Each URL is pinned to an audited commit.
     // Primary images remain exactly as in Phase 77D, preserving its cache.
     private static final Map<String, java.util.List<URI>> EXTRAS = Map.ofEntries(
+            Map.entry("theforceengine/theforceengine", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/TheForceEngine/TheForceEngine.github.io/ce05c844fe9c782bd969985b514ec21c17f3826f/screenshots/DarkForces2.jpg"),
+                    URI.create("https://raw.githubusercontent.com/TheForceEngine/TheForceEngine.github.io/ce05c844fe9c782bd969985b514ec21c17f3826f/screenshots/DarkForces3.jpg"))),
+            Map.entry("scummvm/scummvm", java.util.List.of(
+                    URI.create("https://raw.githubusercontent.com/scummvm/scummvm/b3982d0d4ca3dbfce2e5dbc42a0c93ad0ca27f2b/doc/docportal/images/Launcher/launcher_list.png"),
+                    URI.create("https://raw.githubusercontent.com/scummvm/scummvm/b3982d0d4ca3dbfce2e5dbc42a0c93ad0ca27f2b/doc/docportal/images/Launcher/launcher_group.png"))),
             Map.entry("vcmi/vcmi", java.util.List.of(
                     URI.create("https://raw.githubusercontent.com/vcmi/VCMI.eu/626f5b12a30590d04cfce7e2b610c69d2a4889fc/static/img/screenshots/1.4.0/Town%20and%20Unit.jpg"),
                     URI.create("https://raw.githubusercontent.com/vcmi/VCMI.eu/626f5b12a30590d04cfce7e2b610c69d2a4889fc/static/img/screenshots/1.3.0/Castle%20Siege.jpg"))),
