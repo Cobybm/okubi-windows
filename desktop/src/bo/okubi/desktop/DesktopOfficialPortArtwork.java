@@ -16,6 +16,8 @@ public final class DesktopOfficialPortArtwork {
     private static final Map<String, URI> SOURCES = Map.ofEntries(
             Map.entry("theforceengine/theforceengine", URI.create(
                     "https://raw.githubusercontent.com/TheForceEngine/TheForceEngine.github.io/ce05c844fe9c782bd969985b514ec21c17f3826f/screenshots/DarkForces1.jpg")),
+            Map.entry("fwgs/xash3d-fwgs", URI.create(
+                    "https://raw.githubusercontent.com/FWGS/xash3d-fwgs/707596f4905689ec224e993fcaa4d4ad66aa67d6/Documentation/images/ios-touch-ingame.jpg")),
             Map.entry("scummvm/scummvm", URI.create(
                     "https://raw.githubusercontent.com/scummvm/scummvm/b3982d0d4ca3dbfce2e5dbc42a0c93ad0ca27f2b/doc/docportal/images/Launcher/launcher_grid.png")),
             Map.entry("vcmi/vcmi", URI.create(
