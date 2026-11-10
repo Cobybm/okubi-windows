@@ -2,6 +2,8 @@ package bo.okubi.desktop;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Graphics;
+import java.awt.Rectangle;
 import java.awt.Font;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListCellRenderer;
@@ -49,6 +51,13 @@ public final class DesktopPortsTheme {
 
     public static <T> void combo(JComboBox<T> combo) {
         combo.setUI(new BasicComboBoxUI() {
+            // BasicComboBoxUI otherwise paints the native listBox's light
+            // background over the closed selection (observed in Linux CI).
+            @Override public void paintCurrentValueBackground(
+                    Graphics g, Rectangle bounds, boolean hasFocus) {
+                g.setColor(PANEL);
+                g.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+            }
             @Override protected JButton createArrowButton() {
                 JButton arrow = new JButton("▾");
                 arrow.setUI(new BasicButtonUI());
