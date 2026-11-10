@@ -319,10 +319,11 @@ public final class OkubiDesktop {
         // No duplicates of Importar ROM, CLOUD SAVE, Estadísticas or Motores:
         // those functions remain in the six upper buttons.
         String[] utilityItems = {"▤   Importar carpeta", "Portadas en Internet",
-                "⇄   Cross Save local", "◈   SAVE VAULT",
+                "✦   PORTS PC · GITHUB", "⇄   Cross Save local", "◈   SAVE VAULT",
                 "◈   SMART PC · PS1/PS2/PS3"};
         Runnable[] utilityActions = {this::importFolder, this::refreshOnlineCovers,
-                this::showBackupNotice, this::showSaveVault, this::showSmartPerformance};
+                this::showPcPorts, this::showBackupNotice,
+                this::showSaveVault, this::showSmartPerformance};
         for (int i = 0; i < utilityItems.length; i++) {
             JButton link = button(utilityItems[i], false, utilityActions[i]);
             link.setMaximumSize(new Dimension(Integer.MAX_VALUE, 43));
@@ -2115,6 +2116,22 @@ public final class OkubiDesktop {
                             + selected.title());
                 });
         });
+    }
+
+    /** PC-only ports browser; never downloads, installs or copies Android APKs. */
+    private void showPcPorts() {
+        if (EmbeddedPlayerWindow.hasActiveSession()) {
+            JOptionPane.showMessageDialog(window,
+                    "Cierra primero tu sesión retro antes de abrir el catálogo de ports.",
+                    "OKUBI · PORTS PC", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        try {
+            new DesktopPortsDialog(window,
+                    new DesktopPortsLibrary(DesktopPortsLibrary.defaultFile())).setVisible(true);
+        } catch (IOException error) {
+            showError("PORTS PC: " + error.getMessage());
+        }
     }
 
     private void showMaintenance() {
