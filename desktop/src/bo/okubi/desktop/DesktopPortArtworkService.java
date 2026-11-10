@@ -135,10 +135,9 @@ public final class DesktopPortArtworkService implements AutoCloseable {
 
     Path manualPath(Ref ref) { return root.resolve("manual").resolve(key(ref) + ".png"); }
     Path cachePath(Ref ref) {
-        // Artwork-specific cache prevents stale GitHub webpage thumbnails from
-        // masking a newly reviewed, actual upstream project screenshot.
-        return root.resolve(DesktopOfficialPortArtwork.source(ref) == null
-                ? "cache" : "official-screenshots-v1")
+        // New, versioned official image namespace never trusts previously
+        // downloaded GitHub social preview cards as gameplay imagery.
+        return root.resolve("official-screenshots-v2")
                 .resolve(key(ref) + ".png");
     }
 
@@ -245,24 +244,16 @@ public final class DesktopPortArtworkService implements AutoCloseable {
     }
 
     private BufferedImage fetchOnline(Ref ref) throws IOException, InterruptedException {
+        // Fail closed: a GitHub social card is not a screenshot of a game.
+        // Never substitute an unrelated or unreviewed image for another port.
         URI official = DesktopOfficialPortArtwork.source(ref);
-        if (official != null) {
-            try {
-                return fetchImage(official);
-            } catch (IOException blocked) {
-                // Missing upstream screenshot: fall back to GitHub social card,
-                // preserving the ability to provide a manually chosen picture.
-            }
-        }
-        return fetchImage(ref.preview());
+        if (official == null)
+            throw new IOException("No approved gameplay screenshot for this port");
+        return fetchImage(official);
     }
 
     private BufferedImage fetchImage(URI uri) throws IOException, InterruptedException {
-        boolean social = "https".equals(uri.getScheme())
-                && "opengraph.githubassets.com".equals(uri.getHost())
-                && uri.getUserInfo() == null && uri.getPort() == -1
-                && uri.getQuery() == null && uri.getFragment() == null;
-        if (!social && !DesktopOfficialPortArtwork.permitted(uri))
+        if (!DesktopOfficialPortArtwork.permitted(uri))
             throw new IOException("Artwork origin not approved");
         HttpRequest req = HttpRequest.newBuilder(uri).GET()
                 .timeout(Duration.ofSeconds(12))
