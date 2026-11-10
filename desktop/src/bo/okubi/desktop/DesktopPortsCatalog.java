@@ -141,7 +141,28 @@ public final class DesktopPortsCatalog {
           "supertuxkart", "stk-code", false, "Descarga la versión oficial Windows desde su web enlazada en GitHub."),
         p("daggerfallunity", "Daggerfall Unity", "RPG", Assets.MIXED, Load.VARIABLE,
           "Recreación del RPG Daggerfall; el juego original puede obtenerse gratis.",
-          "Interkarma", "daggerfall-unity", true, "Necesitas los archivos completos de Daggerfall por una vía autorizada.")
+          "Interkarma", "daggerfall-unity", true, "Necesitas los archivos completos de Daggerfall por una vía autorizada."),
+        p("openxcom", "OpenXcom", "Estrategia", Assets.ORIGINAL, Load.LIGHT,
+          "Motor libre para el clásico X-COM: UFO Defense.",
+          "OpenXcom", "OpenXcom", true, "Requiere archivos originales de X-COM."),
+        p("theforceengine", "The Force Engine", "FPS", Assets.ORIGINAL, Load.MEDIUM,
+          "Motor moderno para Star Wars: Dark Forces y mods compatibles.",
+          "TheForceEngine", "TheForceEngine", true, "Requiere datos legítimos de Dark Forces."),
+        p("openxray", "OpenXRay", "FPS", Assets.ORIGINAL, Load.VARIABLE,
+          "Motor mejorado de la serie STALKER, con mejoras de compatibilidad.",
+          "OpenXRay", "xray-16", true, "Necesitas los datos del título STALKER compatible."),
+        p("dosboxstaging", "DOSBox Staging", "Compatibilidad", Assets.MIXED, Load.LIGHT,
+          "Emulador de DOS moderno para ejecutar títulos y software compatibles.",
+          "dosbox-staging", "dosbox-staging", true, "Los juegos comerciales de DOS se obtienen por separado."),
+        p("ioquake3", "ioquake3", "FPS", Assets.ORIGINAL, Load.LIGHT,
+          "Motor comunitario moderno para Quake III Arena.",
+          "ioquake", "ioq3", true, "Necesita los archivos de Quake III Arena."),
+        p("openapoc", "OpenApoc", "Estrategia", Assets.ORIGINAL, Load.MEDIUM,
+          "Reimplementación abierta del motor de X-COM Apocalypse.",
+          "OpenApoc", "OpenApoc", true, "Requiere los datos originales de X-COM Apocalypse."),
+        p("shipwright", "Ship of Harkinian (Shipwright)", "Aventuras", Assets.ORIGINAL, Load.VARIABLE,
+          "Proyecto abierto de port de una aventura clásica de Nintendo 64.",
+          "HarbourMasters", "Shipwright", false, "Requiere extraer legalmente los datos de una copia propia compatible.")
     );
 
     private DesktopPortsCatalog() { }
