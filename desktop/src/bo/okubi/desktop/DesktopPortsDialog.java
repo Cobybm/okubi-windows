@@ -366,6 +366,8 @@ public final class DesktopPortsDialog extends JDialog {
                 DesktopPortArtworkService.forCandidate(candidate);
         DesktopPortArtwork preview = new DesktopPortArtwork(
                 artwork, previewRef, 420, 155);
+        preview.enableViewer(() -> openGallery(previewRef,
+                candidate.repository(), preview.selectedImageIndex()));
         JPanel illustrated = new JPanel(new BorderLayout(0, 9));
         illustrated.setOpaque(false);
         illustrated.add(preview, BorderLayout.NORTH);
@@ -412,22 +414,31 @@ public final class DesktopPortsDialog extends JDialog {
         onlineTiles.repaint();
     }
 
-    /** Preview refresh and manual override never alter ROMs, EXEs or saves. */
+    /** Visual-only gallery: no writes to linked EXE, ROMs or game saves. */
+    private void openGallery(DesktopPortArtworkService.Ref ref,
+                             String title, int index) {
+        DesktopPortGalleryDialog gallery = new DesktopPortGalleryDialog(
+                this, title, artwork, ref, index);
+        gallery.setVisible(true);
+    }
+
+    /** Manual image retains absolute priority over the verified official cover. */
     private void chooseArtwork(DesktopPortArtworkService.Ref ref,
                                DesktopPortArtwork panel) {
         String[] options = {
-                "Elegir imagen local", "Actualizar desde GitHub",
-                "Quitar imagen personalizada", "Cancelar"
+                "Ver galería completa", "Elegir imagen local",
+                "Actualizar imagen oficial", "Quitar imagen personalizada", "Cancelar"
         };
         int choice = JOptionPane.showOptionDialog(this,
                 "Imagen para " + ref.fullName() + "\n\n"
-                + "GitHub puede ofrecer un logo o una tarjeta del proyecto,\n"
-                + "no necesariamente una portada o captura del juego.\n"
-                + "Tu imagen personal tiene prioridad y solo se copia al caché local.",
-                "OKUBI · Artwork Online",
+                + "OKUBI solo muestra capturas oficiales revisadas o el fondo CINEMA.\n"
+                + "Tu imagen personal tiene prioridad y no altera el archivo original.",
+                "OKUBI · CINEMA Gallery",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
                 null, options, options[0]);
         if (choice == 0) {
+            openGallery(ref, ref.fullName(), panel.selectedImageIndex());
+        } else if (choice == 1) {
             JFileChooser chooser = new JFileChooser();
             chooser.setDialogTitle("Seleccionar imagen para " + ref.fullName());
             chooser.setFileFilter(new FileNameExtensionFilter(
@@ -437,9 +448,9 @@ public final class DesktopPortsDialog extends JDialog {
             if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION)
                 artwork.chooseManualAsync(ref, chooser.getSelectedFile().toPath(),
                         panel::showImage, this::warning);
-        } else if (choice == 1) {
-            artwork.refresh(ref, panel::showImage);
         } else if (choice == 2) {
+            artwork.refresh(ref, panel::showImage);
+        } else if (choice == 3) {
             try {
                 artwork.clearManual(ref);
                 artwork.refresh(ref, panel::showImage);
@@ -681,6 +692,8 @@ public final class DesktopPortsDialog extends JDialog {
                 DesktopPortArtworkService.forPort(port);
         DesktopPortArtwork preview = new DesktopPortArtwork(
                 artwork, previewRef, 420, 155);
+        preview.enableViewer(() -> openGallery(previewRef,
+                port.title(), preview.selectedImageIndex()));
         JPanel illustrated = new JPanel(new BorderLayout(0, 9));
         illustrated.setOpaque(false);
         illustrated.add(preview, BorderLayout.NORTH);
