@@ -1,6 +1,7 @@
 package bo.okubi.desktop;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Desktop;
 import java.awt.Dimension;
@@ -23,7 +24,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
 import javax.swing.SwingWorker;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -50,7 +50,9 @@ public final class DesktopPortsDialog extends JDialog {
     private final JLabel count = text("", 12, MUTED, false);
     private final JPanel tiles = new JPanel();
     private final JScrollPane scroll = new JScrollPane(tiles);
-    private final JTabbedPane sections = new JTabbedPane();
+    private final JPanel sectionCards = new JPanel(new CardLayout());
+    private JButton curatedTab;
+    private JButton exploreTab;
     private final JPanel onlineTiles = new JPanel();
     private final JScrollPane onlineScroll = new JScrollPane(onlineTiles);
     private final JTextField onlineQuery = new JTextField();
@@ -77,8 +79,8 @@ public final class DesktopPortsDialog extends JDialog {
     public DesktopPortsDialog(Window owner, DesktopPortsLibrary library) {
         super(owner, "OKUBI 遊 · PORTS PC / GITHUB", ModalityType.APPLICATION_MODAL);
         this.library = library;
-        setMinimumSize(new Dimension(740, 530));
-        setSize(990, 690);
+        setMinimumSize(new Dimension(720, 500));
+        setSize(1020, 720);
         setLocationRelativeTo(owner);
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         getContentPane().setBackground(BACKGROUND);
@@ -87,12 +89,12 @@ public final class DesktopPortsDialog extends JDialog {
         JPanel top = new JPanel();
         top.setOpaque(false);
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-        top.setBorder(BorderFactory.createEmptyBorder(18, 20, 3, 20));
-        top.add(text("✦  PORTS PC  /  GITHUB", 23, PINK, true));
+        top.setBorder(BorderFactory.createEmptyBorder(10, 16, 5, 16));
+        top.add(text("✦  PORTS PC  /  GITHUB", 21, PINK, true));
         top.add(Box.createVerticalStrut(5));
         top.add(text("Motores y juegos libres de fuentes oficiales · No instalamos nada sin tu permiso",
                 12, MUTED, false));
-        top.add(Box.createVerticalStrut(13));
+        top.add(Box.createVerticalStrut(10));
 
         JPanel filters = new JPanel(new GridLayout(1, 3, 9, 0));
         filters.setOpaque(false);
@@ -113,7 +115,7 @@ public final class DesktopPortsDialog extends JDialog {
         filters.add(genre);
         filters.add(assetType);
         top.add(filters);
-        top.add(Box.createVerticalStrut(10));
+        top.add(Box.createVerticalStrut(7));
         top.add(count);
         add(top, BorderLayout.NORTH);
 
@@ -124,12 +126,24 @@ public final class DesktopPortsDialog extends JDialog {
         scroll.setBackground(BACKGROUND);
         scroll.getViewport().setBackground(BACKGROUND);
         scroll.getVerticalScrollBar().setUnitIncrement(22);
-        sections.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        sections.setBackground(CARD);
-        sections.setForeground(FOREGROUND);
-        sections.addTab("PORTS SELECCIONADOS", scroll);
-        sections.addTab("EXPLORAR TODO GITHUB", createOnlineExplorer());
-        add(sections, BorderLayout.CENTER);
+        // Native Windows tabs were painting on top of cards in themed Swing.
+        // Use an explicit card switcher to keep the viewport fully separate.
+        sectionCards.setBackground(BACKGROUND);
+        sectionCards.add(scroll, "CURATED");
+        sectionCards.add(createOnlineExplorer(), "GITHUB");
+        JPanel tabBar = new JPanel(new GridLayout(1, 2, 10, 0));
+        tabBar.setOpaque(false);
+        curatedTab = action("PORTS SELECCIONADOS", () -> showSection(false));
+        exploreTab = action("EXPLORAR TODO GITHUB", () -> showSection(true));
+        tabBar.add(curatedTab);
+        tabBar.add(exploreTab);
+        JPanel center = new JPanel(new BorderLayout(0, 8));
+        center.setBackground(BACKGROUND);
+        center.setBorder(BorderFactory.createEmptyBorder(3, 14, 3, 14));
+        center.add(tabBar, BorderLayout.NORTH);
+        center.add(sectionCards, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
+        showSection(false);
 
         JPanel bottom = new JPanel(new BorderLayout(10, 0));
         bottom.setBackground(BACKGROUND);
@@ -141,7 +155,7 @@ public final class DesktopPortsDialog extends JDialog {
         bottomActions.setOpaque(false);
         bottomActions.add(action("DETECTAR INSTALADOS", this::findInstalledPorts));
         bottomActions.add(action("EXPLORAR MÁS REPOSITORIOS",
-                () -> sections.setSelectedIndex(1)));
+                () -> showSection(true)));
         bottom.add(bottomActions, BorderLayout.EAST);
         add(bottom, BorderLayout.SOUTH);
 
@@ -179,8 +193,7 @@ public final class DesktopPortsDialog extends JDialog {
         onlineQuery.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(new Color(87, 59, 117)),
                 BorderFactory.createEmptyBorder(8, 9, 8, 9)));
-        onlineScope.setBackground(CARD);
-        onlineScope.setForeground(FOREGROUND);
+        DesktopPortsTheme.combo(onlineScope);
         onlineScope.setToolTipText("Categoría de consulta; cambia la búsqueda cuando el texto está vacío");
         onlineScope.setPreferredSize(new Dimension(195, 38));
         onlineQuery.setToolTipText("Vacío: busca la categoría elegida. O escribe cualquier proyecto.");
@@ -365,8 +378,8 @@ public final class DesktopPortsDialog extends JDialog {
             for (int i = 0; i < onlineResults.size(); i += 2) {
                 JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
                 row.setOpaque(false);
-                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 225));
-                row.setPreferredSize(new Dimension(0, 225));
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 285));
+                row.setPreferredSize(new Dimension(0, 285));
                 row.setAlignmentX(LEFT_ALIGNMENT);
                 row.add(candidateCard(onlineResults.get(i)));
                 if (i + 1 < onlineResults.size()) row.add(candidateCard(onlineResults.get(i + 1)));
@@ -538,23 +551,24 @@ public final class DesktopPortsDialog extends JDialog {
     }
 
     private static void styleSelect(JComboBox<String> combo) {
-        combo.setBackground(CARD);
-        combo.setForeground(FOREGROUND);
-        combo.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        combo.setFocusable(true);
+        DesktopPortsTheme.combo(combo);
     }
 
     private static JButton action(String title, Runnable callback) {
-        JButton button = new JButton(title);
-        button.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        button.setBackground(new Color(54, 35, 71));
-        button.setForeground(FOREGROUND);
-        button.setFocusPainted(false);
-        button.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(98, 59, 135)),
-                BorderFactory.createEmptyBorder(9, 9, 9, 9)));
-        button.addActionListener(e -> callback.run());
-        return button;
+        return DesktopPortsTheme.button(title, callback);
+    }
+
+    private void showSection(boolean exploreGitHub) {
+        ((CardLayout) sectionCards.getLayout()).show(
+                sectionCards, exploreGitHub ? "GITHUB" : "CURATED");
+        curatedTab.setBackground(exploreGitHub
+                ? DesktopPortsTheme.BUTTON : DesktopPortsTheme.BUTTON_ACTIVE);
+        exploreTab.setBackground(exploreGitHub
+                ? DesktopPortsTheme.BUTTON_ACTIVE : DesktopPortsTheme.BUTTON);
+        curatedTab.getAccessibleContext().setAccessibleDescription(
+                exploreGitHub ? "Mostrar los ports revisados" : "Pestaña actual");
+        exploreTab.getAccessibleContext().setAccessibleDescription(
+                exploreGitHub ? "Pestaña actual" : "Explorar repositorios GitHub");
     }
 
     private JPanel card(DesktopPortsCatalog.Port port) {
@@ -648,8 +662,8 @@ public final class DesktopPortsDialog extends JDialog {
             for (int i = 0; i < visible.size(); i += 2) {
                 JPanel row = new JPanel(new GridLayout(1, 2, 12, 0));
                 row.setBackground(BACKGROUND);
-                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 255));
-                row.setPreferredSize(new Dimension(0, 255));
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 325));
+                row.setPreferredSize(new Dimension(0, 325));
                 row.setAlignmentX(LEFT_ALIGNMENT);
                 row.add(card(visible.get(i)));
                 if (i + 1 < visible.size()) row.add(card(visible.get(i + 1)));
