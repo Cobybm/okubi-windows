@@ -43,3 +43,16 @@
 **QA automática existente:** Windows [run #42863459667](https://github.com/Cobybm/okubi-windows/actions/runs/42863459667) ejecuta `DesktopCrossSaveTest`; Android [run #42867125796](https://github.com/Cobybm/okubi-windows/actions/runs/42867125796) ejecuta `OkubiPortableSaveContractTest`. Ambas suites completaron SUCCESS, pero aún falta esta prueba real bidireccional.
 
 **No publiques ROMs, archivos de guardados ni capturas que revelen rutas privadas en issues públicos.** Para reportar un fallo basta la consola, acción, texto de error y si el progreso sintético quedó intacto.
+
+## Auditoría automática de Fase 71 (10 de noviembre de 2026)
+
+- ✅ Ejecución independiente en **Windows** y **Ubuntu**: [GitHub Actions #42875325617](https://github.com/Cobybm/okubi-windows/actions/runs/42875325617) — ambas matrices `SUCCESS`.
+- ✅ Compilación de `desktop/src/` junto con el serializador **original y compartido** `OkubiSaveArchive.java` de Android.
+- ✅ `OkubiSaveArchiveTest`: integridad de secciones y archivo.
+- ✅ `OkubiPortableSaveContractTest`: SRAM/RTC Android ↔ Windows; no transferir estados rápidos; rechazar ROM o sistema diferente.
+- ✅ `DesktopCrossSaveTest`: importación/exportación Windows, vista previa, copia de recuperación, rechazo por tamaños distintos y archivos alterados, sin sobreescribir un respaldo.
+- ✅ Comprobación adicional de que Git no rastrea ROM, guardados o claves privadas de prueba.
+
+**Límites:** este CI no ejecuta la interfaz en un teléfono y no ha movido una partida real entre dispositivos. La comprobación **Android QA57 ↔ Windows QA57** sobre el mismo archivo homebrew/de prueba sigue pendiente. Los datos personales no deben cargarse a GitHub.
+
+**Próximas puertas para versión estable:** comprobar la transferencia física bidireccional, realizar la revisión de código fuente correspondiente y obligaciones MIT/MPL/GPL de los núcleos distribuidos, verificar la firma permanente del propietario para actualizar la APK canónica, y obtener autorización para integrar los PR por orden. No cambiar `main`, la instalación anterior ni el repositorio privado original mientras quede alguna de esas puertas.
