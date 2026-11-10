@@ -1,3 +1,5 @@
+# Migrated Android QA: legacy workflow retained as DISABLED test fixture.
+# The canonical APK and owner signing are deliberately untouched.
 name: OKUBI Android — Migrated QA (safe side-by-side)
 on:
   push:
