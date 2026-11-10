@@ -51,14 +51,19 @@ public final class DesktopPortArtworkServiceTest {
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("augustus"));
         DesktopPortArtworkService.Ref dhewm =
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("dhewm3"));
-        check(DesktopOfficialPortArtwork.curatedCount() == 8,
-                "Eight reviewed upstream official visual sources");
+        check(DesktopOfficialPortArtwork.curatedCount() == 13,
+                "Thirteen reviewed and project-matched visual sources");
         for (var pin : java.util.List.of(devilution, augustus, dhewm,
                 new DesktopPortArtworkService.Ref("arx", "ArxLibertatis"),
                 new DesktopPortArtworkService.Ref("OpenTTD", "OpenTTD"),
                 new DesktopPortArtworkService.Ref("Warzone2100", "warzone2100"),
                 new DesktopPortArtworkService.Ref("luanti-org", "luanti"),
-                new DesktopPortArtworkService.Ref("OpenRA", "OpenRA"))) {
+                new DesktopPortArtworkService.Ref("OpenRA", "OpenRA"),
+                new DesktopPortArtworkService.Ref("OpenRCT2", "OpenRCT2"),
+                new DesktopPortArtworkService.Ref("OpenLoco", "OpenLoco"),
+                new DesktopPortArtworkService.Ref("CorsixTH", "CorsixTH"),
+                new DesktopPortArtworkService.Ref("endless-sky", "endless-sky"),
+                new DesktopPortArtworkService.Ref("supertuxkart", "stk-code"))) {
             var url = DesktopOfficialPortArtwork.source(pin);
             check(url != null && DesktopOfficialPortArtwork.permitted(url),
                     "Pinned upstream project source must be GitHub raw");
@@ -85,6 +90,25 @@ public final class DesktopPortArtworkServiceTest {
                 new DesktopPortArtworkService.Ref("UnknownOwner", "UnknownGame");
         check(DesktopOfficialPortArtwork.source(unreviewed) == null,
                 "Unreviewed projects must not get unrelated artwork");
+        for (DesktopPortsCatalog.Port port : DesktopPortsCatalog.all()) {
+            var portRef = DesktopPortArtworkService.forPort(port);
+            var expected = DesktopOfficialPortArtwork.source(portRef);
+            if (expected != null) {
+                check(DesktopOfficialPortArtwork.permitted(expected),
+                        "Official image must be an exact allowlisted source");
+                check(expected.getPath().matches(
+                        "/[^/]+/[^/]+/[0-9a-f]{40}/.+\\.(png|jpg)"),
+                        "Official source must be pinned to an immutable Git SHA");
+            }
+        }
+        check(DesktopOfficialPortArtwork.source(
+                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("openra")))
+                .getPath().endsWith("/images/appdata/ingame-ra.png"),
+                "OpenRA shows gameplay, not an installation graphic");
+        check(DesktopOfficialPortArtwork.source(
+                DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("openrct2")))
+                .getPath().endsWith("/assets/img/screenshot.png"),
+                "OpenRCT2 only shows its own actual screenshot");
         check(!DesktopOfficialPortArtwork.permitted(
                 java.net.URI.create("https://example.com/art.png")),
                 "Never accept arbitrary image domain");
@@ -172,11 +196,20 @@ public final class DesktopPortArtworkServiceTest {
 
             check(!service.cachePath(unreviewed).equals(service.cachePath(devilution)),
                     "Curated upstream screenshot must use a distinct cache namespace");
-            check(service.cachePath(unreviewed).toString().contains("cache"),
-                    "Unknown projects use only social-preview cache");
+            check(service.local(unreviewed) == null,
+                    "Unreviewed project has no cached gameplay and must use CINEMA fallback");
             check(service.cachePath(devilution).toString()
-                    .contains("official-screenshots-v1"),
+                    .contains("official-screenshots-v2"),
                     "Fresh curated screenshot must replace stale GitHub webpage thumbnail");
+            check(!DesktopOfficialPortArtwork.permitted(unreviewed.preview()),
+                    "Unreviewed GitHub social cards must never be downloaded");
+            for (DesktopPortsCatalog.Port port : DesktopPortsCatalog.all()) {
+                var approved = DesktopOfficialPortArtwork.source(
+                        DesktopPortArtworkService.forPort(port));
+                if (approved == null) check(!DesktopOfficialPortArtwork.permitted(
+                        DesktopPortArtworkService.forPort(port).preview()),
+                        "Unreviewed port never receives a generic GitHub page screenshot");
+            }
             DesktopPortArtwork panel = new DesktopPortArtwork(service, ref, 118, 150);
             check(panel.getToolTipText() == null,
                     "No long tooltip may cover Download/Link buttons");
