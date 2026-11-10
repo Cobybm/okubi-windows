@@ -1,0 +1,349 @@
+# Legacy Android CI reference: retained for historical tests only.
+# Disable this job on the public Cobybm repo; use okubi-android-migrated-qa.yml instead.
+# Never run owner-signing here: migration preserves original package identity.
+name: OKUBI Retro - Integracion Android
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'retro-module/**'
+      - 'catalogs/**'
+      - 'android-app/**'
+      - 'source/nexo-android-1.0.zip'
+      - '.github/workflows/okubi-retro.yml'
+      - 'tools/okubi_release_guard.py'
+      - 'tools/okubi_a05s_update_guard.py'
+      - 'tools/okubi_a05s_preflight.py'
+  pull_request:
+    paths:
+      - 'retro-module/**'
+      - 'catalogs/**'
+      - 'android-app/**'
+      - 'source/nexo-android-1.0.zip'
+      - '.github/workflows/okubi-retro.yml'
+      - 'tools/okubi_release_guard.py'
+      - 'tools/okubi_a05s_update_guard.py'
+      - 'tools/okubi_a05s_preflight.py'
+
+concurrency:
+  group: okubi-retro-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pruebas del integrador y seguridad de archivos
+        run: python3 -m unittest discover -s retro-module/tests -v
+      - name: Release Candidate 1 — auditoría de firma y migración sin instalar APK
+        run: |
+          python3 -m unittest discover -s tools/tests -p 'test_okubi_rc_preflight.py' -v
+          python3 tools/okubi_rc_preflight.py --root . --report build/okubi-rc1-preflight.json
+      - name: QA57 — pruebas estáticas de aislamiento y regresión Android
+        run: python3 -m unittest discover -s tools/tests -p 'test_okubi_qa57_verify.py' -v
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Pruebas reales de algoritmo IPS y BPS en Java
+        run: |
+          mkdir -p build/patch-tests
+          javac -d build/patch-tests retro-module/java/bo/nexoplay/app/retro/OkubiPatchEngine.java retro-module/tests/java/bo/nexoplay/app/retro/OkubiPatchEngineTest.java
+          java -cp build/patch-tests bo.nexoplay.app.retro.OkubiPatchEngineTest
+      - name: Probar respaldo OKUBI con Java sin Android
+        run: |
+          mkdir -p build/save-tests
+          javac -d build/save-tests retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java retro-module/tests/java/bo/nexoplay/app/retro/OkubiSaveArchiveTest.java
+          java -cp build/save-tests bo.nexoplay.app.retro.OkubiSaveArchiveTest
+          javac -cp build/save-tests -d build/save-tests retro-module/tests/java/bo/nexoplay/app/retro/OkubiPortableSaveContractTest.java
+          java -cp build/save-tests bo.nexoplay.app.retro.OkubiPortableSaveContractTest
+      - name: Probar mandos fisicos y zonas muertas en Java
+        run: |
+          mkdir -p build/control-tests
+          javac -d build/control-tests retro-module/java/bo/nexoplay/app/retro/RetroControllerAxes.java retro-module/tests/java/bo/nexoplay/app/retro/RetroControllerAxesTest.java
+          java -cp build/control-tests bo.nexoplay.app.retro.RetroControllerAxesTest
+      - name: Probar pulsaciones simultaneas sin direcciones contradictorias
+        run: |
+          mkdir -p build/mando-ultra-tests
+          javac -d build/mando-ultra-tests retro-module/java/bo/nexoplay/app/retro/RetroInputMask.java retro-module/tests/java/bo/nexoplay/app/retro/RetroInputMaskTest.java
+          java -cp build/mando-ultra-tests bo.nexoplay.app.retro.RetroInputMaskTest
+      - name: Probar cruceta segmentada sin pulsaciones fantasma
+        run: |
+          mkdir -p build/dpad-tests
+          javac -d build/dpad-tests retro-module/java/bo/nexoplay/app/retro/RetroDpadHitMap.java retro-module/tests/java/bo/nexoplay/app/retro/RetroDpadHitMapTest.java
+          java -cp build/dpad-tests bo.nexoplay.app.retro.RetroDpadHitMapTest
+      - name: Probar rendimiento y audio en Java
+        run: |
+          mkdir -p build/performance-tests
+          javac -d build/performance-tests retro-module/java/bo/nexoplay/app/retro/RetroRenderPolicy.java retro-module/java/bo/nexoplay/app/retro/RetroAudioRetry.java retro-module/tests/java/bo/nexoplay/app/retro/RetroPerformancePolicyTest.java
+          java -cp build/performance-tests bo.nexoplay.app.retro.RetroPerformancePolicyTest
+      - name: Probar modos de pantalla completa, recorte y aspecto en JVM
+        run: |
+          mkdir -p build/viewport-tests
+          javac -d build/viewport-tests retro-module/java/bo/nexoplay/app/retro/RetroVisualFilters.java retro-module/java/bo/nexoplay/app/retro/RetroScreenFit.java retro-module/tests/java/bo/nexoplay/app/retro/RetroScreenFitTest.java
+          java -cp build/viewport-tests bo.nexoplay.app.retro.RetroScreenFitTest
+      - name: Probar cinco filtros visuales y paleta Game Boy en JVM
+        run: |
+          mkdir -p build/visual-engine-tests
+          javac -d build/visual-engine-tests retro-module/java/bo/nexoplay/app/retro/RetroVisualFilters.java retro-module/tests/java/bo/nexoplay/app/retro/RetroVisualFiltersTest.java
+          java -cp build/visual-engine-tests bo.nexoplay.app.retro.RetroVisualFiltersTest
+      - name: Probar velocidades x0.5 x1 x2 x4 sin alterar el reloj del cartucho
+        run: |
+          mkdir -p build/speed-tests
+          javac -d build/speed-tests retro-module/java/bo/nexoplay/app/retro/RetroSpeedControl.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSpeedControlTest.java
+          java -cp build/speed-tests bo.nexoplay.app.retro.RetroSpeedControlTest
+      - name: Probar reloj de fotogramas en Java (NTSC/PAL, recuperacion)
+        run: |
+          mkdir -p build/frame-timing-tests
+          javac -d build/frame-timing-tests retro-module/java/bo/nexoplay/app/retro/RetroFrameTiming.java retro-module/tests/java/bo/nexoplay/app/retro/RetroFrameTimingTest.java
+          java -cp build/frame-timing-tests bo.nexoplay.app.retro.RetroFrameTimingTest
+      - name: Probar lectura de ROM y limites de memoria en Java
+        run: |
+          mkdir -p build/rom-tests
+          javac -d build/rom-tests retro-module/java/bo/nexoplay/app/retro/RetroRomReader.java retro-module/tests/java/bo/nexoplay/app/retro/RetroRomReaderTest.java
+          java -cp build/rom-tests bo.nexoplay.app.retro.RetroRomReaderTest
+      - name: Probar seguridad del respaldo unificado en Java
+        run: |
+          mkdir -p build/migration-tests
+          javac -d build/migration-tests android-app/app/src/main/java/bo/nexoplay/app/OkubiMigrationRules.java retro-module/tests/java/bo/nexoplay/app/OkubiMigrationRulesTest.java
+          java -cp build/migration-tests bo.nexoplay.app.OkubiMigrationRulesTest
+      - name: Probar progreso y estados de descarga en Java
+        run: |
+          mkdir -p build/download-tests
+          javac -d build/download-tests retro-module/java/bo/nexoplay/app/retro/OkubiDownloadProgress.java retro-module/tests/java/bo/nexoplay/app/retro/OkubiDownloadProgressTest.java
+          java -cp build/download-tests bo.nexoplay.app.retro.OkubiDownloadProgressTest
+      - name: Verificar integridad de partidas restauradas con Java real
+        run: |
+          mkdir -p build/integrity-tests
+          javac -d build/integrity-tests android-app/app/src/main/java/bo/nexoplay/app/OkubiArchiveVerifier.java retro-module/tests/java/bo/nexoplay/app/OkubiArchiveVerifierTest.java
+          java -cp build/integrity-tests bo.nexoplay.app.OkubiArchiveVerifierTest
+      - name: Probar orden e inmutabilidad de Guardar/Cargar
+        run: |
+          mkdir -p build/slot-request-tests
+          javac -d build/slot-request-tests retro-module/java/bo/nexoplay/app/retro/RetroSaveSlots.java retro-module/java/bo/nexoplay/app/retro/RetroSlotRequests.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSlotRequestsTest.java
+          java -cp build/slot-request-tests bo.nexoplay.app.retro.RetroSlotRequestsTest
+      - name: Probar geometría SNES real sobre diferentes pantallas
+        run: |
+          mkdir -p build/snes-geometry-tests
+          javac -d build/snes-geometry-tests retro-module/java/bo/nexoplay/app/retro/RetroCinemaGeometry.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSnesGeometryTest.java
+          java -cp build/snes-geometry-tests bo.nexoplay.app.retro.RetroSnesGeometryTest
+      - name: Probar reconocimiento y restricciones de consolas clasicas en Java
+        run: |
+          mkdir -p build/retro-expansion-tests
+          javac -d build/retro-expansion-tests retro-module/java/bo/nexoplay/app/retro/RetroExpansionFormats.java retro-module/java/bo/nexoplay/app/retro/RetroSystems.java retro-module/tests/java/bo/nexoplay/app/retro/RetroExpansionFormatsTest.java
+          java -cp build/retro-expansion-tests bo.nexoplay.app.retro.RetroExpansionFormatsTest
+      - name: Probar juego destacado unificado Android y Retro en Java
+        run: |
+          mkdir -p build/library-spotlight-tests
+          javac -d build/library-spotlight-tests android-app/app/src/main/java/bo/nexoplay/app/OkubiLibrarySpotlight.java retro-module/tests/java/bo/nexoplay/app/OkubiLibrarySpotlightTest.java
+          java -cp build/library-spotlight-tests bo.nexoplay.app.OkubiLibrarySpotlightTest
+      - name: Probar perfiles MANDO PRO en Java
+        run: |
+          mkdir -p build/control-presets-tests
+          javac -d build/control-presets-tests retro-module/java/bo/nexoplay/app/retro/RetroControlPresets.java retro-module/tests/java/bo/nexoplay/app/retro/RetroControlPresetsTest.java
+          java -cp build/control-presets-tests bo.nexoplay.app.retro.RetroControlPresetsTest
+      - name: Probar adaptación a celulares, tabletas y fuentes grandes en JVM
+        run: |
+          mkdir -p build/adaptive-layout-tests
+          javac -d build/adaptive-layout-tests retro-module/java/bo/nexoplay/app/retro/RetroAdaptiveLayout.java retro-module/tests/java/bo/nexoplay/app/retro/RetroAdaptiveLayoutTest.java
+          java -cp build/adaptive-layout-tests bo.nexoplay.app.retro.RetroAdaptiveLayoutTest
+      - name: Probar geometria compartida y ergonomia CINEMA en Java
+        run: |
+          mkdir -p build/cinema-geometry-tests
+          javac -d build/cinema-geometry-tests retro-module/java/bo/nexoplay/app/retro/RetroCinemaGeometry.java retro-module/tests/java/bo/nexoplay/app/retro/RetroCinemaGeometryTest.java
+          java -cp build/cinema-geometry-tests bo.nexoplay.app.retro.RetroCinemaGeometryTest
+      - name: Probar guardados con version esperada sin sobrescritura silenciosa
+        run: |
+          mkdir -p build/slot-stamp-tests
+          javac -d build/slot-stamp-tests retro-module/java/bo/nexoplay/app/retro/RetroSaveSlots.java retro-module/java/bo/nexoplay/app/retro/RetroSlotRequests.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSlotFileStampTest.java
+          java -cp build/slot-stamp-tests bo.nexoplay.app.retro.RetroSlotFileStampTest
+      - name: Probar miniaturas sin cambiar archivos de partida
+        run: |
+          mkdir -p build/slot-preview-tests
+          javac -d build/slot-preview-tests retro-module/java/bo/nexoplay/app/retro/RetroSaveSlots.java retro-module/java/bo/nexoplay/app/retro/RetroSlotPreviews.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSlotPreviewsTest.java
+          java -cp build/slot-preview-tests bo.nexoplay.app.retro.RetroSlotPreviewsTest
+      - name: Probar tres ranuras de guardado retro en Java
+        run: |
+          mkdir -p build/slot-tests
+          javac -d build/slot-tests retro-module/java/bo/nexoplay/app/retro/RetroSaveSlots.java retro-module/tests/java/bo/nexoplay/app/retro/RetroSaveSlotsTest.java
+          java -cp build/slot-tests bo.nexoplay.app.retro.RetroSaveSlotsTest
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v4
+      - name: Instalar plataforma y herramientas de Android
+        run: |
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+          sudo apt-get update -qq
+          sudo apt-get install -y bsdextrautils
+      - name: Configurar Gradle compatible con Android Gradle Plugin 8.9.2
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Integrar modulo retro al proyecto original
+        run: python3 retro-module/integrate.py --repo . --output build/okubi-android
+      - name: Compilar núcleo SameBoy MIT desde versión fijada
+        run: |
+          python3 retro-module/build_sameboy.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Compilar mGBA MPL-2.0 desde versión fijada (GBA)
+        run: |
+          python3 retro-module/build_mgba.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Compilar núcleo SNES Beetle Supafaust GPLv2+ desde versión fijada
+        run: |
+          python3 retro-module/build_supafaust.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Comprobar bibliotecas nativas
+        run: |
+          for arch in arm64-v8a armeabi-v7a x86 x86_64; do
+            test -s "build/okubi-android/app/src/main/jniLibs/$arch/libsameboy_libretro_android.so"
+            test -s "build/okubi-android/app/src/main/jniLibs/$arch/libmgba_libretro_android.so"
+            test -s "build/okubi-android/app/src/main/jniLibs/$arch/libsupafaust_libretro_android.so"
+          done
+          test -s build/okubi-android/app/src/main/assets/licenses/mGBA-LICENSE.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-GPL-2.0.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-SOURCE.txt
+      - name: Revisar arbol del proyecto
+        run: |
+          find build/okubi-android/app/src/main/java/bo/nexoplay/app/retro -type f
+          cat build/okubi-android/app/build.gradle
+      - name: Compilar APK único OKUBI UNIFIED
+        working-directory: build/okubi-android
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Verificar paquete único y firma
+        run: |
+          APK=build/okubi-android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep "package: name='bo.nexoplay.app.unified'"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep "application-label:'OKUBI"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+      - name: Verificar identidad de actualización (APK real)
+        run: |
+          python3 tools/okubi_release_guard.py \
+            --apk build/okubi-android/app/build/outputs/apk/debug/app-debug.apk \
+            --aapt "$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            --apksigner "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            --kind debug --minimum-version-code 36 \
+            --expected-version-name '1.0.0-unified-beta17'
+      - name: Verificar contenido del APK
+        if: success()
+        run: |
+          python3 - <<'PYAPK'
+          import zipfile
+          from pathlib import Path
+          apk=Path('build/okubi-android/app/build/outputs/apk/debug/app-debug.apk')
+          assert apk.is_file() and apk.stat().st_size > 10000, 'APK ausente o sospechosamente pequeño'
+          with zipfile.ZipFile(apk) as z:
+              assert 'AndroidManifest.xml' in z.namelist()
+              assert 'classes.dex' in z.namelist()
+              assert any(name.endswith('ic_okubi.xml') for name in z.namelist()), 'Icono OKUBI ausente'
+              assert any(name.endswith('classes2.dex') or name.endswith('classes3.dex') for name in z.namelist()), 'Clases Android ausentes'
+              for abi in ('arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'):
+                  assert f'lib/{abi}/libsameboy_libretro_android.so' in z.namelist(), f'Missing SameBoy core for {abi}'
+                  assert f'lib/{abi}/libokubi_sameboy_bridge.so' in z.namelist(), f'Missing JNI wrapper for {abi}'
+                  assert f'lib/{abi}/libmgba_libretro_android.so' in z.namelist(), f'Missing mGBA core for {abi}'
+                  assert f'lib/{abi}/libsupafaust_libretro_android.so' in z.namelist(), f'Missing SNES Supafaust core for {abi}'
+              assert 'assets/licenses/mGBA-LICENSE.txt' in z.namelist(), 'Missing mGBA MPL-2.0 license'
+              assert 'assets/licenses/Supafaust-GPL-2.0.txt' in z.namelist(), 'Missing Supafaust GPL-2.0 license'
+              assert 'assets/licenses/Supafaust-SOURCE.txt' in z.namelist(), 'Missing source provenance'
+              assert not any(name.startswith('assets/personal-roms/') for name in z.namelist()), 'Personal ROMs must never enter the shared build'
+              assert z.testzip() is None
+          print('Estructura del APK válida; falta prueba de ejecución en dispositivo')
+          PYAPK
+      - name: Calcular y verificar SHA-256 del APK beta de pruebas
+        if: success()
+        working-directory: build/okubi-android/app/build/outputs/apk/debug
+        run: |
+          sha256sum app-debug.apk > OKUBI-APK-SHA256SUMS.txt
+          sha256sum -c OKUBI-APK-SHA256SUMS.txt
+      - name: Subir APK RC1 de depuracion (NO es firma de distribucion)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-UNIFIED-1.0.0-beta17-APK
+          path: |
+            build/okubi-android/app/build/outputs/apk/debug/*.apk
+            build/okubi-android/app/build/outputs/apk/debug/OKUBI-APK-SHA256SUMS.txt
+          if-no-files-found: error
+      # QA57 has a DIFFERENT applicationId, a DIFFERENT visible name and
+      # a fresh private data sandbox. The user's original beta APK remains
+      # unchanged and is already uploaded above.
+      - name: QA57 — conservar referencia del APK habitual sin modificarla
+        run: |
+          mkdir -p build/okubi-qa57
+          cp build/okubi-android/app/build/outputs/apk/debug/app-debug.apk build/okubi-qa57/okubi-canonical-beta17.apk
+          test -s build/okubi-qa57/okubi-canonical-beta17.apk
+      - name: QA57 — compilar APK independiente para Samsung A05s
+        working-directory: build/okubi-android
+        run: gradle :app:assembleDebug -PokubiQaSideBySide=true --no-daemon --stacktrace
+      - name: QA57 — verificar ambas identidades, cuatro ABIs, firma y privacidad
+        run: |
+          set -euo pipefail
+          cp build/okubi-android/app/build/outputs/apk/debug/app-debug.apk build/okubi-qa57/OKUBI-QA57-Android.apk
+          python3 tools/okubi_qa57_verify.py \
+            --original build/okubi-qa57/okubi-canonical-beta17.apk \
+            --qa build/okubi-qa57/OKUBI-QA57-Android.apk \
+            --aapt "$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            --apksigner "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            --report build/okubi-qa57/verification.json
+          cd build/okubi-qa57
+          sha256sum OKUBI-QA57-Android.apk > OKUBI-QA57-Android-SHA256SUMS.txt
+          sha256sum -c OKUBI-QA57-Android-SHA256SUMS.txt
+      - name: Publicar APK QA57 aislada (NO sustituye beta instalada)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-A05S-QA57-SIDE-BY-SIDE-APK
+          path: |
+            build/okubi-qa57/OKUBI-QA57-Android.apk
+            build/okubi-qa57/OKUBI-QA57-Android-SHA256SUMS.txt
+            build/okubi-qa57/verification.json
+            docs/OKUBI_FINAL_QA_PHASE57.md
+          if-no-files-found: error
+          retention-days: 21
+      # A release must be signed with ONE permanent owner-held key, configured
+      # under GitHub Actions Secrets. Never fall back to an ephemeral debug key.
+      - name: Construir versión firmada oficial (solo manual desde main)
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
+        working-directory: build/okubi-android
+        env:
+          KEYSTORE_B64: ${{ secrets.OKUBI_KEYSTORE_BASE64 }}
+          OKUBI_KEYSTORE_PASSWORD: ${{ secrets.OKUBI_KEYSTORE_PASSWORD }}
+          OKUBI_KEY_ALIAS: ${{ secrets.OKUBI_KEY_ALIAS }}
+          OKUBI_KEY_PASSWORD: ${{ secrets.OKUBI_KEY_PASSWORD }}
+          OKUBI_RELEASE_CERT_SHA256: ${{ vars.OKUBI_RELEASE_CERT_SHA256 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$OKUBI_KEYSTORE_PASSWORD" ] ||
+             [ -z "$OKUBI_KEY_ALIAS" ] || [ -z "$OKUBI_KEY_PASSWORD" ]; then
+            echo "::error::Faltan los cuatro secretos de firma del propietario; no se creará una versión con firma efímera."
+            exit 1
+          fi
+          if [ -z "$OKUBI_RELEASE_CERT_SHA256" ]; then
+            echo "::error::Falta la huella pública fija del certificado; sin ella no se generará release."
+            exit 1
+          fi
+          umask 077
+          KEY_PATH="$RUNNER_TEMP/okubi-unified-owner.jks"
+          trap 'rm -f "$KEY_PATH"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KEY_PATH"
+          test -s "$KEY_PATH"
+          export OKUBI_KEYSTORE_PATH="$KEY_PATH"
+          gradle :app:assembleRelease --no-daemon --stacktrace
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -s "$APK"
+          python3 ../../tools/okubi_release_guard.py \
+            --apk "$APK" \
+            --aapt "$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            --apksigner "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            --kind release --minimum-version-code 36 \
+            --expected-version-name '1.0.0-unified-beta17' \
+            --pinned-sha256 "$OKUBI_RELEASE_CERT_SHA256"
+          rm -f "$KEY_PATH"
+      - name: Subir APK de lanzamiento con firma del dueño
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref_name == 'main' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-UNIFIED-1.0.0-OWNER-SIGNED-RELEASE-v36
+          path: build/okubi-android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

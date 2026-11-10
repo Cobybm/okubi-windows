@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- OKUBI sword/controller insignia, with no kanji and no old N monogram -->
+    <path android:fillColor="#0B0713" android:pathData="M0,0h108v108h-108z"/>
+    <path android:fillColor="#190C22" android:pathData="M24,9Q9,9 9,24L9,84Q9,99 24,99L84,99Q99,99 99,84L99,24Q99,9 84,9Z"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#65245D"
+        android:strokeWidth="7" android:strokeLineCap="round"
+        android:pathData="M25,70C13,48 27,21 51,19C71,17 89,31 89,50"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FA2869"
+        android:strokeWidth="5" android:strokeLineCap="round"
+        android:pathData="M22,57C18,38 34,22 51,21"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#B929D0"
+        android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M65,22C79,27 87,41 85,53"/>
+    <!-- Retro controller silhouette -->
+    <path android:fillColor="#141022" android:strokeColor="#F34783" android:strokeWidth="2.4"
+        android:pathData="M28,52C30,47 38,45 47,47L61,47C70,45 78,47 80,52L85,69C87,78 80,82 74,77L64,69L44,69L34,77C28,82 21,78 23,69Z"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FCDAE9"
+        android:strokeWidth="3.1" android:strokeLineCap="round"
+        android:pathData="M35,53L35,65M29,59L41,59"/>
+    <path android:fillColor="#F54484" android:pathData="M65,53a3,3 0,1 0,0.1 0z"/>
+    <path android:fillColor="#BC65ED" android:pathData="M73,60a3,3 0,1 0,0.1 0z"/>
+    <!-- Blade crosses controller, like original OKUBI visual identity -->
+    <path android:fillColor="#1B0B26" android:strokeColor="#FAD4E4"
+        android:strokeWidth="0.9" android:pathData="M51,15L57,15L56,35L53,82L50,92L48,82L51,35Z"/>
+    <path android:fillColor="#FCF1F7" android:pathData="M52,22L55,22L54,79L52,88Z"/>
+    <path android:fillColor="#D5255F" android:pathData="M44,34L62,34L65,37L42,37Z"/>
+    <path android:fillColor="#E9B2CE" android:pathData="M51,10L55,10L57,16L49,16Z"/>
+    <path android:fillColor="#FF4179" android:pathData="M48,39L57,39L56,42L49,42Z"/>
+</vector>

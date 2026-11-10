@@ -1,6 +1,6 @@
-# OKUBI 遊 — Windows · Fase 69
+# OKUBI 遊 — Windows + Android (migración)
 
-Repositorio independiente para la versión **Windows** de OKUBI 遊.
+Repositorio independiente para las versiones **Windows y Android** de OKUBI 遊.\n\n> Android se incorpora en la rama de migración y todavía no está fusionado a `main`.
 
 ## Estado de la migración
 
@@ -10,7 +10,7 @@ Esta copia migra de forma selectiva el código de la rama de desarrollo **Fase 6
 
 ## Qué NO contiene
 
-No se incluyen ROMs comerciales, BIOS, firmware, partidas, claves de firma, credenciales, carpetas de usuario, archivos de emuladores externos, binarios de compilación ni la aplicación Android completa. No se importa el historial de commits privado.
+No se incluyen ROMs comerciales, BIOS, firmware, partidas, claves de firma, credenciales, carpetas de usuario, archivos de emuladores externos, binarios de compilación ni los archivos personales de Android. No se importa el historial de commits privado.
 
 ## Pruebas Java (JDK 21)
 
@@ -30,3 +30,4 @@ En Windows, para el empaquetado completo, consulta `desktop/BUILD_LOCAL_WINDOWS_
 Antes de una versión estable: confirmar compilación, probar mandos y navegación, verificar guardados con datos sintéticos, revisar licencias y ejecutar pruebas en Windows real. No subir juegos, claves ni archivos personales. Si un archivo secreto se publicó alguna vez, ignorarlo después no elimina su historial: hay que rotar la credencial y limpiar el historial.
 
 La rama de migración está separada de `main` hasta su revisión.
+\n## Android\n\nEl código fuente de Android está en `android-app/`; la integración retro en `retro-module/`. La compilación de pruebas se ejecuta con `.github/workflows/okubi-android-migrated-qa.yml` y mantiene un identificador de paquete paralelo para no sustituir tu instalación original. Consulta `docs/OKUBI_ANDROID_MIGRATION_COBYBM.md`.\n
