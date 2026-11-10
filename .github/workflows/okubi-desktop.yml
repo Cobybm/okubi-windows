@@ -1,0 +1,334 @@
+name: OKUBI Desktop Windows — Phase 69 Integration QA
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/okubi-desktop.yml'
+  pull_request:
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/okubi-desktop.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-windows:
+    name: Build executable and run desktop safety tests (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      # Historical source repo ended with a period. Windows APIs
+      # may reject checkout paths ending in a period. Clone into a stable
+      # directory in RUNNER_TEMP instead; do not use actions/checkout here.
+      - name: Clone source into a Windows-safe directory (trailing-dot repo)
+        shell: pwsh
+        working-directory: ${{ runner.temp }}
+        env:
+          OKUBI_ACCESS_TOKEN: ${{ github.token }}
+          OKUBI_REF: ${{ github.head_ref || github.ref_name }}
+          OKUBI_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $encoded = [Convert]::ToBase64String(
+            [Text.Encoding]::UTF8.GetBytes("x-access-token:$env:OKUBI_ACCESS_TOKEN"))
+          $env:GIT_CONFIG_COUNT = "1"
+          $env:GIT_CONFIG_KEY_0 = "http.https://github.com/.extraheader"
+          $env:GIT_CONFIG_VALUE_0 = "AUTHORIZATION: basic $encoded"
+          $source = Join-Path $env:RUNNER_TEMP "okubi-desktop-source"
+          try {
+            & git clone --quiet --depth 1 --no-checkout --single-branch --branch $env:OKUBI_REF "https://github.com/$env:GITHUB_REPOSITORY" $source
+            if ($LASTEXITCODE -ne 0) { throw "Clone failed" }
+            & git -C $source checkout --quiet --detach $env:OKUBI_COMMIT
+            if ($LASTEXITCODE -ne 0) { throw "Checkout failed" }
+          } finally {
+            Remove-Item Env:GIT_CONFIG_COUNT -ErrorAction SilentlyContinue
+            Remove-Item Env:GIT_CONFIG_KEY_0 -ErrorAction SilentlyContinue
+            Remove-Item Env:GIT_CONFIG_VALUE_0 -ErrorAction SilentlyContinue
+          }
+
+      - name: Install JDK 21 with Windows jpackage
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Enable MSVC x64 C compiler
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Compile JNI bridge and deterministic Libretro test DLL
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          New-Item -ItemType Directory -Force -Path build/desktop/native | Out-Null
+          $include = "/I$env:JAVA_HOME\include"
+          $winInclude = "/I$env:JAVA_HOME\include\win32"
+          & cl.exe /nologo /LD /O2 /W3 $include $winInclude desktop/native/okubi_libretro_jni.c /link /OUT:build/desktop/native/okubi_libretro_jni.dll
+          if ($LASTEXITCODE -ne 0) { throw "Windows JNI bridge compilation failed" }
+          & cl.exe /nologo /LD /O2 /W3 desktop/tests/native/mock_libretro_core.c /link /OUT:build/desktop/native/mock_libretro_core.dll
+          if ($LASTEXITCODE -ne 0) { throw "Mock Libretro core build failed" }
+          if (!(Test-Path build/desktop/native/okubi_libretro_jni.dll)) { throw "Missing JNI DLL" }
+          if (!(Test-Path build/desktop/native/mock_libretro_core.dll)) { throw "Missing mock core" }
+
+      - name: Compile native Windows desktop launcher (Java Swing)
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          New-Item -ItemType Directory -Force -Path build/desktop/classes | Out-Null
+          $sources = @(Get-ChildItem -Recurse -Path desktop/src -Filter *.java | ForEach-Object { $_.FullName })
+          if ($sources.Count -lt 3) { throw "Missing desktop source files" }
+          # Compile the EXACT shared Android .okubisave v1 serializer as part
+          # of Desktop; do not duplicate a potentially incompatible format.
+          $archive = "retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java"
+          if (!(Test-Path $archive)) { throw "Android save format source missing" }
+          & javac -encoding UTF-8 -d build/desktop/classes $sources $archive
+          if ($LASTEXITCODE -ne 0) { throw "Desktop compilation failed" }
+
+      - name: Compile and execute safe library and emulator launcher tests
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          New-Item -ItemType Directory -Force -Path build/desktop/tests | Out-Null
+          $tests = @(Get-ChildItem -Recurse -Path desktop/tests -Filter *.java | ForEach-Object { $_.FullName })
+          & javac -encoding UTF-8 -cp build/desktop/classes -d build/desktop/tests $tests
+          if ($LASTEXITCODE -ne 0) { throw "Desktop test compilation failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopLibraryTest
+          if ($LASTEXITCODE -ne 0) { throw "Desktop library tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopAppearanceTest
+          if ($LASTEXITCODE -ne 0) { throw "Desktop Windows contrast tests failed" }
+          $mock = (Resolve-Path build/desktop/native/mock_libretro_core.dll).Path
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.EmbeddedCoreTest $mock
+          if ($LASTEXITCODE -ne 0) { throw "Embedded Windows Libretro end-to-end tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopUltraTest
+          if ($LASTEXITCODE -ne 0) { throw "Desktop Ultra visual / save-state / XInput tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopControlCenterTest
+          if ($LASTEXITCODE -ne 0) { throw "Desktop CINEMA control center regression tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopConsoleNavigationTest
+          if ($LASTEXITCODE -ne 0) { throw "Console navigation controller tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopGameHubTest
+          if ($LASTEXITCODE -ne 0) { throw "Game Hub real-playtime/XInput-profile tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopCrossSaveTest
+          if ($LASTEXITCODE -ne 0) { throw "Cross Save Android↔Windows archive / recovery tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopCloudSaveTest
+          if ($LASTEXITCODE -ne 0) { throw "Cloud Save folder-history, conflict and recovery tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopVisualPolishTest
+          if ($LASTEXITCODE -ne 0) { throw "Windows missing-icon and visual polish regression tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopImmersiveTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA IMMERSIVE HUD persistence and auto-hide tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartScalingTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART SCALING geometry/crop/legacy/persistence tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopHeaderResponsiveTest
+          if ($LASTEXITCODE -ne 0) { throw "HEADER RESPONSIVE measured width/accessibility/button tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopLibraryGridTest
+          if ($LASTEXITCODE -ne 0) { throw "ADAPTIVE LIBRARY responsive columns and controller navigation tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopConsoleFocusTest
+          if ($LASTEXITCODE -ne 0) { throw "CONSOLE FOCUS tile click, tab and accessibility tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.LibretroCoverCatalogTest
+          if ($LASTEXITCODE -ne 0) { throw "ONLINE COVERS title matching, Spanish aliases, safe URL tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.OnlineCoverArtworkTest
+          if ($LASTEXITCODE -ne 0) { throw "ONLINE COVERS artwork render and fallback tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.CinemaHeroBackdropTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA LIBRARY dynamic background, contrast and cleanup tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.CinemaCardMotionTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA LIBRARY card animation and selected-state tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopGameHubMediaTest
+          if ($LASTEXITCODE -ne 0) { throw "GAME HUB PRO read-only ROM/SRAM/RTC/screenshots tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopGameHubPanelTest
+          if ($LASTEXITCODE -ne 0) { throw "GAME HUB PRO Swing UI and play/favorite/backup actions failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopGameHubControlsTest
+          if ($LASTEXITCODE -ne 0) { throw "CONTROLLER EXPERIENCE XInput A/B/X/LB/RB and focus tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopGameHubInputTest
+          if ($LASTEXITCODE -ne 0) { throw "CONTROLLER EXPERIENCE modal dialog and accessible action tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSaveVaultTest
+          if ($LASTEXITCODE -ne 0) { throw "SAVE VAULT archive hash / restoration / previous backups / F5-F9 integrity tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopControllerFocusGateTest
+          if ($LASTEXITCODE -ne 0) { throw "QA STABILITY Xbox focus-release and held-button tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSaveVaultStabilityTest
+          if ($LASTEXITCODE -ne 0) { throw "QA STABILITY vault corruption and directory isolation tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartSaveGuardTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART SAVE GUARD prelaunch backup/dedup/optout/limit tests failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopUniversalSavePreflightTest
+          if ($LASTEXITCODE -ne 0) { throw "UNIVERSAL EXPERIENCE cross-device ROM/SRAM/RTC/save-state preflight failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopCinemaLayoutTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA FINAL responsive layout, high DPI and Unicode safe labels failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopCinemaFinalRenderTest
+          if ($LASTEXITCODE -ne 0) { throw "CINEMA FINAL compact Game Hub, action buttons and focus painting failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopShutdownPolicyTest
+          if ($LASTEXITCODE -ne 0) { throw "RELEASE CANDIDATE unsafe shutdown during save operations" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopQa57IsolationTest
+          if ($LASTEXITCODE -ne 0) { throw "QA57 isolated save profiles, rollback and 150-ROM library stress failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopWindowsReleaseVerifierTest
+          if ($LASTEXITCODE -ne 0) { throw "WINDOWS ONLY integrity/synthetic-ROM isolation and DLL x64 self-check regression failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartPerformanceTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART PC hardware suitability, PS1/PS2/PS3 ratings and safe profiles failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopMulticonsoleCatalogTest
+          if ($LASTEXITCODE -ne 0) { throw "MULTICONSOLE 200-game scan, user data isolation and safe command profiles failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartPcVisualsTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART PC white controls, contrast, small-screen actions or i5-11400 console readiness failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartPlayHistoryTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART PLAY per-game local feedback, safe mode, PC fingerprint and ROM/SRAM preservation failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopPcsx2SmartConfigTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART CONFIG per-title opt-in, per-PC graphics profile, 1x/2x, rollback and SRAM/ROM/memory card isolation failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartGraphicsPhase64Test
+          if ($LASTEXITCODE -ne 0) { throw "SMART GRAPHICS v2 plans, official CLI probing, per-game revert and ROM/PCSX2 save safety failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSmartSessionHistoryTest
+          if ($LASTEXITCODE -ne 0) { throw "SMART SESSION process duration, user FPS provenance and ROM/SRAM/PCSX2 ini isolation failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopMaintenanceServiceTest
+          if ($LASTEXITCODE -ne 0) { throw "Phase67 cover cache safety and ROM/SRAM isolation failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopSearchRefreshTest
+          if ($LASTEXITCODE -ne 0) { throw "Phase68 burst search and category refresh failed" }
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopLibraryBatchTest
+          if ($LASTEXITCODE -ne 0) { throw "Phase69 progressive library batch selection failed" }
+
+      - name: Fetch and verify all official Libretro emulators for Windows x64
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          & ./desktop/build-bundled-cores.ps1 -OutputDirectory "build/desktop/input/cores"
+          # The script has ErrorActionPreference=Stop and throws on failures.
+          # $LASTEXITCODE is undefined for a PowerShell script with no native commands,
+          # so do not misinterpret $null as a failed process.
+          $coreDir = (Resolve-Path "build/desktop/input/cores").Path
+          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.BundledCoresTest $coreDir
+          if ($LASTEXITCODE -ne 0) { throw "Built-in core verification failed" }
+          & cl.exe /nologo /W3 /Fe:build/desktop/native/core_abi_probe.exe desktop/tests/native/core_abi_probe.c
+          if ($LASTEXITCODE -ne 0) { throw "Core ABI probe compilation failed" }
+          $cores = @(
+            (Join-Path $coreDir "sameboy_libretro.dll"),
+            (Join-Path $coreDir "mgba_libretro.dll"),
+            (Join-Path $coreDir "mednafen_supafaust_libretro.dll")
+          )
+          & build/desktop/native/core_abi_probe.exe $cores
+          if ($LASTEXITCODE -ne 0) { throw "One or more bundled cores failed Libretro ABI validation" }
+
+      - name: Package executable with an isolated Java runtime
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          New-Item -ItemType Directory -Force -Path build/desktop/input | Out-Null
+          Copy-Item build/desktop/native/okubi_libretro_jni.dll build/desktop/input/okubi_libretro_jni.dll -Force
+          Copy-Item docs/OKUBI_RELEASE_CANDIDATE_PHASE56.md build/desktop/input/RELEASE-CANDIDATE-NOTES.md -Force
+          Copy-Item desktop/QA57-LAUNCHER.cmd build/desktop/input/RUN-QA57-ISOLATED.cmd -Force
+          Copy-Item docs/OKUBI_FINAL_QA_PHASE57.md build/desktop/input/QA57-READ-ME-FIRST.md -Force
+          Copy-Item docs/OKUBI_WINDOWS_ONLY_PHASE59.md build/desktop/input/WINDOWS-PHASE59-GUIDE.md -Force
+          Copy-Item docs/OKUBI_SMART_PERFORMANCE_PHASE60.md build/desktop/input/SMART-PERFORMANCE-PHASE60.md -Force
+          Copy-Item docs/OKUBI_SMART_PC_UI_PHASE61.md build/desktop/input/SMART-PC-READABLE-UI-PHASE61.md -Force
+          Copy-Item docs/OKUBI_SMART_PLAY_PHASE62.md build/desktop/input/SMART-PLAY-PHASE62.md -Force
+          Copy-Item docs/OKUBI_SMART_CONFIG_PHASE63.md build/desktop/input/SMART-CONFIG-PHASE63.md -Force
+          Copy-Item docs/OKUBI_SMART_GRAPHICS_PHASE64.md build/desktop/input/SMART-GRAPHICS-PHASE64.md -Force
+          Copy-Item docs/OKUBI_SMART_SESSION_PHASE65.md build/desktop/input/SMART-SESSION-PHASE65.md -Force
+          Copy-Item desktop/VERIFY-WINDOWS-PACKAGE.cmd build/desktop/input/VERIFY-WINDOWS-PACKAGE.cmd -Force
+          & jar --create --file build/desktop/input/okubi-desktop.jar --main-class bo.okubi.desktop.OkubiDesktop -C build/desktop/classes .
+          if ($LASTEXITCODE -ne 0) { throw "Jar packaging failed" }
+          & jpackage --type app-image --name "OKUBI Desktop" --app-version "1.0.13" --input build/desktop/input --main-jar okubi-desktop.jar --main-class bo.okubi.desktop.OkubiDesktop --dest build/desktop/dist --vendor "OKUBI"
+          if ($LASTEXITCODE -ne 0) { throw "jpackage app-image failed" }
+          $exe = "build/desktop/dist/OKUBI Desktop/OKUBI Desktop.exe"
+          if (!(Test-Path $exe)) { throw "Windows executable missing: $exe" }
+          $appDll = "build/desktop/dist/OKUBI Desktop/app/okubi_libretro_jni.dll"
+          if (!(Test-Path $appDll)) { throw "JNI player DLL missing from packaged Windows app" }
+          if (Test-Path "build/desktop/dist/OKUBI Desktop/app/mock_libretro_core.dll") {
+            throw "Mock Libretro core must NOT ship in app"
+          }
+          $coreRoot = "build/desktop/dist/OKUBI Desktop/app/cores"
+          foreach ($coreName in @("sameboy_libretro.dll", "mgba_libretro.dll",
+                                   "mednafen_supafaust_libretro.dll")) {
+            $corePath = Join-Path $coreRoot $coreName
+            if (!(Test-Path $corePath)) { throw "Missing bundled core: $coreName" }
+          }
+          if (!(Test-Path (Join-Path $coreRoot "CORE-SHA256.properties"))) {
+            throw "Missing bundled core checksum manifest"
+          }
+          foreach ($license in @("SameBoy-MIT.txt", "mGBA-MPL-2.0.txt",
+                                   "Supafaust-GPL-2.0-plus.txt", "THIRD-PARTY-SOURCES.txt")) {
+            if (!(Test-Path (Join-Path $coreRoot ("licenses/" + $license)))) {
+              throw "Missing release candidate source and license notice: $license"
+            }
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/RELEASE-CANDIDATE-NOTES.md")) {
+            throw "Missing release candidate migration notes inside Windows application"
+          }
+          $qaRoot = "build/desktop/dist/OKUBI Desktop/app"
+          if ((-not (Test-Path (Join-Path $qaRoot "RUN-QA57-ISOLATED.cmd"))) -or
+              (-not (Test-Path (Join-Path $qaRoot "QA57-READ-ME-FIRST.md")))) {
+            throw "QA57 isolated launcher or test instructions missing"
+          }
+          $qaCommand = Get-Content (Join-Path $qaRoot "RUN-QA57-ISOLATED.cmd") -Raw
+          if (($qaCommand -notmatch 'OKUBI-QA57') -or
+              ($qaCommand -notmatch 'set "APPDATA=')) {
+            throw "QA57 launcher does not isolate the user data directory"
+          }
+          $verification = "build/desktop/dist/OKUBI Desktop/app/VERIFY-WINDOWS-PACKAGE.cmd"
+          if (!(Test-Path $verification)) { throw "Windows package verify launcher missing" }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/WINDOWS-PHASE59-GUIDE.md")) {
+            throw "Windows release guide missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-PERFORMANCE-PHASE60.md")) {
+            throw "SMART PC user safety guide missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-PC-READABLE-UI-PHASE61.md")) {
+            throw "SMART PC Phase61 UI guide missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-PLAY-PHASE62.md")) {
+            throw "SMART PLAY Phase62 user guide missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-CONFIG-PHASE63.md")) {
+            throw "SMART CONFIG Phase63 user guide missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-GRAPHICS-PHASE64.md")) {
+            throw "SMART GRAPHICS Phase64 manual missing from app-image"
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/SMART-SESSION-PHASE65.md")) {
+            throw "SMART SESSION Phase65 manual missing from app-image"
+          }
+          # Launch the actual jpackage EXE, not just the JVM unit tests.
+          # The --verify-windows-release mode reads ONLY the shipped files,
+          # never ROMs, user profiles, saves or Android data.
+          $releaseExe = (Resolve-Path $exe).Path
+          & $releaseExe --verify-windows-release
+          if ($LASTEXITCODE -ne 0) { throw "Actual Windows executable failed offline package self-test" }
+          $size = (Get-Item $exe).Length
+          if ($size -lt 10000) { throw "Suspiciously small Windows launcher" }
+          Write-Output "OKUBI Windows EXE present: $size bytes"
+          Compress-Archive -Path "build/desktop/dist/OKUBI Desktop" -DestinationPath "build/desktop/OKUBI-Desktop-Windows-x64.zip" -CompressionLevel Optimal -Force
+          if (!(Test-Path "build/desktop/OKUBI-Desktop-Windows-x64.zip")) { throw "Desktop ZIP missing" }
+          # Inspect ZIP entries before publishing. No game cartridges or personal saves.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $package = [System.IO.Compression.ZipFile]::OpenRead(
+            (Resolve-Path "build/desktop/OKUBI-Desktop-Windows-x64.zip").Path)
+          try {
+            $forbidden = @($package.Entries | Where-Object {
+              $entryName = $_.FullName.Replace("\", "/").ToLowerInvariant()
+              $entryName -match '\.(gba|gbc|gb|sav|srm|rtc|state|okubisave|sfc|smc|nes|cue|chd|pbp|m3u|iso|cso|pkg)$' -or
+              $entryName -match '(^|/)eboot\.bin$' -or
+              $entryName -match '/(saves|save-vault-v1|personal-roms|userdata)/'
+            })
+            if ($forbidden.Count -gt 0) { throw "Forbidden personal artifact found in Windows ZIP" }
+          } finally { $package.Dispose() }
+          $zipPath = "build/desktop/OKUBI-Desktop-Windows-x64.zip"
+          $digest = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          $line = "$digest *OKUBI-Desktop-Windows-x64.zip"
+          $shaFile = "build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt"
+          [System.IO.File]::WriteAllText(
+            (Join-Path (Get-Location).Path $shaFile), $line + "`n",
+            [System.Text.UTF8Encoding]::new($false))
+          if ((Get-Content $shaFile -Raw).Trim() -cne $line) {
+            throw "SHA256SUMS does not match the packaged Windows artifact"
+          }
+          Write-Output "OKUBI WINDOWS PHASE59 SHA256SUMS $line"
+
+      - name: Upload standalone Windows application image
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-Desktop-Windows-Phase69-QA-1.0.13
+          path: |
+            ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64.zip
+            ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 5

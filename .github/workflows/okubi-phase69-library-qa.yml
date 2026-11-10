@@ -1,0 +1,32 @@
+name: OKUBI Phase 69 - SMART LIBRARY QA
+on:
+  push:
+    branches: [migration/okubi-windows-phase69-audited]
+    paths:
+      - 'desktop/src/**'
+      - 'desktop/tests/**'
+      - '.github/workflows/okubi-phase69-library-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  desktop-java:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile all desktop Java code and shared save format
+        run: |
+          set -euo pipefail
+          mkdir -p build/phase69/classes build/phase69/tests
+          find desktop/src -type f -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -d build/phase69/classes retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+          javac -encoding UTF-8 -cp build/phase69/classes -d build/phase69/tests desktop/tests/bo/okubi/desktop/DesktopLibraryBatchTest.java desktop/tests/bo/okubi/desktop/DesktopSearchRefreshTest.java desktop/tests/bo/okubi/desktop/DesktopMaintenanceServiceTest.java
+      - name: Run batch, keystroke and safe-maintenance regressions
+        run: |
+          java -ea -cp "build/phase69/classes:build/phase69/tests" bo.okubi.desktop.DesktopLibraryBatchTest
+          java -ea -cp "build/phase69/classes:build/phase69/tests" bo.okubi.desktop.DesktopSearchRefreshTest
+          java -ea -cp "build/phase69/classes:build/phase69/tests" bo.okubi.desktop.DesktopMaintenanceServiceTest
