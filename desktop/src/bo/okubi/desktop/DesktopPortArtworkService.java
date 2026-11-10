@@ -134,7 +134,13 @@ public final class DesktopPortArtworkService implements AutoCloseable {
     }
 
     Path manualPath(Ref ref) { return root.resolve("manual").resolve(key(ref) + ".png"); }
-    Path cachePath(Ref ref) { return root.resolve("cache").resolve(key(ref) + ".png"); }
+    Path cachePath(Ref ref) {
+        // Artwork-specific cache prevents stale GitHub webpage thumbnails from
+        // masking a newly reviewed, actual upstream project screenshot.
+        return root.resolve(DesktopOfficialPortArtwork.source(ref) == null
+                ? "cache" : "official-screenshots-v1")
+                .resolve(key(ref) + ".png");
+    }
 
     private static BufferedImage safeDecode(byte[] bytes) throws IOException {
         if (bytes == null || bytes.length == 0 || bytes.length > MAX_BYTES)
@@ -239,11 +245,25 @@ public final class DesktopPortArtworkService implements AutoCloseable {
     }
 
     private BufferedImage fetchOnline(Ref ref) throws IOException, InterruptedException {
-        // Ref permits only conservative GitHub owner/repo path components.
-        URI uri = ref.preview();
-        if (!uri.getScheme().equals("https")
-                || !uri.getHost().equals("opengraph.githubassets.com"))
-            throw new IOException("Only GitHub repository previews are permitted");
+        URI official = DesktopOfficialPortArtwork.source(ref);
+        if (official != null) {
+            try {
+                return fetchImage(official);
+            } catch (IOException blocked) {
+                // Missing upstream screenshot: fall back to GitHub social card,
+                // preserving the ability to provide a manually chosen picture.
+            }
+        }
+        return fetchImage(ref.preview());
+    }
+
+    private BufferedImage fetchImage(URI uri) throws IOException, InterruptedException {
+        boolean social = "https".equals(uri.getScheme())
+                && "opengraph.githubassets.com".equals(uri.getHost())
+                && uri.getUserInfo() == null && uri.getPort() == -1
+                && uri.getQuery() == null && uri.getFragment() == null;
+        if (!social && !DesktopOfficialPortArtwork.permitted(uri))
+            throw new IOException("Artwork origin not approved");
         HttpRequest req = HttpRequest.newBuilder(uri).GET()
                 .timeout(Duration.ofSeconds(12))
                 .header("User-Agent", "OKUBI-Ports-Artwork/1.0")
@@ -253,13 +273,13 @@ public final class DesktopPortArtworkService implements AutoCloseable {
                 req, HttpResponse.BodyHandlers.ofInputStream());
         try (InputStream input = response.body()) {
             if (response.statusCode() != 200)
-                throw new IOException("Preview not available");
+                throw new IOException("Project image unavailable");
             String type = response.headers().firstValue("content-type")
                     .orElse("").toLowerCase(java.util.Locale.ROOT);
             if (!type.startsWith("image/png") && !type.startsWith("image/jpeg"))
-                throw new IOException("Not a PNG/JPEG preview");
+                throw new IOException("Response is not PNG/JPEG artwork");
             if (response.headers().firstValueAsLong("content-length").orElse(0)
-                    > MAX_BYTES) throw new IOException("Preview too large");
+                    > MAX_BYTES) throw new IOException("Artwork too large");
             byte[] bytes = input.readNBytes(MAX_BYTES + 1);
             return safeDecode(bytes);
         }
