@@ -25,7 +25,7 @@ public final class DesktopMaintenanceService {
     }
 
     public record Report(int files, long bytes, boolean cacheExists) {}
-    private static boolean link(Path path) {
+    private static boolean link(Path path) throws IOException {
         return Files.isSymbolicLink(path) || (Files.exists(path, LinkOption.NOFOLLOW_LINKS)
                 && Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS).isOther());
     }
