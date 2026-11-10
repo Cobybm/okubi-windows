@@ -63,6 +63,12 @@ public final class DesktopPortsDialog extends JDialog {
             new java.util.ArrayList<>();
     private JButton onlineSearchButton;
     private JButton onlineMoreButton;
+    private JButton onlinePreviousButton;
+    private final java.util.Map<Integer, DesktopGitHubPortsSearch.SearchPage> pageCache =
+            new java.util.HashMap<>();
+    private String lastQuery = "";
+    private DesktopGitHubPortsSearch.Scope lastScope =
+            DesktopGitHubPortsSearch.Scope.SOURCE_PORTS;
     private int onlinePage;
     private int onlineTotal;
     private int searchGeneration;
@@ -197,7 +203,10 @@ public final class DesktopPortsDialog extends JDialog {
         footer.setBackground(BACKGROUND);
         footer.add(text("Los resultados de GitHub NO garantizan compatibilidad con Windows.",
                 11, MUTED, false));
-        onlineMoreButton = action("CARGAR 40 MÁS", () -> searchOnline(true));
+        onlinePreviousButton = action("◀ ANTERIORES", this::previousOnlinePage);
+        onlinePreviousButton.setEnabled(false);
+        footer.add(onlinePreviousButton);
+        onlineMoreButton = action("SIGUIENTES 40 ▶", () -> searchOnline(true));
         onlineMoreButton.setEnabled(false);
         footer.add(onlineMoreButton);
         root.add(footer, BorderLayout.SOUTH);
@@ -209,21 +218,34 @@ public final class DesktopPortsDialog extends JDialog {
 
     private void searchOnline(boolean nextPage) {
         if (onlineBusy) return;
-        int page = nextPage ? onlinePage + 1 : 1;
         DesktopGitHubPortsSearch.Scope scope =
                 (DesktopGitHubPortsSearch.Scope) onlineScope.getSelectedItem();
         String query = onlineQuery.getText();
-        try {
-            DesktopGitHubPortsSearch.endpoint(scope, query, page);
-        } catch (IllegalArgumentException error) {
+        if (nextPage && (!query.equals(lastQuery) || scope != lastScope)) {
+            searchOnline(false);
+            return;
+        }
+        int page = nextPage ? onlinePage + 1 : 1;
+        try { DesktopGitHubPortsSearch.endpoint(scope, query, page); }
+        catch (IllegalArgumentException error) {
             warning("Búsqueda no válida: " + error.getMessage());
+            return;
+        }
+        if (!nextPage) {
+            pageCache.clear();
+            lastQuery = query;
+            lastScope = scope;
+        }
+        if (nextPage && pageCache.containsKey(page)) {
+            showOnlinePage(pageCache.get(page));
             return;
         }
         onlineBusy = true;
         final int generation = ++searchGeneration;
         onlineSearchButton.setEnabled(false);
         onlineMoreButton.setEnabled(false);
-        onlineStatus.setText("Consultando repositorios públicos en GitHub... página " + page);
+        onlinePreviousButton.setEnabled(false);
+        onlineStatus.setText("Consultando GitHub... página " + page + " · sin descargar juegos");
         new SwingWorker<DesktopGitHubPortsSearch.SearchPage, Void>() {
             @Override protected DesktopGitHubPortsSearch.SearchPage doInBackground()
                     throws Exception {
@@ -236,34 +258,44 @@ public final class DesktopPortsDialog extends JDialog {
                 onlineSearchButton.setEnabled(true);
                 try {
                     DesktopGitHubPortsSearch.SearchPage response = get();
-                    if (!nextPage) onlineResults.clear();
-                    java.util.HashSet<String> known = new java.util.HashSet<>();
-                    for (DesktopGitHubPortsSearch.Candidate c : onlineResults)
-                        known.add(c.fullName().toLowerCase(java.util.Locale.ROOT));
-                    for (DesktopGitHubPortsSearch.Candidate c : response.candidates()) {
-                        if (known.add(c.fullName().toLowerCase(java.util.Locale.ROOT)))
-                            onlineResults.add(c);
-                    }
-                    onlinePage = response.page();
-                    onlineTotal = response.total();
-                    onlineMoreButton.setEnabled(response.hasNext());
-                    onlineStatus.setText(onlineResults.size() + " proyectos mostrados · "
-                            + onlineTotal + " coincidencias estimadas en GitHub"
-                            + (response.incomplete() ? " · búsqueda parcial" : "")
-                            + " · no verificados");
-                    renderOnline();
-                    if (!nextPage) onlineScroll.getVerticalScrollBar().setValue(0);
+                    pageCache.put(response.page(), response);
+                    showOnlinePage(response);
                 } catch (InterruptedException interrupted) {
                     Thread.currentThread().interrupt();
                     onlineStatus.setText("Búsqueda interrumpida. Puedes intentarlo otra vez.");
+                    onlinePreviousButton.setEnabled(onlinePage > 1);
+                    onlineMoreButton.setEnabled(onlineTotal > onlinePage * DesktopGitHubPortsSearch.PAGE_SIZE);
                 } catch (java.util.concurrent.ExecutionException failed) {
                     Throwable cause = failed.getCause();
-                    onlineStatus.setText("No se pudo completar la consulta. Conservamos la lista anterior.");
-                    warning(cause == null ? "Fallo al consultar GitHub."
-                            : "Búsqueda GitHub: " + cause.getMessage());
+                    onlineStatus.setText("No se pudo completar la consulta. La página anterior sigue disponible.");
+                    onlinePreviousButton.setEnabled(onlinePage > 1);
+                    onlineMoreButton.setEnabled(onlineTotal > onlinePage * DesktopGitHubPortsSearch.PAGE_SIZE);
+                    warning(cause == null ? "Fallo de GitHub."
+                            : "GitHub: " + cause.getMessage());
                 }
             }
         }.execute();
+    }
+
+    private void previousOnlinePage() {
+        if (onlineBusy || onlinePage <= 1) return;
+        DesktopGitHubPortsSearch.SearchPage previous = pageCache.get(onlinePage - 1);
+        if (previous != null) showOnlinePage(previous);
+    }
+
+    private void showOnlinePage(DesktopGitHubPortsSearch.SearchPage response) {
+        onlinePage = response.page();
+        onlineTotal = response.total();
+        onlineResults.clear();
+        onlineResults.addAll(response.candidates());
+        onlinePreviousButton.setEnabled(onlinePage > 1);
+        onlineMoreButton.setEnabled(response.hasNext());
+        onlineStatus.setText("Página " + onlinePage + " · " + onlineResults.size()
+                + " candidatos · " + onlineTotal + " coincidencias estimadas"
+                + (response.incomplete() ? " · búsqueda parcial" : "")
+                + " · NO verificados");
+        renderOnline();
+        onlineScroll.getVerticalScrollBar().setValue(0);
     }
 
     private JPanel candidateCard(DesktopGitHubPortsSearch.Candidate candidate) {
