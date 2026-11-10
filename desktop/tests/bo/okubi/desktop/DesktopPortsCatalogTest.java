@@ -13,7 +13,7 @@ public final class DesktopPortsCatalogTest {
 
     public static void main(String[] args) {
         List<DesktopPortsCatalog.Port> all = DesktopPortsCatalog.all();
-        check(all.size() == 25, "Expect 25 verified GitHub PC ports");
+        check(all.size() == 32, "Expect 32 verified GitHub PC ports");
         Set<String> ids = new HashSet<>();
         Set<URI> repositories = new HashSet<>();
         for (DesktopPortsCatalog.Port port : all) {

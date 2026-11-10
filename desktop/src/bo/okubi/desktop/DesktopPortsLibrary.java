@@ -30,9 +30,11 @@ public final class DesktopPortsLibrary {
         }
         // Untrusted old preferences cannot introduce arbitrary project IDs.
         for (String key : new java.util.HashSet<>(links.stringPropertyNames())) {
-            if (!key.startsWith(PREFIX)
-                    || DesktopPortsCatalog.byId(key.substring(PREFIX.length())) == null)
-                links.remove(key);
+            boolean curated = key.startsWith(PREFIX)
+                    && DesktopPortsCatalog.byId(key.substring(PREFIX.length())) != null;
+            boolean discovered = key.length() <= 225
+                    && key.matches("github\\.[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9._-]*");
+            if (!curated && !discovered) links.remove(key);
         }
     }
 
@@ -109,6 +111,55 @@ public final class DesktopPortsLibrary {
             if (old != null) links.setProperty(key, old);
             throw error;
         }
+    }
+
+    /** User-review-only repository shortcuts; never trust online repository as a runnable binary. */
+    private static String key(DesktopGitHubPortsSearch.Candidate candidate) {
+        return "github." + candidate.fullName().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    public synchronized Path linked(DesktopGitHubPortsSearch.Candidate candidate) {
+        String raw = links.getProperty(key(candidate));
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            Path file = Path.of(raw).toAbsolutePath().normalize();
+            return Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS) ? file : null;
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    public synchronized void link(DesktopGitHubPortsSearch.Candidate candidate,
+                                  Path executable) throws IOException {
+        Path approved = checkedExecutable(executable);
+        String name = key(candidate);
+        String previous = links.getProperty(name);
+        links.setProperty(name, approved.toString());
+        try { save(); } catch (IOException error) {
+            if (previous == null) links.remove(name);
+            else links.setProperty(name, previous);
+            throw error;
+        }
+    }
+
+    public synchronized void unlink(DesktopGitHubPortsSearch.Candidate candidate)
+            throws IOException {
+        String name = key(candidate);
+        String previous = links.getProperty(name);
+        links.remove(name);
+        try { save(); } catch (IOException error) {
+            if (previous != null) links.setProperty(name, previous);
+            throw error;
+        }
+    }
+
+    public Process launch(DesktopGitHubPortsSearch.Candidate candidate) throws IOException {
+        if (!System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT)
+                .contains("windows")) throw new IOException("Solo se ejecutan ports en Windows.");
+        Path file = linked(candidate);
+        if (file == null) throw new IOException("Selecciona primero un ejecutable instalado.");
+        Path exe = checkedExecutable(file);
+        return new ProcessBuilder(exe.toString()).directory(exe.getParent().toFile()).start();
     }
 
     private void save() throws IOException {

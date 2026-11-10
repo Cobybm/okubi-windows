@@ -2,9 +2,9 @@ name: OKUBI Windows - Phase 73 Ports Catalog QA
 
 on:
   push:
-    branches: [feat/okubi-phase73-windows-ports-catalog]
+    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer]
   pull_request:
-    branches: [audit/okubi-phase72-source-signing-readiness]
+    branches: [audit/okubi-phase72-source-signing-readiness, feat/okubi-phase73-windows-ports-catalog]
   workflow_dispatch:
 
 permissions:
@@ -34,17 +34,18 @@ jobs:
           $sources = @(Get-ChildItem -Path desktop/src -Filter '*.java' -Recurse | ForEach-Object { $_.FullName })
           & javac -encoding UTF-8 -d build/phase73/classes @sources retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
           if ($LASTEXITCODE -ne 0) { throw 'Windows UI source failed to compile' }
-      - name: Compile and run GitHub catalog and safe launcher regressions
+      - name: Compile and run full GitHub directory and safe launcher regressions
         shell: pwsh
         run: |
           $tests = @(
             'desktop/tests/bo/okubi/desktop/DesktopPortsCatalogTest.java',
+            'desktop/tests/bo/okubi/desktop/DesktopGitHubPortsSearchTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopPortsLibraryTest.java',
             'desktop/tests/bo/okubi/desktop/DesktopLibraryTest.java'
           )
           & javac -encoding UTF-8 -cp build/phase73/classes -d build/phase73/classes @tests
           if ($LASTEXITCODE -ne 0) { throw 'Tests failed to compile' }
-          foreach ($test in @('DesktopPortsCatalogTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
+          foreach ($test in @('DesktopPortsCatalogTest','DesktopGitHubPortsSearchTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
             & java -ea -cp build/phase73/classes "bo.okubi.desktop.$test"
             if ($LASTEXITCODE -ne 0) { throw "$test regression" }
           }
