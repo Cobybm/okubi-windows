@@ -430,8 +430,8 @@ public final class DesktopPortsDialog extends JDialog {
                 "Actualizar imagen oficial", "Quitar imagen personalizada", "Cancelar"
         };
         int choice = JOptionPane.showOptionDialog(this,
-                "Imagen para " + ref.fullName() + "\\n\\n"
-                + "OKUBI solo muestra capturas oficiales revisadas o el fondo CINEMA.\\n"
+                "Imagen para " + ref.fullName() + "\n\n"
+                + "OKUBI solo muestra capturas oficiales revisadas o el fondo CINEMA.\n"
                 + "Tu imagen personal tiene prioridad y no altera el archivo original.",
                 "OKUBI · CINEMA Gallery",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE,
