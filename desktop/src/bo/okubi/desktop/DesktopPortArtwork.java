@@ -23,9 +23,11 @@ public final class DesktopPortArtwork extends JPanel {
         setOpaque(false);
         setPreferredSize(new Dimension(width, height));
         setMinimumSize(new Dimension(Math.min(78, width), Math.min(94, height)));
-        setToolTipText("Vista previa GitHub para " + ref.fullName()
-                + " · Puede ser el logo o ficha del repositorio, no una captura de juego");
+        // A long Swing tooltip covered DESCARGAS and VINCULAR .EXE in the
+        // user's 77A screenshot; metadata belongs in the normal card text.
         getAccessibleContext().setAccessibleName("Imagen de " + ref.fullName());
+        getAccessibleContext().setAccessibleDescription(
+                "Vista previa del proyecto; podría mostrar una tarjeta GitHub");
         if (service != null) service.load(ref, this::showImage);
     }
 
@@ -57,11 +59,16 @@ public final class DesktopPortArtwork extends JPanel {
                     w, h, BG));
             g.fillRect(0, 0, w, h);
             if (image != null) {
-                // Contain instead of crop: do not cut off logos or preview text.
-                double scale = Math.min((w - 8.) / image.getWidth(),
-                        (h - 8.) / image.getHeight());
-                int rw = Math.max(1, (int) (image.getWidth() * scale));
-                int rh = Math.max(1, (int) (image.getHeight() * scale));
+                // Banner aspect ratio: fill landscape screenshots; preserve
+                // portrait game logos to avoid cutting their main subject.
+                boolean landscape = image.getWidth() * 10L >= image.getHeight() * 13L;
+                double scale = landscape
+                        ? Math.max((w - 4.) / image.getWidth(),
+                                (h - 4.) / image.getHeight())
+                        : Math.min((w - 8.) / image.getWidth(),
+                                (h - 8.) / image.getHeight());
+                int rw = Math.max(1, (int) Math.ceil(image.getWidth() * scale));
+                int rh = Math.max(1, (int) Math.ceil(image.getHeight() * scale));
                 g.drawImage(image, (w - rw) / 2, (h - rh) / 2, rw, rh, null);
             } else {
                 g.setFont(new Font("Segoe UI", Font.BOLD, Math.max(17, w / 5)));
