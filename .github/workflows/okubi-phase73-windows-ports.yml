@@ -1,0 +1,57 @@
+name: OKUBI Windows - Phase 73 Ports Catalog QA
+
+on:
+  push:
+    branches: [feat/okubi-phase73-windows-ports-catalog]
+  pull_request:
+    branches: [audit/okubi-phase72-source-signing-readiness]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ports-qa:
+    name: Ports catalog source and safety - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile whole Windows application including ports GUI and Android save serializer
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build/phase73/classes | Out-Null
+          $sources = @(Get-ChildItem -Path desktop/src -Filter '*.java' -Recurse | ForEach-Object { $_.FullName })
+          & javac -encoding UTF-8 -d build/phase73/classes @sources retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+          if ($LASTEXITCODE -ne 0) { throw 'Windows UI source failed to compile' }
+      - name: Compile and run GitHub catalog and safe launcher regressions
+        shell: pwsh
+        run: |
+          $tests = @(
+            'desktop/tests/bo/okubi/desktop/DesktopPortsCatalogTest.java',
+            'desktop/tests/bo/okubi/desktop/DesktopPortsLibraryTest.java',
+            'desktop/tests/bo/okubi/desktop/DesktopLibraryTest.java'
+          )
+          & javac -encoding UTF-8 -cp build/phase73/classes -d build/phase73/classes @tests
+          if ($LASTEXITCODE -ne 0) { throw 'Tests failed to compile' }
+          foreach ($test in @('DesktopPortsCatalogTest','DesktopPortsLibraryTest','DesktopLibraryTest')) {
+            & java -ea -cp build/phase73/classes "bo.okubi.desktop.$test"
+            if ($LASTEXITCODE -ne 0) { throw "$test regression" }
+          }
+      - name: Verify no executable, ROM, secrets or user data added to Git
+        shell: pwsh
+        run: |
+          $tracked = @(git ls-files)
+          $blocked = @($tracked | Where-Object { $_ -match '(?i)\.(?:exe|dll|apk|rom|gba|gbc|sav|srm|okubisave|jks|p12|pem|key)$' })
+          if ($blocked.Count -ne 0) { throw 'Private binary or user data tracked in Git' }
+          Write-Output 'PASS: curated official GitHub links; no auto download, no ROMs'
