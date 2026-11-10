@@ -137,9 +137,12 @@ public final class DesktopPortsDialog extends JDialog {
         JLabel caution = text("Requisitos orientativos · Algunos ports necesitan tu juego original.",
                 11, MUTED, false);
         bottom.add(caution, BorderLayout.CENTER);
-        JButton discover = action("EXPLORAR MÁS REPOSITORIOS",
-                () -> sections.setSelectedIndex(1));
-        bottom.add(discover, BorderLayout.EAST);
+        JPanel bottomActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        bottomActions.setOpaque(false);
+        bottomActions.add(action("DETECTAR INSTALADOS", this::findInstalledPorts));
+        bottomActions.add(action("EXPLORAR MÁS REPOSITORIOS",
+                () -> sections.setSelectedIndex(1)));
+        bottom.add(bottomActions, BorderLayout.EAST);
         add(bottom, BorderLayout.SOUTH);
 
         search.getDocument().addDocumentListener(new DocumentListener() {
@@ -424,6 +427,107 @@ public final class DesktopPortsDialog extends JDialog {
         } catch (IOException error) {
             warning("No se pudo quitar el vínculo: " + error.getMessage());
         }
+    }
+
+    /**
+     * User-initiated local folder scan. Never traverses arbitrary drives, reads
+     * game save data, links games automatically, or starts processes.
+     */
+    private void findInstalledPorts() {
+        JFileChooser picker = new JFileChooser();
+        picker.setDialogTitle("Elige UNA carpeta con tus juegos/ports de PC");
+        picker.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        picker.setAcceptAllFileFilterUsed(false);
+        if (picker.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        Path root = picker.getSelectedFile().toPath();
+        int approval = JOptionPane.showConfirmDialog(this,
+                "OKUBI examinará nombres y cabeceras de archivos EXE en:\n"
+                + root + "\n\n"
+                + "Máximo " + DesktopInstalledPortsScanner.MAX_FILES + " archivos y "
+                + DesktopInstalledPortsScanner.MAX_DEPTH + " niveles de carpetas.\n"
+                + "No abrirá ROMs, partidas, BIOS ni ejecutará programas.\n"
+                + "Los hallazgos son posibles coincidencias y debes aprobar cada vínculo.",
+                "OKUBI · Detección local con límites",
+                JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (approval != JOptionPane.YES_OPTION) return;
+
+        new SwingWorker<DesktopInstalledPortsScanner.ScanResult, Void>() {
+            @Override protected DesktopInstalledPortsScanner.ScanResult doInBackground()
+                    throws Exception {
+                return DesktopInstalledPortsScanner.scan(root);
+            }
+
+            @Override protected void done() {
+                try { showDetectedPorts(get()); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                } catch (java.util.concurrent.ExecutionException error) {
+                    warning("No se pudo examinar esa carpeta: " + error.getCause().getMessage());
+                }
+            }
+        }.execute();
+    }
+
+    private void showDetectedPorts(DesktopInstalledPortsScanner.ScanResult result) {
+        List<DesktopInstalledPortsScanner.Match> matches = result.matches();
+        if (matches.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    "No encontramos EXE compatibles con los nombres del catálogo revisado.\n"
+                    + "Archivos examinados: " + result.filesExamined()
+                    + (result.truncated() ? " (se alcanzó un límite de seguridad)" : "")
+                    + "\nTambién puedes usar VINCULAR .EXE manualmente.",
+                    "OKUBI · Detección local", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        String[] choices = matches.stream()
+                .map(match -> match.port().title() + "  —  " + match.exe())
+                .toArray(String[]::new);
+        javax.swing.JList<String> select = new javax.swing.JList<>(choices);
+        select.setSelectionMode(javax.swing.ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        select.setVisibleRowCount(Math.min(9, choices.length));
+        select.setBackground(CARD);
+        select.setForeground(FOREGROUND);
+        JScrollPane selection = new JScrollPane(select);
+        selection.setPreferredSize(new Dimension(690, Math.min(300, 38 + choices.length * 25)));
+        JPanel content = new JPanel(new BorderLayout(6, 9));
+        content.add(new JLabel("<html>Posibles ports instalados: " + choices.length
+                + ". Selecciona únicamente los que reconozcas.<br>"
+                + "No se instalará, ejecutará ni modificará ningún juego."
+                + (result.truncated() ? "<br>Escaneo limitado para proteger el rendimiento." : "")
+                + "</html>"), BorderLayout.NORTH);
+        content.add(selection, BorderLayout.CENTER);
+
+        int ok = JOptionPane.showConfirmDialog(this, content,
+                "OKUBI · Vincular ports detectados", JOptionPane.OK_CANCEL_OPTION,
+                JOptionPane.QUESTION_MESSAGE);
+        if (ok != JOptionPane.OK_OPTION || select.isSelectionEmpty()) return;
+
+        int linked = 0;
+        int errors = 0;
+        for (int index : select.getSelectedIndices()) {
+            DesktopInstalledPortsScanner.Match match = matches.get(index);
+            Path previous = library.linked(match.port());
+            if (previous != null && !previous.equals(match.exe())) {
+                int replace = JOptionPane.showConfirmDialog(this,
+                        "Este port ya tiene un ejecutable vinculado:\n" + previous
+                        + "\n\n¿Reemplazarlo con:\n" + match.exe() + "?",
+                        "OKUBI · Conservar vínculos existentes",
+                        JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                if (replace != JOptionPane.YES_OPTION) continue;
+            }
+            try {
+                library.link(match.port(), match.exe());
+                linked++;
+            } catch (IOException failed) {
+                errors++;
+            }
+        }
+        render();
+        JOptionPane.showMessageDialog(this,
+                "Ports vinculados: " + linked + " · Errores: " + errors
+                + "\nSolo se guardaron rutas locales. Los juegos no se ejecutaron.",
+                "OKUBI · Detección finalizada", JOptionPane.INFORMATION_MESSAGE);
     }
 
     private static JLabel text(String content, int size, Color color, boolean bold) {
