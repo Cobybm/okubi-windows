@@ -1,0 +1,52 @@
+name: OKUBI Windows Libretro Core Supply Chain Audit
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - migration/okubi-windows-phase69-audited
+    paths:
+      - tools/audit_libretro_cores.py
+      - .github/workflows/okubi-core-supply-chain-audit.yml
+permissions:
+  contents: read
+jobs:
+  independently-audit:
+    name: Inspect official Libretro ZIPs on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate ZIP structure, SHA-256, CRC and PE x64
+        shell: pwsh
+        run: |
+          python tools/audit_libretro_cores.py --output "libretro-audit-${{ matrix.os }}.json"
+          if ($LASTEXITCODE -ne 0) { throw "Core audit failed" }
+      - name: Upload only audit hashes, not third-party DLLs
+        uses: actions/upload-artifact@v4
+        with:
+          name: libretro-core-audit-${{ matrix.os }}
+          path: libretro-audit-${{ matrix.os }}.json
+          retention-days: 7
+  consensus:
+    needs: independently-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: libretro-core-audit-*
+          merge-multiple: true
+      - name: Reject mismatched runner results
+        run: |
+          python tools/audit_libretro_cores.py --compare libretro-audit-ubuntu-latest.json libretro-audit-windows-latest.json
