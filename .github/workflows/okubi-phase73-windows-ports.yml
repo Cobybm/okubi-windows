@@ -2,9 +2,9 @@ name: OKUBI Windows - Phase 73 Ports Catalog QA
 
 on:
   push:
-    branches: [feat/okubi-phase73-windows-ports-catalog]
+    branches: [feat/okubi-phase73-windows-ports-catalog, feat/okubi-phase74-github-ports-explorer]
   pull_request:
-    branches: [audit/okubi-phase72-source-signing-readiness]
+    branches: [audit/okubi-phase72-source-signing-readiness, feat/okubi-phase73-windows-ports-catalog]
   workflow_dispatch:
 
 permissions:
