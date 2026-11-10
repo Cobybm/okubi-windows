@@ -1,4 +1,10 @@
 # Fetch official open-source Libretro Windows x64 cores at BUILD time.
+# 2026-11-10: three NEW official ZIP SHA-256 fingerprints were independently
+# checked on Ubuntu and Windows in new repo CI run 42863037459.
+# Both runners obtained identical ZIP + DLL hashes, validated ZIP CRC,
+# strictly one DLL, size and Windows PE x64. Exact hashes only are allowed.
+# These are rolling latest builds, not immutable/reproducible releases.
+# Fail closed on any further changes; don't auto-repin from a download.
 # All three DLLs are included with OKUBI Desktop: no end-user downloads,
 # installers, accounts or per-console configuration.
 # No ROMs/BIOS. Core packages come only from the official Libretro buildbot.
@@ -23,9 +29,9 @@ $ProgressPreference = "SilentlyContinue"
 $root = [System.IO.Path]::GetFullPath($OutputDirectory)
 [System.IO.Directory]::CreateDirectory($root) | Out-Null
 $packages = @(
-    @{ Name="Game Boy + Game Boy Color"; Dll="sameboy_libretro.dll"; Archive="sameboy_libretro.dll.zip"; Sha256="be9dc4214c74212cba8291a1b4dde6d9df27fe2c2f415a3da88c6e285a32f514"; MinBytes=40000; MaxBytes=12000000 },
-    @{ Name="Game Boy Advance"; Dll="mgba_libretro.dll"; Archive="mgba_libretro.dll.zip"; Sha256="92d9acdde738de9604eb9549a67d3e542b4d2989ae6f286c75359c5ecdb82832"; MinBytes=80000; MaxBytes=16000000 },
-    @{ Name="Super Nintendo"; Dll="mednafen_supafaust_libretro.dll"; Archive="mednafen_supafaust_libretro.dll.zip"; Sha256=@("9f0bf54efb4af27e6f6805b90c9504cc20cdfbac2eb6f72748b46f5d2eb8d504", "af88931ffe6a6a413801977c6e471cd98648523497474dbdedcffa629642da6f"); MinBytes=80000; MaxBytes=20000000 }
+    @{ Name="Game Boy + Game Boy Color"; Dll="sameboy_libretro.dll"; Archive="sameboy_libretro.dll.zip"; Sha256=@("be9dc4214c74212cba8291a1b4dde6d9df27fe2c2f415a3da88c6e285a32f514", "3b03dbdc5dcfd052ec8a1614e050592376132e14c357dda7e8dea5cefce08a6c"); MinBytes=40000; MaxBytes=12000000 },
+    @{ Name="Game Boy Advance"; Dll="mgba_libretro.dll"; Archive="mgba_libretro.dll.zip"; Sha256=@("92d9acdde738de9604eb9549a67d3e542b4d2989ae6f286c75359c5ecdb82832", "cad0806ae70a7867839a961b4cebd8e718acbf7f9d04579d097e56c9af73923e"); MinBytes=80000; MaxBytes=16000000 },
+    @{ Name="Super Nintendo"; Dll="mednafen_supafaust_libretro.dll"; Archive="mednafen_supafaust_libretro.dll.zip"; Sha256=@("9f0bf54efb4af27e6f6805b90c9504cc20cdfbac2eb6f72748b46f5d2eb8d504", "af88931ffe6a6a413801977c6e471cd98648523497474dbdedcffa629642da6f", "39248521208cf977e72e1d885a01f094339f0da9e4df2abc12d846601ffa567b"); MinBytes=80000; MaxBytes=20000000 }
 )
 $hostUrl = "https://buildbot.libretro.com/nightly/windows/x86_64/latest/"
 $manifest = [System.Collections.Generic.List[string]]::new()
