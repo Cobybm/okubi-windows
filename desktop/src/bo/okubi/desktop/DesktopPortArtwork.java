@@ -37,7 +37,7 @@ public final class DesktopPortArtwork extends JPanel {
             return;
         }
         image = next;
-        state = next == null ? "PORT PC" : "GITHUB";
+        state = next == null ? "PORT PC" : "";
         repaint();
     }
 
@@ -82,13 +82,17 @@ public final class DesktopPortArtwork extends JPanel {
             g.setClip(null);
             g.setColor(ACCENT);
             g.drawRoundRect(0, 0, w - 1, h - 1, 14, 14);
-            g.setFont(new Font("Segoe UI", Font.BOLD, 10));
-            String label = state;
-            int labelWidth = g.getFontMetrics().stringWidth(label) + 14;
-            g.setColor(new Color(20, 14, 32, 225));
-            g.fillRoundRect(7, h - 25, labelWidth, 18, 9, 9);
-            g.setColor(Color.WHITE);
-            g.drawString(label, 14, h - 12);
+            // The previous GITHUB badge obscured real game artwork and
+            // incorrectly labelled upstream screenshots as social cards.
+            // A fallback badge remains only when no picture was available.
+            if (image == null) {
+                g.setFont(new Font("Segoe UI", Font.BOLD, 10));
+                int labelWidth = g.getFontMetrics().stringWidth(state) + 14;
+                g.setColor(new Color(20, 14, 32, 225));
+                g.fillRoundRect(7, h - 25, labelWidth, 18, 9, 9);
+                g.setColor(Color.WHITE);
+                g.drawString(state, 14, h - 12);
+            }
         } finally { g.dispose(); }
     }
 }

@@ -51,17 +51,39 @@ public final class DesktopPortArtworkServiceTest {
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("augustus"));
         DesktopPortArtworkService.Ref dhewm =
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("dhewm3"));
-        check(DesktopOfficialPortArtwork.curatedCount() == 3,
-                "Three verified upstream official image sources");
-        for (var pin : java.util.List.of(devilution, augustus, dhewm)) {
+        check(DesktopOfficialPortArtwork.curatedCount() == 8,
+                "Eight reviewed upstream official visual sources");
+        for (var pin : java.util.List.of(devilution, augustus, dhewm,
+                new DesktopPortArtworkService.Ref("arx", "ArxLibertatis"),
+                new DesktopPortArtworkService.Ref("OpenTTD", "OpenTTD"),
+                new DesktopPortArtworkService.Ref("Warzone2100", "warzone2100"),
+                new DesktopPortArtworkService.Ref("luanti-org", "luanti"),
+                new DesktopPortArtworkService.Ref("OpenRA", "OpenRA"))) {
             var url = DesktopOfficialPortArtwork.source(pin);
             check(url != null && DesktopOfficialPortArtwork.permitted(url),
                     "Pinned upstream project source must be GitHub raw");
             check(url.getPath().matches(
-                    "/[^/]+/[^/]+/[0-9a-f]{40}/.+\\.png"),
+                    "/[^/]+/[^/]+/[0-9a-f]{40}/.+\\.(png|jpg)"),
                     "Project screenshots must use immutable 40-digit commit IDs");
         }
-        check(DesktopOfficialPortArtwork.source(ref) == null,
+        check(DesktopOfficialPortArtwork.source(
+                DesktopPortArtworkService.forPort(
+                        DesktopPortsCatalog.byId("arxlibertatis")))
+                        .getPath().contains("castle-of-arx-2x.jpg"),
+                "Arx Libertatis must prefer official game screenshot to white GitHub page");
+        check(DesktopOfficialPortArtwork.source(
+                DesktopPortArtworkService.forPort(
+                        DesktopPortsCatalog.byId("openttd")))
+                        .getPath().contains("_screenshots/"),
+                "OpenTTD must use its official gallery, not GitHub social card");
+        check(DesktopOfficialPortArtwork.source(
+                DesktopPortArtworkService.forPort(
+                        DesktopPortsCatalog.byId("warzone2100")))
+                        .getPath().contains("doc/images/"),
+                "Warzone2100 must use upstream gameplay imagery");
+        DesktopPortArtworkService.Ref unreviewed =
+                new DesktopPortArtworkService.Ref("UnknownOwner", "UnknownGame");
+        check(DesktopOfficialPortArtwork.source(unreviewed) == null,
                 "Unreviewed projects must not get unrelated artwork");
         check(!DesktopOfficialPortArtwork.permitted(
                 java.net.URI.create("https://example.com/art.png")),
@@ -148,8 +170,10 @@ public final class DesktopPortArtworkServiceTest {
                 // Windows CI can prohibit symlink creation without developer mode.
             }
 
-            check(!service.cachePath(ref).equals(service.cachePath(devilution)),
+            check(!service.cachePath(unreviewed).equals(service.cachePath(devilution)),
                     "Curated upstream screenshot must use a distinct cache namespace");
+            check(service.cachePath(unreviewed).toString().contains("cache"),
+                    "Unknown projects use only social-preview cache");
             check(service.cachePath(devilution).toString()
                     .contains("official-screenshots-v1"),
                     "Fresh curated screenshot must replace stale GitHub webpage thumbnail");
