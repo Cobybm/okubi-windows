@@ -82,9 +82,9 @@ public final class DesktopPortGalleryTest {
                 multi++;
             }
         }
-        check(DesktopOfficialPortArtwork.curatedCount() == 17, "17 reviewed project-owned media sources");
-        check(DesktopOfficialPortArtwork.galleryImageCount() == 39,
-                "22 extra images plus 17 original ones");
+        check(DesktopOfficialPortArtwork.curatedCount() == 18, "18 reviewed project-owned media sources");
+        check(DesktopOfficialPortArtwork.galleryImageCount() == 40,
+                "22 extra images plus 18 primary ones");
         check(DesktopOfficialPortArtwork.gallery(
                 new DesktopPortArtworkService.Ref("random", "unverified")).isEmpty(),
                 "Unknown project never gets artwork of another game");

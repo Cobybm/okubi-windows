@@ -51,8 +51,8 @@ public final class DesktopPortArtworkServiceTest {
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("augustus"));
         DesktopPortArtworkService.Ref dhewm =
                 DesktopPortArtworkService.forPort(DesktopPortsCatalog.byId("dhewm3"));
-        check(DesktopOfficialPortArtwork.curatedCount() == 17,
-                "Seventeen project-matched official images, including engine UI examples");
+        check(DesktopOfficialPortArtwork.curatedCount() == 18,
+                "Eighteen project-matched official images, including engine UI examples");
         for (var pin : java.util.List.of(devilution, augustus, dhewm,
                 new DesktopPortArtworkService.Ref("arx", "ArxLibertatis"),
                 new DesktopPortArtworkService.Ref("OpenTTD", "OpenTTD"),
@@ -62,6 +62,7 @@ public final class DesktopPortArtworkServiceTest {
                 new DesktopPortArtworkService.Ref("vcmi", "vcmi"),
                 new DesktopPortArtworkService.Ref("ZDoom", "gzdoom"),
                 new DesktopPortArtworkService.Ref("scummvm", "scummvm"),
+                new DesktopPortArtworkService.Ref("FWGS", "xash3d-fwgs"),
                 new DesktopPortArtworkService.Ref("TheForceEngine", "TheForceEngine"),
                 new DesktopPortArtworkService.Ref("OpenRCT2", "OpenRCT2"),
                 new DesktopPortArtworkService.Ref("OpenLoco", "OpenLoco"),
