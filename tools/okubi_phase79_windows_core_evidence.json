@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "audit_date_utc": "2026-11-14",
+  "audit_run": "https://github.com/Cobybm/okubi-windows/actions/runs/43604912900",
+  "audit_runners": [
+    "ubuntu-latest",
+    "windows-latest"
+  ],
+  "audit_consensus": "success",
+  "official_buildbot": "https://buildbot.libretro.com/nightly/windows/x86_64/latest/",
+  "releases_authorized": false,
+  "statement": "These exact downloaded ZIP/DLL bytes passed independent integrity checks. No exact Windows binary-to-source revision/build recipe provenance has been established. Not public-release approval.",
+  "cores": [
+    {
+      "name": "sameboy_libretro.dll",
+      "license": "MIT",
+      "source_repository": "https://github.com/libretro/SameBoy",
+      "zip_sha256": "02d848a55db54c1760d9cdff53941c41473e47646711bc8a0d7b6f2130f2b447",
+      "dll_sha256": "66d34ab1185d23dbd09f53a4c3565977894fe1ebac2e69cfe20bd2ec2e94f987",
+      "corresponding_windows_source_commit": null,
+      "corresponding_windows_build_recipe": null
+    },
+    {
+      "name": "mgba_libretro.dll",
+      "license": "MPL-2.0",
+      "source_repository": "https://github.com/libretro/mgba",
+      "zip_sha256": "0a98416e81417da065a5f0f2fa526f5f11baeb0a537063bbe5b02908fde92d87",
+      "dll_sha256": "0a5a50e79f9f5d41fe0f044f318446570998dd5c338be38a0def8b529c34f3d8",
+      "corresponding_windows_source_commit": null,
+      "corresponding_windows_build_recipe": null
+    },
+    {
+      "name": "mednafen_supafaust_libretro.dll",
+      "license": "GPL-2.0-or-later",
+      "source_repository": "https://github.com/libretro/supafaust",
+      "zip_sha256": "3796e4f56291e08d3d966a1aceb32e41af88eb280e094f61cc8a43cd41c0aced",
+      "dll_sha256": "1cb1c7eaaf81fa923e621569ba76cb8fac07981ea166d12fd34fcfa0158676b7",
+      "corresponding_windows_source_commit": null,
+      "corresponding_windows_build_recipe": null
+    }
+  ]
+}
