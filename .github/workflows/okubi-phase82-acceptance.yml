@@ -1,0 +1,101 @@
+name: OKUBI Phase 82 - Final Cross-Artifact Acceptance (QA only)
+
+on:
+  push:
+    branches:
+      - release/okubi-phase82-final-acceptance-gates
+  pull_request:
+    branches:
+      - integration/okubi-phase81b-source-built-desktop-qa
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: phase82-acceptance-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  final-qa-both-platforms:
+    name: Verify Windows source-built ZIP + Android parallel APK; deny public release
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout isolated acceptance source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run all synthetic tamper/identity/approval-denial tests
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase82_final_audit.py' -v
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase81b_source_bundle.py' -v
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase79_supply_chain.py' -v
+      - name: Download source-built Windows QA with three pinned cores
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          path: build/phase82/windows
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Download original parallel Android QA APK, already certified by its CI
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-Android-Migration-QA57-Side-by-Side
+          path: build/phase82/android
+          run-id: 43612388104
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Install Android public APK metadata/signature verification tools
+        uses: android-actions/setup-android@v3
+      - name: Install required build-tools version
+        run: |
+          set -euo pipefail
+          sdkmanager "build-tools;35.0.0"
+      - name: Inspect actual packages and reject release without physical and legal evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/phase82/report build/phase82/local
+          winZip=$(find build/phase82/windows -type f -name 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip' -print)
+          winSum=$(find build/phase82/windows -type f -name 'SHA256SUMS.txt' -print)
+          androidApk=$(find build/phase82/android -type f -name 'OKUBI-Android-Migration-QA57.apk' -print)
+          androidSum=$(find build/phase82/android -type f -name 'SHA256SUMS.txt' -print)
+          for file in "$winZip" "$winSum" "$androidApk" "$androidSum"; do
+            if [[ -z "$file" || ! -f "$file" ]]; then echo "Expected approved QA artifact missing"; exit 1; fi
+          done
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$androidApk" > build/phase82/local/badging.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$androidApk" > build/phase82/local/signature.txt
+          args=(
+            --windows "$winZip" --windows-checksums "$winSum"
+            --android "$androidApk" --android-checksums "$androidSum"
+            --android-badging build/phase82/local/badging.txt
+            --android-signer build/phase82/local/signature.txt
+            --evidence tools/okubi_phase82_release_evidence.json
+            --report build/phase82/report/QA-ACCEPTANCE-AND-RELEASE-BLOCKERS.json
+          )
+          python tools/okubi_phase82_final_audit.py "${args[@]}"
+          set +e
+          python tools/okubi_phase82_final_audit.py "${args[@]}" --require-release
+          denial=$?
+          set -e
+          if [[ "$denial" -ne 2 ]]; then
+             echo "ERROR: public release unexpectedly allowed OR integrity rejected"
+             exit 1
+          fi
+          echo "PASS: both QA packages valid, public stable release intentionally denied"
+      - name: Publish non-sensitive gate report; never re-upload APK, user data or signatures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE82-FINAL-QA-EVIDENCE-NO-RELEASE
+          path: build/phase82/report/*.json
+          retention-days: 14
+          if-no-files-found: warn
