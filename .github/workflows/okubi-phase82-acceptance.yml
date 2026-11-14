@@ -53,12 +53,21 @@ jobs:
           run-id: 43612388104
           github-token: ${{ github.token }}
           repository: Cobybm/okubi-windows
-      - name: Install Android public APK metadata/signature verification tools
-        uses: android-actions/setup-android@v3
-      - name: Install required build-tools version
+      - name: Verify Android build-tools from runner (no deprecated SDK setup)
         run: |
           set -euo pipefail
-          sdkmanager "build-tools;35.0.0"
+          : "${ANDROID_HOME:?GitHub hosted runner must provide Android SDK}"
+          if [[ ! -x "$ANDROID_HOME/build-tools/35.0.0/aapt" ||
+                ! -x "$ANDROID_HOME/build-tools/35.0.0/apksigner" ]]; then
+            echo "Android build-tools 35.0.0 missing; installing only this supported package"
+            if [[ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]]; then
+              "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;35.0.0"
+            else
+              sdkmanager "build-tools;35.0.0"
+            fi
+          fi
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/apksigner"
       - name: Inspect actual packages and reject release without physical and legal evidence
         shell: bash
         run: |
