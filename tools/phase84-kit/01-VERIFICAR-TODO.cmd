@@ -1,11 +1,12 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
+set "OKUBI_QA84_ROOT=%~dp0"
 echo ===================================================
 echo  OKUBI QA84 - Verificacion Windows y Android
 echo  No instala nada ni toca tus partidas.
 echo ===================================================
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\OKUBI-VERIFICAR-KIT.ps1" -Mode Both -KitRoot "%~dp0." -Report "%~dp0INFORME-QA84.json"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\OKUBI-VERIFICAR-KIT.ps1" -Mode Both -Report "%~dp0INFORME-QA84.json"
 set "RESULT=%ERRORLEVEL%"
 if not "%RESULT%"=="0" (
   echo RECHAZADO: no uses los archivos hasta resolver integridad.
