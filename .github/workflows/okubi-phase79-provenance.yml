@@ -48,7 +48,11 @@ jobs:
         shell: pwsh
         run: |
           python tools/okubi_phase79_supply_chain.py --root . --report build/phase79/release-blocked.json --require-public-release
-          if ($LASTEXITCODE -ne 2) { throw "Release unexpectedly permitted or audit failed" }
+          $expectedDenial = $LASTEXITCODE
+          if ($expectedDenial -ne 2) { throw "Release unexpectedly permitted or audit failed" }
+          # GitHub's pwsh wrapper exits using LASTEXITCODE after the script.
+          # Normalize the EXPECTED denial so the negative test succeeds.
+          $global:LASTEXITCODE = 0
       - name: Publish non-sensitive integrity report only
         if: always()
         uses: actions/upload-artifact@v4
