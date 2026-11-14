@@ -32,7 +32,7 @@ fi
 (
   cd "$source"
   make clean platform=win
-  make -j2 platform=win CC=gcc CXX=g++ "GIT_VERSION=${pin:0:8}"
+  make -j2 platform=win CC=gcc CXX="g++ -static" "GIT_VERSION=${pin:0:8}"
 )
 dll="$source/mednafen_supafaust_libretro.dll"
 if [[ ! -s "$dll" ]] || [[ $(stat -c '%s' "$dll") -lt 100000 ]]; then
@@ -40,6 +40,12 @@ if [[ ! -s "$dll" ]] || [[ $(stat -c '%s' "$dll") -lt 100000 ]]; then
   exit 1
 fi
 objdump -f "$dll" | grep -E -q 'pei?-x86-64'
+echo "Imported Windows DLLs (runtime dependency audit):"
+objdump -p "$dll" | grep 'DLL Name:' || true
+if objdump -p "$dll" | grep -Ei 'DLL Name: (libwinpthread-1|libgcc_s_seh-1|libstdc\+\+-6)\.dll'; then
+  echo "ERROR: Source-built core requires non-bundled MinGW runtime DLL" >&2
+  exit 1
+fi
 for symbol in retro_init retro_deinit retro_load_game retro_run retro_get_system_info; do
   objdump -p "$dll" | grep -E -q "\b${symbol}\b"
 done
@@ -52,7 +58,7 @@ git -C "$source" archive --format=tar.gz --prefix=supafaust-source/ \
   echo "Upstream: $upstream"
   echo "Exact source commit: $pin"
   echo "Platform: MinGW64 native Windows x64"
-  echo "Recipe: make clean platform=win && make -j2 platform=win CC=gcc CXX=g++ GIT_VERSION=${pin:0:8}"
+  echo "Recipe: make clean platform=win && make -j2 platform=win CC=gcc CXX="g++ -static" GIT_VERSION=${pin:0:8}"
   echo "Compiler: $(gcc -dumpfullversion -dumpversion)"
   echo "Toolchain: $(gcc -dumpmachine)"
   echo "Source archive: supafaust-corresponding-source.tar.gz"
