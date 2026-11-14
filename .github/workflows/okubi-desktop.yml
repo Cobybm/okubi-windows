@@ -228,6 +228,7 @@ jobs:
           Copy-Item docs/OKUBI_RELEASE_CANDIDATE_PHASE56.md build/desktop/input/RELEASE-CANDIDATE-NOTES.md -Force
           Copy-Item desktop/QA57-LAUNCHER.cmd build/desktop/input/RUN-QA57-ISOLATED.cmd -Force
           Copy-Item docs/OKUBI_FINAL_QA_PHASE57.md build/desktop/input/QA57-READ-ME-FIRST.md -Force
+          Copy-Item docs/OKUBI_PHASE80_FINAL_QA_CHECKLIST.md build/desktop/input/PHASE80-READ-ME-FIRST.md -Force
           Copy-Item docs/OKUBI_WINDOWS_ONLY_PHASE59.md build/desktop/input/WINDOWS-PHASE59-GUIDE.md -Force
           Copy-Item docs/OKUBI_SMART_PERFORMANCE_PHASE60.md build/desktop/input/SMART-PERFORMANCE-PHASE60.md -Force
           Copy-Item docs/OKUBI_SMART_PC_UI_PHASE61.md build/desktop/input/SMART-PC-READABLE-UI-PHASE61.md -Force
@@ -261,6 +262,9 @@ jobs:
             if (!(Test-Path (Join-Path $coreRoot ("licenses/" + $license)))) {
               throw "Missing release candidate source and license notice: $license"
             }
+          }
+          if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/PHASE80-READ-ME-FIRST.md")) {
+            throw "Final phase80 QA instructions are missing from application"
           }
           if (!(Test-Path "build/desktop/dist/OKUBI Desktop/app/RELEASE-CANDIDATE-NOTES.md")) {
             throw "Missing release candidate migration notes inside Windows application"
@@ -334,6 +338,25 @@ jobs:
           }
           Write-Output "OKUBI WINDOWS PHASE59 SHA256SUMS $line"
 
+      - name: Python 3.12 for final artifact QA
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Phase80 synthetic artifact tamper and isolation regressions
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase80_rc_preflight.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "Final ZIP/APK safety tests failed" }
+
+      - name: Phase80 inspect actual Windows ZIP plus per-core SHA-256 integrity
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          python tools/okubi_phase80_rc_preflight.py --platform windows --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --report build/phase80/windows-qa-report.json
+          if ($LASTEXITCODE -ne 0) { throw "Windows QA ZIP is unsafe or inconsistent" }
+
       - name: Upload standalone Windows application image
         uses: actions/upload-artifact@v4
         with:
@@ -341,5 +364,6 @@ jobs:
           path: |
             ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64.zip
             ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt
+            ${{ runner.temp }}/okubi-desktop-source/build/phase80/windows-qa-report.json
           if-no-files-found: error
           retention-days: 5
