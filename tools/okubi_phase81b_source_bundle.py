@@ -248,7 +248,12 @@ def main() -> int:
         print("Public release authorized: False")
         return 0
     except (OSError, ValueError, zipfile.BadZipFile) as e:
-        print("BLOCKED: integrity or source evidence failed", type(e).__name__)
+        # CheckError contains only source-code-defined failure identifiers.
+        # Do not print arbitrary filesystem errors, credentials or paths.
+        if isinstance(e, CheckError):
+            print("BLOCKED: source bundle check:", str(e))
+        else:
+            print("BLOCKED: integration audit unavailable:", type(e).__name__)
         return 1
 
 
