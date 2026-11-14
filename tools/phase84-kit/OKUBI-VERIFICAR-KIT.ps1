@@ -41,6 +41,7 @@ function Assert-ArtifactSha256 {
     }
     return $actual
 }
+$phase84Step = 'KIT_ROOT'
 try {
     if (-not (Test-Path -LiteralPath $kitRootFull -PathType Container)) {
         throw 'QA kit directory not available'
@@ -58,12 +59,14 @@ try {
         stable_release_authorized = $false
     }
     if ($Mode -ne 'Android') {
+        $phase84Step = 'WINDOWS_PACKAGE_CHECKSUM'
         $windowsZip = 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip'
         $winSha = Assert-ArtifactSha256 -Subfolder Windows -Filename $windowsZip -MinimumSize 1000000 -MaximumSize 1000000000
         $windowsTool = Join-Path $kitRootFull 'tools\okubi_phase83_windows_local_qa.ps1'
         if (-not (Test-Path -LiteralPath $windowsTool -PathType Leaf)) {
             throw 'Isolated Windows safety inspector unavailable'
         }
+        $phase84Step = 'WINDOWS_INTERNAL_CHECK'
         $argsForInspector = @(
             '-NoProfile', '-ExecutionPolicy', 'Bypass',
             '-File', $windowsTool,
@@ -78,8 +81,10 @@ try {
         Write-Host 'PASS: Windows x64 SHA256, 3 source-built cores and isolated launcher.'
     }
     if ($Mode -ne 'Windows') {
+        $phase84Step = 'ANDROID_PACKAGE_CHECKSUM'
         $apkName = 'OKUBI-Android-Migration-QA57.apk'
         $apkSha = Assert-ArtifactSha256 -Subfolder Android -Filename $apkName -MinimumSize 100000 -MaximumSize 200000000
+        $phase84Step = 'ANDROID_APK_ARCHIVE_CHECK'
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         $zip = [IO.Compression.ZipFile]::OpenRead(
             (Join-Path $kitRootFull ('Android\' + $apkName)))
@@ -110,6 +115,7 @@ try {
         Write-Host 'Android signature/package was checked in GitHub Actions Phase 82.'
         Write-Host 'Never uninstall canonical Android or older QA57 containing saves.'
     }
+    $phase84Step = 'WRITE_REPORT'
     if (-not [string]::IsNullOrWhiteSpace($Report)) {
         $target = [IO.Path]::GetFullPath($Report)
         $parent = [IO.Path]::GetDirectoryName($target)
@@ -122,6 +128,6 @@ try {
     Write-Host 'PUBLIC RELEASE AUTHORIZED: NO.'
     exit 0
 } catch {
-    [Console]::Error.WriteLine('BLOCKED: Phase84 downloaded QA kit integrity rejected.')
+    [Console]::Error.WriteLine('BLOCKED: Phase84 QA kit integrity rejected (' + $phase84Step + ').')
     exit 1
 }
