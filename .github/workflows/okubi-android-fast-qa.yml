@@ -1,0 +1,36 @@
+name: OKUBI Android — Fast migration regression
+on:
+  push:
+    branches: [migration/okubi-android-preserved]
+    paths:
+      - '.github/workflows/okubi-android-fast-qa.yml'
+      - '.github/workflows/okubi-retro.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-and-portable-saves:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Original retro Python tests in migrated tree
+        run: python3 -m unittest discover -s retro-module/tests -v
+      - name: Portable synthetic game saves and patch engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/android-migration-tests
+          javac -encoding UTF-8 -d build/android-migration-tests \
+            retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiSaveArchiveTest.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiPortableSaveContractTest.java \
+            retro-module/java/bo/nexoplay/app/retro/OkubiPatchEngine.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/OkubiPatchEngineTest.java
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiSaveArchiveTest
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiPortableSaveContractTest
+          java -ea -cp build/android-migration-tests bo.nexoplay.app.retro.OkubiPatchEngineTest

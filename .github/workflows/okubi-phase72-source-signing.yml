@@ -1,0 +1,39 @@
+name: OKUBI Phase 72 - License and Signing Readiness
+
+on:
+  push:
+    branches:
+      - audit/okubi-phase72-source-signing-readiness
+  pull_request:
+    branches:
+      - test/okubi-phase71-cross-save-ci
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  license-signing-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source with no stored token
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run ten synthetic non-destructive audits
+        run: python -m unittest discover -s tools/tests -p 'test_okubi_phase72_release_audit.py' -v
+      - name: Audit exact Android pins, Windows notices and signing safeguards
+        run: python tools/okubi_phase72_release_audit.py --root . --report build/phase72/source-signing-report.json
+      - name: Upload public-safe report (no signatures or private files)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE72-SOURCE-SIGNING-AUDIT
+          path: build/phase72/source-signing-report.json
+          retention-days: 14
+          if-no-files-found: warn
