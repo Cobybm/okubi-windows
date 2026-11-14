@@ -67,6 +67,17 @@ try {
     if ($Mode -ne 'Android') {
         $phase84Step = 'WINDOWS_PACKAGE_CHECKSUM'
         $windowsZip = 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip'
+        if ($env:CI -eq 'true') {
+            # CI-safe booleans; never print actual filesystem paths or user names.
+            $expectedFolder = [string]::Equals(
+                [IO.Path]::GetFileName($kitRootFull.TrimEnd([char[]]@('\','/'))),
+                'OKUBI-QA84-TEST-KIT', [StringComparison]::OrdinalIgnoreCase)
+            Write-Host ('CI QA84 root leaf is expected: ' + $expectedFolder)
+            Write-Host ('CI QA84 Windows ZIP exists: ' +
+                (Test-Path -LiteralPath (Join-Path $kitRootFull ('Windows\' + $windowsZip)) -PathType Leaf))
+            Write-Host ('CI QA84 Windows checksum exists: ' +
+                (Test-Path -LiteralPath (Join-Path $kitRootFull 'Windows\SHA256SUMS.txt') -PathType Leaf))
+        }
         $winSha = Assert-ArtifactSha256 -Subfolder Windows -Filename $windowsZip -MinimumSize 1000000 -MaximumSize 1000000000
         $windowsTool = Join-Path $kitRootFull 'tools\okubi_phase83_windows_local_qa.ps1'
         if (-not (Test-Path -LiteralPath $windowsTool -PathType Leaf)) {
