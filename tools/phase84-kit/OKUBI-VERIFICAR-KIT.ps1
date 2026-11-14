@@ -145,6 +145,19 @@ try {
     Write-Host 'PUBLIC RELEASE AUTHORIZED: NO.'
     exit 0
 } catch {
-    [Console]::Error.WriteLine('BLOCKED: Phase84 QA kit integrity rejected (' + $phase84Step + ').')
+    $reason = 'unidentified'
+    $safeReasons = @(
+        'Missing approved QA package or checksum file',
+        'Unsafe QA package or checksum size',
+        'Bad checksum name or manifest contents',
+        'Artifact checksum does not match approved QA manifest',
+        'Isolated Windows safety inspector unavailable',
+        'Isolated Windows ZIP structure or launcher rejected'
+    )
+    if ($safeReasons -contains $_.Exception.Message) {
+        $reason = $_.Exception.Message
+    }
+    [Console]::Error.WriteLine(
+        'BLOCKED: Phase84 QA kit integrity rejected (' + $phase84Step + '): ' + $reason)
     exit 1
 }
