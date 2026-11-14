@@ -125,8 +125,8 @@ try {
         $reportPath = [IO.Path]::GetFullPath($Report)
         $reportParent = [IO.Path]::GetDirectoryName($reportPath)
         [IO.Directory]::CreateDirectory($reportParent) | Out-Null
-        $summary | ConvertTo-Json -Depth 3 |
-            [IO.File]::WriteAllText($reportPath, $_, [Text.Encoding]::UTF8)
+        $json = $summary | ConvertTo-Json -Depth 3
+        [IO.File]::WriteAllText($reportPath, $json, [Text.Encoding]::UTF8)
     }
     Write-Host 'Stable release authorized: NO.'
     exit 0
