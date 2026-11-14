@@ -1,6 +1,7 @@
 @echo off
 setlocal EnableExtensions DisableDelayedExpansion
 cd /d "%~dp0"
+set "OKUBI_QA84_ROOT=%~dp0"
 echo ===================================================
 echo  OKUBI QA84 - Prueba Windows CON PERFIL NUEVO
 echo ===================================================
