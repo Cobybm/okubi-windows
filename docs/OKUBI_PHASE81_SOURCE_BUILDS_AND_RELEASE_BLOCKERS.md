@@ -17,7 +17,7 @@ produjeron las DLL Windows: son cadenas de suministro independientes.
 - Repositorio: `https://github.com/libretro/supafaust.git`
 - Commit: `642d1d1b6684aa7e306a02a89885f3f5456a5157`
 - Sistema: Windows x64 + MSYS2 MinGW64
-- Compilación: `make clean platform=win && make -j2 platform=win CC=gcc CXX=g++`
+- Compilación: `make clean platform=win && make -j2 platform=win CC=gcc CXX='g++ -static'`
 - Controles: `git rev-parse HEAD` debe coincidir con el commit, `COPYING` presente,
   DLL Windows PE x64, símbolos `retro_*`, DLL cargable con API Libretro v1.
 - Archivo de prueba: DLL, `supafaust-corresponding-source.tar.gz` producido
@@ -50,3 +50,12 @@ certificado legal para distribuir como versión estable.
 
 **Separación estricta:** no tocar repositorio original privado,
 VIDAS, instalaciones de Android, ROMs, saves, favoritos o certificados.
+
+## Primer hallazgo de QA (14/11/2026)
+
+La compilación inicial desde el commit exacto de Supafaust se completó en el workflow
+[43613155581](https://github.com/Cobybm/okubi-windows/actions/runs/43613155581),
+pero falló la prueba de carga del DLL en Windows (error de sistema **126**,
+posible dependencia de runtime MinGW no empaquetada). La rama experimental
+ahora exige enlace estático del runtime y registra las DLL importadas antes de
+aceptar el resultado. No se han sustituido los binarios de la Fase 80.
