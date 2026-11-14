@@ -66,10 +66,16 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
+          $baseline = 'build/phase81b/phase80-baseline'
+          $zips = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64.zip')
+          $hashes = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-SHA256SUMS.txt')
+          if ($zips.Count -ne 1 -or $hashes.Count -ne 1) {
+            throw 'Approved Phase80 ZIP or checksum not found exactly once in downloaded artifact'
+          }
           $options = @(
             'tools/okubi_phase81b_source_bundle.py',
-            '--phase80-zip', 'build/phase81b/phase80-baseline/OKUBI-Desktop-Windows-x64.zip',
-            '--phase80-checksums', 'build/phase81b/phase80-baseline/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt',
+            '--phase80-zip', $zips[0].FullName,
+            '--phase80-checksums', $hashes[0].FullName,
             '--phase79-evidence', 'tools/okubi_phase79_windows_core_evidence.json',
             '--source-builds', 'build/phase81',
             '--source-scripts', 'tools',
