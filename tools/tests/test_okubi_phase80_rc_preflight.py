@@ -55,11 +55,12 @@ class Phase80ArtifactTests(unittest.TestCase):
         app = root + "app/"
         files = {
             root + "OKUBI Desktop.exe": b"MZ" + b"\0" * 100,
-            app + "okubi-desktop.jar": b"JAR synthetic",
+            app + "okubi-desktop.jar": b"JAR synthetic" * 4,
             app + "okubi_libretro_jni.dll": b"MZ" + b"\0" * 100,
             app + "RUN-QA57-ISOLATED.cmd":
                 b'@echo off\nset "APPDATA=OKUBI-QA57"\n',
             app + "QA57-READ-ME-FIRST.md": b"QA synthetic instructions",
+            app + "PHASE80-READ-ME-FIRST.md": b"Final QA instructions phase 80",
             app + "cores/CORE-SHA256.properties":
                 ("\n".join(f"{name}={digest(self.core_bytes[name])}"
                            for name in qa.CORES) + "\n").encode(),
