@@ -20,6 +20,7 @@ if ([string]::IsNullOrWhiteSpace($KitRoot)) {
 $kitRootFull = [IO.Path]::GetFullPath($KitRoot)
 function Assert-ArtifactSha256 {
     param([string]$Subfolder, [string]$Filename, [long]$MinimumSize, [long]$MaximumSize)
+    $script:phase84Step = 'SHA_COMPUTE_FILENAMES'
     $folder = Join-Path $kitRootFull $Subfolder
     $file = Join-Path $folder $Filename
     $sumFile = Join-Path $folder 'SHA256SUMS.txt'
@@ -27,6 +28,7 @@ function Assert-ArtifactSha256 {
         -not (Test-Path -LiteralPath $sumFile -PathType Leaf)) {
         throw 'Missing approved QA package or checksum file'
     }
+    $script:phase84Step = 'SHA_GET_ITEM'
     $item = Get-Item -LiteralPath $file
     $manifest = Get-Item -LiteralPath $sumFile
     if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
@@ -35,16 +37,21 @@ function Assert-ArtifactSha256 {
         $manifest.Length -gt 300) {
         throw 'Unsafe QA package or checksum size'
     }
+    $script:phase84Step = 'SHA_READ_LINES'
     $lines = @([IO.File]::ReadAllLines($sumFile))
+    $script:phase84Step = 'SHA_PARSE_MANIFEST'
     $regex = '^([0-9a-f]{64})\s+\*?' + [regex]::Escape($Filename) + '$'
     if ($lines.Count -ne 1 -or $lines[0] -cnotmatch $regex) {
         throw 'Bad checksum name or manifest contents'
     }
+    $script:phase84Step = 'SHA_CAPTURE_MATCH'
     $expected = $Matches[1]
+    $script:phase84Step = 'SHA_DIGEST'
     $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actual -cne $expected) {
         throw 'Artifact checksum does not match approved QA manifest'
     }
+    $script:phase84Step = 'SHA_VERIFIED'
     return $actual
 }
 $phase84Step = 'KIT_ROOT'
@@ -156,6 +163,9 @@ try {
     )
     if ($safeReasons -contains $_.Exception.Message) {
         $reason = $_.Exception.Message
+    }
+    if ($env:CI -eq 'true') {
+        [Console]::Error.WriteLine('CI QA84 exception class: ' + $_.Exception.GetType().Name)
     }
     [Console]::Error.WriteLine(
         'BLOCKED: Phase84 QA kit integrity rejected (' + $phase84Step + '): ' + $reason)
