@@ -3,7 +3,15 @@
 name: OKUBI Android — Migrated QA (safe side-by-side)
 on:
   push:
-    branches: [migration/okubi-android-preserved]
+    branches: [migration/okubi-android-preserved, integration/okubi-phase78-release-candidate]
+    paths:
+      - 'android-app/**'
+      - 'retro-module/**'
+      - 'catalogs/**'
+      - 'tools/**'
+      - '.github/workflows/okubi-android-migrated-qa.yml'
+  pull_request:
+    branches: [main]
     paths:
       - 'android-app/**'
       - 'retro-module/**'
