@@ -9,7 +9,13 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 if ([string]::IsNullOrWhiteSpace($KitRoot)) {
-    $KitRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    if (-not [string]::IsNullOrWhiteSpace($env:OKUBI_QA84_ROOT)) {
+        # cmd.exe may escape a final backslash when passed in a quoted argv;
+        # environment variables preserve the full path unchanged.
+        $KitRoot = $env:OKUBI_QA84_ROOT
+    } else {
+        $KitRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+    }
 }
 $kitRootFull = [IO.Path]::GetFullPath($KitRoot)
 function Assert-ArtifactSha256 {
