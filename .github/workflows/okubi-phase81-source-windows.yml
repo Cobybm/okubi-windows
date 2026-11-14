@@ -1,0 +1,70 @@
+name: OKUBI Phase 81 - Build Windows Supafaust From GPL Source (QA)
+
+on:
+  push:
+    branches:
+      - feat/okubi-phase81-source-built-windows-cores
+  pull_request:
+    branches:
+      - release/okubi-phase80-final-qa
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase81-source-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  source-core-windows:
+    name: Experimental pinned Supafaust x64 source + ABI
+    runs-on: windows-latest
+    timeout-minutes: 65
+    steps:
+      - name: Checkout OKUBI without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install source compiler (MSYS2 MinGW64)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+      - name: Build Supafaust from exact pinned upstream GPL source (no user ROMs)
+        shell: msys2 {0}
+        run: |
+          bash tools/phase81_build_windows_supafaust.sh .
+      - name: Enable MSVC to independently check DLL's Libretro ABI
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Native Windows loadability and Libretro API v1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & cl.exe /nologo /W3 /Fe:build/phase81/phase81_core_abi_probe.exe tools/phase81_core_abi_probe.c
+          if ($LASTEXITCODE -ne 0) { throw 'Independent Windows ABI smoke test cannot compile' }
+          $dll = (Resolve-Path build/phase81/supafaust-artifact/mednafen_supafaust_libretro.dll).Path
+          & build/phase81/phase81_core_abi_probe.exe $dll
+          if ($LASTEXITCODE -ne 0) { throw 'Source-built Supafaust fails the Libretro ABI' }
+          # Confirm the source archive is actually shipped with its corresponding DLL.
+          foreach ($required in @('supafaust-corresponding-source.tar.gz',
+             'Supafaust-GPL-2.0-or-later.txt',
+             'SOURCE-AND-BUILD-RECIPE.txt', 'SHA256SUMS.txt')) {
+             if (!(Test-Path (Join-Path build/phase81/supafaust-artifact $required))) {
+               throw "GPL corresponding source evidence missing: $required"
+             }
+          }
+      - name: Store GPL source, build recipe and test DLL together (QA, not release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE81-SUPAFAUST-SOURCE-AND-WINDOWS-DLL-QA
+          path: build/phase81/supafaust-artifact/*
+          if-no-files-found: error
+          retention-days: 7
