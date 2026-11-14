@@ -39,7 +39,7 @@ if [[ ! -s "$dll" ]] || [[ $(stat -c '%s' "$dll") -lt 100000 ]]; then
   echo "ERROR: missing/too small source-built Windows x64 Supafaust DLL" >&2
   exit 1
 fi
-objdump -f "$dll" | grep -F -q 'pe-x86-64'
+objdump -f "$dll" | grep -E -q 'pei?-x86-64'
 for symbol in retro_init retro_deinit retro_load_game retro_run retro_get_system_info; do
   objdump -p "$dll" | grep -E -q "\b${symbol}\b"
 done
