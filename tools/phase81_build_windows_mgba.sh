@@ -23,12 +23,13 @@ if [[ "${MSYSTEM:-}" != "MINGW64" ]] || [[ "$(gcc -dumpmachine)" != x86_64-w64-m
   echo "ERROR: native MinGW64 compiler required" >&2
   exit 1
 fi
-# Build the libretro target only. All switchable UIs and dependencies disabled.
+# Build libretro target only. SKIP_LIBRARY bypasses mGBA's Windows epoxy
+# requirement for the separate, unused general-purpose library.
 cmake -S "$source" -B "$binary" -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ \
   -DCMAKE_SHARED_LINKER_FLAGS=-static \
-  -DBUILD_LIBRETRO=ON -DBUILD_QT=OFF -DBUILD_SDL=OFF \
+  -DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON -DBUILD_QT=OFF -DBUILD_SDL=OFF \
   -DBUILD_SHARED=OFF -DBUILD_STATIC=OFF -DBUILD_GL=OFF \
   -DBUILD_GLES2=OFF -DBUILD_GLES3=OFF -DBUILD_TEST=OFF \
   -DBUILD_SUITE=OFF -DBUILD_CINEMA=OFF -DBUILD_PERF=OFF \
