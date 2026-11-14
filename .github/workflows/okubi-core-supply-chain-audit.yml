@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - migration/okubi-windows-phase69-audited
+      - integration/okubi-phase78-release-candidate
     paths:
       - tools/audit_libretro_cores.py
+      - desktop/build-bundled-cores.ps1
       - .github/workflows/okubi-core-supply-chain-audit.yml
 permissions:
   contents: read
