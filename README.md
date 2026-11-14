@@ -1,33 +1,67 @@
-# OKUBI 遊 — Windows + Android (migración)
+# OKUBI 遊 — Launcher de juegos para Windows y Android
 
-Repositorio independiente para las versiones **Windows y Android** de OKUBI 遊.\n\n> Android se incorpora en la rama de migración y todavía no está fusionado a `main`.
+Proyecto de código fuente con biblioteca CINEMA, juegos retro, catálogo de
+ports para PC, perfiles de rendimiento SMART PC, mandos y guardados protegidos.
 
-## Estado de la migración
+## Estado actual: Fase 78, candidato de integración (NO ESTABLE)
 
-Esta copia migra de forma selectiva el código de la rama de desarrollo **Fase 69 SMART LIBRARY**. Incluye el módulo `desktop/`, sus pruebas, documentación de las Fases 67–69, el serializador común `.okubisave` y CI Java de Fase 69.
+La implementación más completa está en
+`integration/okubi-phase78-release-candidate`. Combina el historial de
+desarrollo de Windows y Android hasta la Fase 77I e incorpora auditorías de
+integración y compatibilidad de guardados.
 
-**Estado:** prototipo en validación. No se afirma que el paquete EXE/ZIP esté verificado o probado en una PC real.
+**Importante:** la rama `main` no debe considerarse una compilación de la
+aplicación hasta completar el PR de integración. No existe una versión 1.0
+estable publicada. Las pruebas automáticas y APK de QA no autorizan publicar.
 
-## Qué NO contiene
+Lee el estado y las tareas pendientes en
+[Plan de integración Fase 78](docs/OKUBI_PHASE78_INTEGRATION_CANDIDATE.md).
 
-No se incluyen ROMs comerciales, BIOS, firmware, partidas, claves de firma, credenciales, carpetas de usuario, archivos de emuladores externos, binarios de compilación ni los archivos personales de Android. No se importa el historial de commits privado.
+## Arquitectura
 
-## Pruebas Java (JDK 21)
+- `desktop/`: launcher nativo de Windows, emulación con núcleos Libretro,
+  biblioteca CINEMA, SMART PC, mandos y guardados.
+- `android-app/`: aplicación Android con identidad de paquete canónica
+  `bo.nexoplay.app.unified`.
+- `retro-module/`: fuentes, integración, emulación y serializador de guardados
+  compartido con Windows.
+- `catalogs/`: definiciones de formatos y catálogo.
+- `tools/`: verificaciones no destructivas y pruebas de seguridad.
+- `.github/workflows/`: compilaciones y QA de Windows y Android.
+
+## Pruebas, sin instalaciones destructivas
+
+- Windows: consultar el workflow `okubi-desktop.yml`; crea un paquete
+  de pruebas con runtime Java, verifica integridad y ejecuta regresiones.
+- Android: consultar `okubi-android-migrated-qa.yml`; genera únicamente
+  una variante QA paralela `bo.nexoplay.app.unified.qa57`, sin tocar la
+  instalación canónica ni firmar con certificados privados.
+- Fase 78: `okubi-phase78-integration-gate.yml` agrega auditorías de
+  seguridad, fuentes, identidad y pruebas sintéticas Cross Save en Windows
+  y Ubuntu.
+
+Para ejecutar el control de fuentes (Python 3.12, en una copia Git):
 
 ```bash
-mkdir -p build/phase69/classes build/phase69/tests
-find desktop/src -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -d build/phase69/classes retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
-javac -encoding UTF-8 -cp build/phase69/classes -d build/phase69/tests desktop/tests/bo/okubi/desktop/DesktopLibraryBatchTest.java desktop/tests/bo/okubi/desktop/DesktopSearchRefreshTest.java desktop/tests/bo/okubi/desktop/DesktopMaintenanceServiceTest.java
-java -ea -cp build/phase69/classes:build/phase69/tests bo.okubi.desktop.DesktopLibraryBatchTest
-java -ea -cp build/phase69/classes:build/phase69/tests bo.okubi.desktop.DesktopSearchRefreshTest
-java -ea -cp build/phase69/classes:build/phase69/tests bo.okubi.desktop.DesktopMaintenanceServiceTest
+python -m unittest discover -s tools/tests -p 'test_okubi_phase78_integration_gate.py' -v
+python tools/okubi_phase78_integration_gate.py --root . --report build/phase78/integration-gate.json
 ```
 
-En Windows, para el empaquetado completo, consulta `desktop/BUILD_LOCAL_WINDOWS_PHASE65.ps1` y los requisitos de JDK 21, compilador MSVC x64 y licencias de núcleos Libretro.
+Un `PASS` indica que la fuente supera el control estático, **no** que
+Android se pueda actualizar sin la firma anterior, que todas las consolas
+sean compatibles o que las licencias de los núcleos estén listas para distribuir.
 
-## Publicación segura
+## Datos personales y limitaciones
 
-Antes de una versión estable: confirmar compilación, probar mandos y navegación, verificar guardados con datos sintéticos, revisar licencias y ejecutar pruebas en Windows real. No subir juegos, claves ni archivos personales. Si un archivo secreto se publicó alguna vez, ignorarlo después no elimina su historial: hay que rotar la credencial y limpiar el historial.
+No se almacenan ROMs comerciales, BIOS, saves, cuentas, keystores o credenciales
+en este repositorio. Las capturas oficiales se enlazan bajo identidades de
+proyecto concretas; un port sin captura verificable usa fondo neutro.
+Las imágenes personalizadas del usuario tienen prioridad.
 
-La rama de migración está separada de `main` hasta su revisión.
-\n## Android\n\nEl código fuente de Android está en `android-app/`; la integración retro en `retro-module/`. La compilación de pruebas se ejecuta con `.github/workflows/okubi-android-migrated-qa.yml` y mantiene un identificador de paquete paralelo para no sustituir tu instalación original. Consulta `docs/OKUBI_ANDROID_MIGRATION_COBYBM.md`.\n
+Antes de publicar es indispensable revisar el código fuente correspondiente a
+las DLL Libretro, cumplir avisos/licencias, comprobar la firma Android del
+propietario y probar físicamente ambos dispositivos con respaldo.
+No se recomienda desinstalar la aplicación anterior para instalar una prueba.
+
+**VIDAS es otro proyecto:** no tocar ni mezclar su código. El repositorio
+privado de origen tampoco se modifica.
