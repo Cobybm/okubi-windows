@@ -1,0 +1,59 @@
+name: OKUBI Phase 79 - Windows Core Provenance And Release Blocker
+
+on:
+  push:
+    branches:
+      - audit/okubi-phase79-release-provenance
+  pull_request:
+    branches:
+      - integration/okubi-phase78-release-candidate
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase79-${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  static-evidence:
+    name: Offline evidence and fail-closed release gate (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout metadata without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run synthetic tampering and provenance regression tests
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase79_supply_chain.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "Source evidence tests failed" }
+      - name: Verify manually audited ZIP-DLL pairs in the Windows bundler
+        shell: pwsh
+        run: |
+          python tools/okubi_phase79_supply_chain.py --root . --report build/phase79/evidence.json
+          if ($LASTEXITCODE -ne 0) { throw "Core evidence mismatch" }
+      - name: Prove public release is still BLOCKED
+        shell: pwsh
+        run: |
+          python tools/okubi_phase79_supply_chain.py --root . --report build/phase79/release-blocked.json --require-public-release
+          if ($LASTEXITCODE -ne 2) { throw "Release unexpectedly permitted or audit failed" }
+      - name: Publish non-sensitive integrity report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-Phase79-Source-Evidence-${{ matrix.os }}
+          path: build/phase79/*.json
+          if-no-files-found: warn
+          retention-days: 14
