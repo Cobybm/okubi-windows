@@ -47,7 +47,15 @@ function Assert-ArtifactSha256 {
     $script:phase84Step = 'SHA_CAPTURE_MATCH'
     $expected = $Matches[1]
     $script:phase84Step = 'SHA_DIGEST'
-    $actual = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+    $stream = [IO.File]::OpenRead($file)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $hasher.ComputeHash($stream)
+        $actual = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $hasher.Dispose()
+        $stream.Dispose()
+    }
     if ($actual -cne $expected) {
         throw 'Artifact checksum does not match approved QA manifest'
     }
