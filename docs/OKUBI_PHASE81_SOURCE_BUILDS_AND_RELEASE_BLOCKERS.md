@@ -59,3 +59,30 @@ pero falló la prueba de carga del DLL en Windows (error de sistema **126**,
 posible dependencia de runtime MinGW no empaquetada). La rama experimental
 ahora exige enlace estático del runtime y registra las DLL importadas antes de
 aceptar el resultado. No se han sustituido los binarios de la Fase 80.
+
+## Resultado corregido Supafaust
+
+La segunda ejecución [43613435077](https://github.com/Cobybm/okubi-windows/actions/runs/43613435077)
+finalizó **SUCCESS**: Supafaust se compiló desde su commit exacto con runtime
+MinGW estático, el probador nativo de Windows consiguió cargar la DLL y
+comprobó la API de Libretro. La DLL QA, el código fuente correspondiente,
+la licencia y la receta se publicaron juntos como artefacto temporal de prueba.
+No se sustituyeron binarios de Fase 80.
+
+## Pruebas adicionales SameBoy y mGBA
+
+Se agregaron dos scripts para repetir el mismo contrato en Windows x64:
+
+- `tools/phase81_build_windows_sameboy.sh` — SameBoy MIT, commit
+  `aa158a889a48b538a0302873704a34577c8eb67d`.
+- `tools/phase81_build_windows_mgba.sh` — mGBA MPL-2.0, commit
+  `7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6`.
+- `.github/workflows/okubi-phase81-source-sameboy-mgba.yml`:
+  compilación paralela en Windows, ABI nativa, verificación de licencia,
+  huellas SHA y archivo fuente correspondiente en el artefacto de QA.
+
+Cada trabajo tiene que terminar con **SUCCESS**. Hasta tenerlo, las pruebas
+nuevas se consideran experimentales. Una compilación correcta no acredita por
+sí sola cumplimiento global de GPL/MPL ni certifica el funcionamiento de juegos
+físicos. El usuario debe seguir utilizando el candidato de Fase 80 para las
+pruebas que ya pasaron.
