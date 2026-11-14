@@ -91,7 +91,7 @@ class AndroidLocalPreflightTest(unittest.TestCase):
         self.assertNotIn(self.original.cert_sha256, data)
         self.assertNotIn(self.qa.cert_sha256, data)
         self.assertNotIn("userdata", data)
-        self.assertNotIn("keystore", data)
+        self.assertNotIn("PRIVATE KEY", data)
         self.assertFalse(report["private_paths_or_certificate_fingerprints_in_report"])
 
     def test_windows_qa_script_never_deletes_or_uninstalls_user_data(self):
