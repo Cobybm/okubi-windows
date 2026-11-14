@@ -1,0 +1,76 @@
+name: OKUBI Phase 81 - Windows SameBoy and mGBA From Pinned Source
+
+on:
+  push:
+    branches:
+      - feat/okubi-phase81-source-built-windows-cores
+  pull_request:
+    branches:
+      - release/okubi-phase80-final-qa
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase81-other-cores-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-windows-core:
+    name: Build ${{ matrix.core }} x64 from pinned source + native ABI
+    runs-on: windows-latest
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        core: [sameboy, mgba]
+    steps:
+      - name: Checkout OKUBI without writing credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: MSYS2 MinGW64 compiler and CMake
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+      - name: Build x64 Libretro core from exact Git SHA, provide source archive
+        shell: msys2 {0}
+        run: |
+          bash "tools/phase81_build_windows_${{ matrix.core }}.sh" .
+      - name: Enable native Windows MSVC loader test
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Validate Windows loading and actual Libretro API
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & cl.exe /nologo /W3 /Fe:build/phase81/phase81_core_abi_probe.exe tools/phase81_core_abi_probe.c
+          if ($LASTEXITCODE -ne 0) { throw "Cannot compile Windows core probe" }
+          $core = "${{ matrix.core }}"
+          $dll = (Resolve-Path "build/phase81/$($core)-artifact/$($core)_libretro.dll").Path
+          & build/phase81/phase81_core_abi_probe.exe $dll
+          if ($LASTEXITCODE -ne 0) { throw "Source-built core cannot be loaded" }
+          foreach ($required in @('SHA256SUMS.txt', 'SOURCE-AND-BUILD-RECIPE.txt')) {
+            if (!(Test-Path "build/phase81/$($core)-artifact/$required")) {
+              throw "Source/build provenance missing: $required"
+            }
+          }
+          $archive = @(Get-ChildItem -Path "build/phase81/$($core)-artifact" -Filter "*corresponding-source.tar.gz")
+          if ($archive.Count -ne 1) { throw "Exact source archive missing" }
+      - name: Store source, license, instructions and DLL together for QA
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE81-${{ matrix.core }}-SOURCE-AND-WINDOWS-DLL-QA
+          path: build/phase81/${{ matrix.core }}-artifact/*
+          if-no-files-found: error
+          retention-days: 7
