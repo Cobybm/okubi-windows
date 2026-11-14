@@ -86,3 +86,15 @@ nuevas se consideran experimentales. Una compilación correcta no acredita por
 sí sola cumplimiento global de GPL/MPL ni certifica el funcionamiento de juegos
 físicos. El usuario debe seguir utilizando el candidato de Fase 80 para las
 pruebas que ya pasaron.
+
+## Hallazgos de SameBoy y mGBA
+
+- SameBoy `aa158a8...`: trabajo de CI del ensayo de fuentes
+  [43613779416](https://github.com/Cobybm/okubi-windows/actions/runs/43613779416)
+  finalizó **SUCCESS** para su tarea: DLL x64 producida, cargada por
+  probador nativo Windows y archivada junto con fuente/receta/licencia.
+- El primer mGBA del mismo ensayo **falló** en la configuración CMake por
+  requerir `epoxy` para una biblioteca general de Windows que no se utiliza
+  en el núcleo Libretro. La receta fue corregida a
+  `-DBUILD_LIBRETRO=ON -DSKIP_LIBRARY=ON`, tal como contempla el
+  `CMakeLists.txt` de esa revisión upstream. Debe repetirse CI y ABI.
