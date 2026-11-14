@@ -141,7 +141,7 @@ def windows_archive(archive: Path, evidence: dict) -> dict:
         for key in (
             root + "OKUBI Desktop.exe", app + "okubi-desktop.jar",
             app + "okubi_libretro_jni.dll", app + "RUN-QA57-ISOLATED.cmd",
-            app + "QA57-READ-ME-FIRST.md",
+            app + "QA57-READ-ME-FIRST.md", app + "PHASE80-READ-ME-FIRST.md",
             app + "cores/CORE-SHA256.properties",
         ):
             required(entries, key)
