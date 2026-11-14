@@ -8,7 +8,7 @@ echo NO desinstala OKUBI, no sustituye tus partidas.
 echo Usa solamente juegos propios y guardados NUEVOS.
 echo Las carpetas de esta prueba se conservan al terminar.
 echo.
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\OKUBI-VERIFICAR-KIT.ps1" -Mode Windows -KitRoot "%~dp0"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\OKUBI-VERIFICAR-KIT.ps1" -Mode Windows
 if errorlevel 1 (
   echo RECHAZADO: la comprobacion de integridad fallo.
   if not defined CI pause
