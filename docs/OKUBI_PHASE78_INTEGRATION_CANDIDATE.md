@@ -80,3 +80,33 @@ solo el primer tramo del stack.
 **La meta es una versión 1.0 estable y segura, no 100 % de capturas de ports
 ni emulación PS2/PS3 universal.** Los títulos no verificados conservan el fondo
 CINEMA y la opción de imagen manual.
+
+## Incidencia detectada y reparada en Fase 78 (14 de noviembre de 2026)
+
+El primer trabajo Windows del PR de integración (#20), Actions
+[43604720738](https://github.com/Cobybm/okubi-windows/actions/runs/43604720738),
+**compiló Java/JNI y pasó las regresiones**, pero detuvo el empaquetado:
+el servidor mutable `nightly/latest` de Libretro ofrecía nuevas huellas ZIP
+para SameBoy, mGBA y Supafaust. El rechazo SHA-256 fue el comportamiento
+seguro esperado. No se desactivó la verificación.
+
+Para confirmar los archivos, se ejecutó la auditoría cruzada
+[43604912900](https://github.com/Cobybm/okubi-windows/actions/runs/43604912900)
+con dos runners independientes (Ubuntu y Windows). Ambos obtuvieron bytes
+idénticos, verificaron ZIP CRC, único miembro DLL, tamaño y PE Windows x64:
+
+| Core Windows | SHA-256 ZIP nuevo, comprobado independientemente |
+| --- | --- |
+| SameBoy | `02d848a55db54c1760d9cdff53941c41473e47646711bc8a0d7b6f2130f2b447` |
+| mGBA | `0a98416e81417da065a5f0f2fa526f5f11baeb0a537063bbe5b02908fde92d87` |
+| Supafaust | `3796e4f56291e08d3d966a1aceb32e41af88eb280e094f61cc8a43cd41c0aced` |
+
+Solo esas tres huellas adicionales se autorizaron en
+`desktop/build-bundled-cores.ps1`; se conservan las huellas anteriores y
+**cualquier otra huella sigue fallando cerrado**. Es obligatorio confirmar
+el resultado del **nuevo** empaquetado sobre el commit final.
+
+**No resuelto:** estas pruebas certifican integridad y consistencia de los
+archivos descargados, NO el código fuente exacto ni sus obligaciones GPL/MPL
+en una publicación redistribuible. La Fase 79 debe resolver la procedencia
+de fuente de cada DLL concreta o reemplazarlas por binarios reproducibles.
