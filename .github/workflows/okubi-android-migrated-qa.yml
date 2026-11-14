@@ -3,7 +3,7 @@
 name: OKUBI Android — Migrated QA (safe side-by-side)
 on:
   push:
-    branches: [migration/okubi-android-preserved, integration/okubi-phase78-release-candidate]
+    branches: [migration/okubi-android-preserved, integration/okubi-phase78-release-candidate, release/okubi-phase80-final-qa]
     paths:
       - 'android-app/**'
       - 'retro-module/**'
@@ -11,7 +11,7 @@ on:
       - 'tools/**'
       - '.github/workflows/okubi-android-migrated-qa.yml'
   pull_request:
-    branches: [main]
+    branches: [main, audit/okubi-phase79-release-provenance]
     paths:
       - 'android-app/**'
       - 'retro-module/**'
@@ -145,6 +145,21 @@ jobs:
           cd build/okubi-android-artifact
           sha256sum OKUBI-Android-Migration-QA57.apk > SHA256SUMS.txt
           sha256sum -c SHA256SUMS.txt
+      - name: Phase80 verify real parallel APK signature, checksum and ABIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s tools/tests -p 'test_okubi_phase80_rc_preflight.py' -v
+          python3 tools/okubi_phase80_rc_preflight.py \
+            --platform android \
+            --archive build/okubi-android-artifact/OKUBI-Android-Migration-QA57.apk \
+            --checksum build/okubi-android-artifact/SHA256SUMS.txt \
+            --aapt "$ANDROID_HOME/build-tools/35.0.0/aapt" \
+            --apksigner "$ANDROID_HOME/build-tools/35.0.0/apksigner" \
+            --report build/okubi-android-artifact/PHASE80-QA-REPORT.json
+          cp docs/OKUBI_PHASE80_FINAL_QA_CHECKLIST.md \
+            build/okubi-android-artifact/PHASE80-TEST-CHECKLIST.md
+
       - name: Upload unsigned-for-release QA artifact (debug signature only)
         uses: actions/upload-artifact@v4
         with:

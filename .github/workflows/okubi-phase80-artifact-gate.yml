@@ -1,0 +1,61 @@
+name: OKUBI Phase 80 - Final QA Source Safety Gate
+
+on:
+  push:
+    branches: [release/okubi-phase80-final-qa]
+  pull_request:
+    branches: [audit/okubi-phase79-release-provenance]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase80-src-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  offline-candidate-audit:
+    name: Verify synthetic ZIP APK regression on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout safe candidate source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run Phase 80 artifact QA regressions (synthetic)
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase80_rc_preflight.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "Phase 80 artifact preflight regression" }
+      - name: Keep Phase 79 Windows DLL source evidence gate intact
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase79_supply_chain.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "Core source audit regression" }
+          python tools/okubi_phase79_supply_chain.py --root . --report build/phase80/phase79-check.json
+          if ($LASTEXITCODE -ne 0) { throw "Core SHA evidence mismatch" }
+      - name: Verify public release remains blocked
+        shell: pwsh
+        run: |
+          python tools/okubi_phase79_supply_chain.py --root . --report build/phase80/release-denied.json --require-public-release
+          $denial = $LASTEXITCODE
+          if ($denial -ne 2) { throw "Unsafe public release approval" }
+          $global:LASTEXITCODE = 0
+      - name: Upload source-only blocked release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE80-SOURCE-QA-${{ matrix.os }}
+          path: build/phase80/*.json
+          if-no-files-found: warn
+          retention-days: 14
