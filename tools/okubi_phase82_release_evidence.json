@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "description": "OKUBI Phase82 - verified CI references; manual release evidence intentionally missing. Do not fabricate approval.",
+  "automated_ci": {
+    "windows_source_built_ci": 43615378972,
+    "android_parallel_qa_ci": 43612388104,
+    "cross_save_synthetic_ci": 43605014667
+  },
+  "manual_gates": {
+    "windows_real_device_gameplay": {
+      "status": "pending",
+      "evidence": null
+    },
+    "android_real_device_gameplay": {
+      "status": "pending",
+      "evidence": null
+    },
+    "physical_cross_save_backup_restore": {
+      "status": "pending",
+      "evidence": null
+    },
+    "canonical_android_signing_and_upgrade": {
+      "status": "pending",
+      "evidence": null
+    },
+    "third_party_license_and_corresponding_source_review": {
+      "status": "pending",
+      "evidence": null
+    },
+    "explicit_owner_public_release_approval": {
+      "status": "pending",
+      "evidence": null
+    }
+  },
+  "public_release_authorized": false
+}
