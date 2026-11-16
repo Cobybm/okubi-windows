@@ -1537,7 +1537,9 @@ public final class OkubiGameBoyActivity extends Activity {
             File approved = new File(getFilesDir(), "okubi/homebrew").getCanonicalFile();
             File requested = new File(value).getCanonicalFile();
             if (!requested.getPath().startsWith(approved.getPath() + File.separator)
-                    || !requested.getName().endsWith(".gb") || !requested.isFile()
+                    || !(requested.getName().endsWith(".gb")
+                    || requested.getName().endsWith(".gbc")
+                    || requested.getName().endsWith(".gba")) || !requested.isFile()
                     || requested.length() < 32768 || requested.length() > MAX_ROM_BYTES)
                 return null;
             return requested;
