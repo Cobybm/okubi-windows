@@ -50,7 +50,7 @@ class Phase4PerformanceContracts(unittest.TestCase):
         self.assertIn('getSharedPreferences("okubi_audio_v1"',p)
         self.assertIn("(safeAudio && RetroSpeedControl.normal(appliedSpeed))",p)
         self.assertIn("AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING",p)
-        self.assertIn("RetroSpeedControl.playbackSampleRate(sampleRate, appliedSpeed)",p)
+        self.assertIn("music.transform(samples,audioCount,acceleratedSamples)",p)
 
     def test_performance_menu_and_safe_user_preferences(self):
         p=self.player
