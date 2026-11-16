@@ -1,6 +1,6 @@
 """Regression checks for externally linked Nintendo / Pokemon fan directories.
 
-These user-selected websites are browser-only navigation sources, NEVER files
+These curated websites are browser-only navigation sources, NEVER files
 pulled by an automatic downloader inside OKUBI.
 """
 from pathlib import Path
@@ -14,7 +14,7 @@ MAIN = (ROOT.parent / "android-app/app/src/main/java/bo/nexoplay/app/MainActivit
 SOURCES = (
     "https://whackahack.com/juegos/",
     "https://pokemundo.com/category/hack-roms-pokemon-gba/",
-    "https://fullgbaroms.blogspot.com/p/roms-de-pokemon-para-gba-gameboy-avance.html",
+    "https://hh.gbdev.io",
 )
 
 class NintendoSourcesTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class NintendoSourcesTests(unittest.TestCase):
         self.assertIn("if (g.direct) {", CATALOG)
         self.assertIn("else if (!directDownloading) download(g);", CATALOG)
         self.assertIn("verifiedDirectGame(g)", CATALOG)
-        self.assertIn('!"/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath())', CATALOG)
+        self.assertIn('"/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath())', CATALOG)
         for url in SOURCES:
             self.assertNotIn(f'download("{url}")', CATALOG)
 

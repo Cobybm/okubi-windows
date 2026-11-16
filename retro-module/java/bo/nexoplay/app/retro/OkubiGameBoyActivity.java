@@ -218,6 +218,9 @@ public final class OkubiGameBoyActivity extends Activity {
         worker = new Thread(this::emulate, "okubi-libretro");
         worker.setPriority(Thread.NORM_PRIORITY);
         worker.start();
+        // First-run overlay only after the player view exists. Separate preference
+        // from ROM, save slots, controller position and rendering settings.
+        getWindow().getDecorView().post(this::maybeShowFirstRunControls);
     }
 
     private void showUnavailable() {
@@ -254,10 +257,26 @@ public final class OkubiGameBoyActivity extends Activity {
 
     private RetroCore.Key gamepadKey(int code) {
         switch (code) {
+            // Physical keyboards use the documented default OKUBI layout.
+            // Android gamepad key codes are separate and remain unchanged.
+            case KeyEvent.KEYCODE_W:
             case KeyEvent.KEYCODE_DPAD_UP: return RetroCore.Key.UP;
+            case KeyEvent.KEYCODE_S:
             case KeyEvent.KEYCODE_DPAD_DOWN: return RetroCore.Key.DOWN;
+            case KeyEvent.KEYCODE_A:
             case KeyEvent.KEYCODE_DPAD_LEFT: return RetroCore.Key.LEFT;
+            case KeyEvent.KEYCODE_D:
             case KeyEvent.KEYCODE_DPAD_RIGHT: return RetroCore.Key.RIGHT;
+            case KeyEvent.KEYCODE_J: return RetroCore.Key.A;
+            case KeyEvent.KEYCODE_K: return RetroCore.Key.B;
+            case KeyEvent.KEYCODE_Q: return RetroCore.Key.L;
+            case KeyEvent.KEYCODE_E: return RetroCore.Key.R;
+            case KeyEvent.KEYCODE_U: return RetroCore.Key.X;
+            case KeyEvent.KEYCODE_I: return RetroCore.Key.Y;
+            case KeyEvent.KEYCODE_ENTER: return RetroCore.Key.START;
+            case KeyEvent.KEYCODE_SHIFT_LEFT:
+            case KeyEvent.KEYCODE_SHIFT_RIGHT: return RetroCore.Key.SELECT;
+
             case KeyEvent.KEYCODE_BUTTON_A: return RetroCore.Key.A;
             case KeyEvent.KEYCODE_BUTTON_B: return RetroCore.Key.B;
             case KeyEvent.KEYCODE_BUTTON_X:
@@ -1139,7 +1158,19 @@ public final class OkubiGameBoyActivity extends Activity {
                 .show();
     }
 
+    private void maybeShowFirstRunControls() {
+        String key = "first_open_" + system;
+        if (!getSharedPreferences("okubi_first_run_control_guide_v1", MODE_PRIVATE)
+                .getBoolean(key, false) && !isFinishing()) {
+            showControllerHelp(true);
+        }
+    }
+
     private void showControllerHelp() {
+        showControllerHelp(false);
+    }
+
+    private void showControllerHelp(boolean firstRun) {
         beginDialog();
         int count=0;
         for (int deviceId : InputDevice.getDeviceIds()) {
@@ -1156,19 +1187,31 @@ public final class OkubiGameBoyActivity extends Activity {
                 ? "L1/L2 y R1/R2 funcionan como hombros L y R. "
                     +"En SNES X/Y también son botones de juego."
                 : "En GB/GBC, L1/L2 guarda punto y R1/R2 carga punto.";
-        new AlertDialog.Builder(this)
-            .setTitle("OKUBI · Mando físico")
-            .setMessage(status+"\n\n"
-                    +"Compatible con mandos Bluetooth/USB que Android reconozca. "
-                    +"D-pad, stick izquierdo y cruceta HAT controlan movimiento; "
-                    +"A/B son acciones, START y SELECT funcionan desde el mando.\n\n"
-                    +shoulder+"\n\n"
-                    +"Si un mando se desconecta o la app pierde el foco, "
-                    +"OKUBI libera las teclas retenidas automáticamente. "
-                    +"Los controles táctiles siguen disponibles.")
-            .setPositiveButton("Entendido",null)
-            .setOnDismissListener(dialog -> endDialog())
+        String keyboard = "TECLADO: W/A/S/D o flechas = mover; J = A; K = B; "
+                + "Enter = START; Shift = SELECT; Q/E = L/R."
+                + ("SNES".equals(system) ? " U/I = X/Y." : "");
+        String padGuide = "MANDO: cruceta o stick = mover; A/B = acciones; "
+                + "START/SELECT = menús. " + shoulder;
+        AlertDialog controlDialog = new AlertDialog.Builder(this)
+            .setTitle(firstRun ? "OKUBI · Tus controles al empezar" : "OKUBI · Ver controles")
+            .setMessage(keyboard + "\n\n" + padGuide + "\n\n" + status
+                    + "\n\nLos controles táctiles siguen disponibles. "
+                    + "Puedes consultar esta guía desde el menú rápido.")
+            .setPositiveButton("Jugar", null)
+            .setOnDismissListener(dialog -> {
+                if (firstRun) getSharedPreferences(
+                        "okubi_first_run_control_guide_v1", MODE_PRIVATE)
+                        .edit().putBoolean("first_open_" + system, true).apply();
+                endDialog();
+            })
             .show();
+        if (firstRun) {
+            // Present briefly, then return to gameplay even with only a
+            // Bluetooth controller (no touchscreen tap required).
+            controlDialog.getWindow().getDecorView().postDelayed(() -> {
+                if (!isFinishing() && controlDialog.isShowing()) controlDialog.dismiss();
+            }, 8000);
+        }
     }
 
     private void chooseBatterySave() {
@@ -1494,7 +1537,9 @@ public final class OkubiGameBoyActivity extends Activity {
             File approved = new File(getFilesDir(), "okubi/homebrew").getCanonicalFile();
             File requested = new File(value).getCanonicalFile();
             if (!requested.getPath().startsWith(approved.getPath() + File.separator)
-                    || !requested.getName().endsWith(".gb") || !requested.isFile()
+                    || !(requested.getName().endsWith(".gb")
+                    || requested.getName().endsWith(".gbc")
+                    || requested.getName().endsWith(".gba")) || !requested.isFile()
                     || requested.length() < 32768 || requested.length() > MAX_ROM_BYTES)
                 return null;
             return requested;

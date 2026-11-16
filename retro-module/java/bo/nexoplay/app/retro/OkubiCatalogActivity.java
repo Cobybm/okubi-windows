@@ -29,6 +29,9 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -89,14 +92,21 @@ public class OkubiCatalogActivity extends Activity {
 
     private static class Game {
         final String name, system, genre, url;
-        final boolean direct;
+        final boolean direct, hubApproved;
+        final String privateFileName;
         Game(String n, String s, String g, String u, boolean d) {
+            this(n,s,g,u,d,null,false);
+        }
+        Game(String n, String s, String g, String u, boolean d, String f, boolean hub) {
             name=n; system=s; genre=g; url=u; direct=d;
+            privateFileName=f; hubApproved=hub;
         }
     }
     private static final Game[] GAMES = {
         new Game("Ascension", "GB", "Plataformas • ROM original del autor",
             "https://raw.githubusercontent.com/wolandark/Ascension/master/build/rom/game.gb", true),
+        new Game("2048 GB", "GB", "Puzle • software abierto zlib • Homebrew Hub",
+            "https://hh3.gbdev.io/api/entry/2048gb/2048.gb", true),
         new Game("Punch-land", "GB / GBC", "Acción y plataformas",
             "https://monarchwisteria.itch.io/punch-land", false),
         new Game("Lunar Lancer", "GB", "Disparos arcade",
@@ -116,6 +126,15 @@ public class OkubiCatalogActivity extends Activity {
         new Game("Homebrew Hub", "GB / GBC / GBA", "Explorar más creaciones",
             "https://hh.gbdev.io/", false)
     };
+    private static final String[][] MULTICONSOLE_SOURCES = {
+        {"Nintendo NES / SNES", "https://itch.io/games/free/tag-homebrew", "Juegos creados por la comunidad; la descarga depende del autor."},
+        {"Game Boy / Color / Advance", "https://hh.gbdev.io/", "Biblioteca homebrew con licencias por entrada."},
+        {"SEGA / Mega Drive / Dreamcast", "https://itch.io/games/free/tag-homebrew", "Buscar versiones originales y demos autorizadas."},
+        {"PlayStation / PSP / PS2 / PS3", "https://itch.io/games/free/tag-homebrew", "Proyectos homebrew y demos; verificar formato y compatibilidad."},
+        {"Saga God of War · Sony", "https://www.playstation.com/es-bo/god-of-war/", "Ficha comercial oficial, sin ROMs piratas ni BIOS."},
+        {"Arcade / Atari / PC clásico", "https://itch.io/games/top-rated/downloadable/free/tag-homebrew", "Títulos gratuitos; requieren motor compatible cuando corresponda."}
+    };
+
     // User-selected external sites: directory links only, never automatic ROM downloads.
     private static final String[][] NINTENDO_SOURCES = {
         {
@@ -131,10 +150,10 @@ public class OkubiCatalogActivity extends Activity {
             "https://pokemundo.com/category/hack-roms-pokemon-gba/"
         },
         {
-            "Full GBA ROMs",
-            "Índice externo · Pokémon GBA",
-            "Enlaces de terceros a juegos comerciales. OKUBI no verifica sus permisos ni descarga archivos de esta página.",
-            "https://fullgbaroms.blogspot.com/p/roms-de-pokemon-para-gba-gameboy-avance.html"
+            "Homebrew Hub",
+            "Juegos originales · GB / GBC / GBA",
+            "Catálogo comunitario con proyectos y permisos por juego.",
+            "https://hh.gbdev.io"
         }
     };
 
@@ -328,7 +347,7 @@ public class OkubiCatalogActivity extends Activity {
                 known.append(game.name);
             }
         }
-        centerSummary.setText("1 juego directo · "+VERIFIED_PATCHES.length+
+        centerSummary.setText("2 juegos directos · "+VERIFIED_PATCHES.length+
                 " parches disponibles · "+linked+" indies vinculados"+
                 (patchesActive>0?" · "+patchesActive+" descarga(s) activa(s)":""));
         centerExternalStatus.setText(linked==0
@@ -523,6 +542,189 @@ public class OkubiCatalogActivity extends Activity {
         }
     }
 
+    /** Local labels only; the ROM binary remains in private app-owned storage. */
+    private void recordHubGame(Game game) {
+        if (!game.hubApproved || !verifiedDirectGame(game)) return;
+        try {
+            JSONArray old = new JSONArray(getPreferences(0).getString(
+                    "downloaded_hub_games_v1", "[]"));
+            JSONArray next = new JSONArray();
+            JSONObject current = new JSONObject();
+            current.put("title", game.name);
+            current.put("platform", game.system);
+            current.put("url", game.url);
+            current.put("file", game.privateFileName);
+            next.put(current);
+            for (int i=0; i<old.length() && next.length()<50; i++) {
+                JSONObject item = old.optJSONObject(i);
+                if (item != null && !game.url.equals(item.optString("url",""))) {
+                    next.put(item);
+                }
+            }
+            getPreferences(0).edit().putString(
+                    "downloaded_hub_games_v1", next.toString()).apply();
+        } catch (Exception ignored) {
+            // Corrupt/stale labels never block games or overwrite saved cartridges.
+        }
+    }
+
+    /** Show playable downloaded games after app restarts, without requiring another search. */
+    private void showDownloadedHubGames(LinearLayout root) {
+        JSONArray saved;
+        try { saved = new JSONArray(getPreferences(0).getString(
+                "downloaded_hub_games_v1", "[]")); }
+        catch (Exception ignored) { return; }
+        boolean titleShown = false;
+        for (int i=0; i<saved.length() && i<50; i++) {
+            JSONObject obj = saved.optJSONObject(i);
+            if (obj == null) continue;
+            String name=obj.optString("title","");
+            String system=obj.optString("platform","");
+            String url=obj.optString("url","");
+            String file=obj.optString("file","");
+            if (name.isEmpty() || name.length()>110
+                    || !(system.equals("GB") || system.equals("GBC") || system.equals("GBA"))
+                    || !file.matches("[A-Za-z0-9_.-]{1,160}\\.(gb|gbc|gba)")
+                    || !url.matches("https://hh3\\.gbdev\\.io/api/entry/"
+                            + "[A-Za-z0-9_-]{2,80}/[A-Za-z0-9_.-]{1,80}\\.(gb|gbc|gba)"))
+                continue;
+            Game game = new Game(name, system, "Descargado desde Homebrew Hub",
+                    url, true, file, true);
+            if (!verifiedDirectGame(game)) continue;
+            if (!titleShown) {
+                root.addView(label("MIS HOMEBREW DESCARGADOS", 19));
+                titleShown=true;
+            }
+            Button play = new Button(this);
+            play.setText("▶ JUGAR · "+game.name+" ("+game.system+")");
+            play.setAllCaps(false);
+            play.setOnClickListener(v -> playDirectGame(game));
+            root.addView(play);
+        }
+    }
+
+    /** Live Homebrew Hub search: GB, GBC and GBA games with explicit OSS licenses only. */
+    private void showHomebrewHubSearch(LinearLayout root) {
+        root.addView(label("BUSCAR JUEGOS · DESCARGA DIRECTA", 19));
+        root.addView(label("Consulta Homebrew Hub desde OKUBI. Solo juegos originales "
+                + "con licencia libre y ROM compatible. No incluye juegos comerciales.", 12));
+        final String[] platform = {"GB"};
+        LinearLayout filters = new LinearLayout(this);
+        filters.setOrientation(LinearLayout.HORIZONTAL);
+        for (String system : new String[]{"GB","GBC","GBA"}) {
+            Button tab = new Button(this);
+            tab.setText(system);
+            tab.setAllCaps(false);
+            tab.setOnClickListener(v -> {
+                platform[0] = system;
+                Toast.makeText(this, "Buscando juegos para " + system,
+                        Toast.LENGTH_SHORT).show();
+            });
+            filters.addView(tab, new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
+        root.addView(filters);
+        EditText title = new EditText(this);
+        title.setSingleLine(true);
+        title.setHint("Nombre del juego (vacío = novedades)");
+        title.setTextColor(Color.WHITE);
+        title.setHintTextColor(0xFFB3A5C4);
+        root.addView(title);
+        Button search = new Button(this);
+        search.setAllCaps(false);
+        search.setText("⌕ VER JUEGOS DISPONIBLES");
+        root.addView(search);
+        TextView message = label("Selecciona una consola y pulsa buscar.", 12);
+        root.addView(message);
+        LinearLayout matches = new LinearLayout(this);
+        matches.setOrientation(LinearLayout.VERTICAL);
+        root.addView(matches);
+        search.setOnClickListener(v -> {
+            String selected = platform[0];
+            String query = title.getText().toString();
+            if (query.length() > 40) {
+                title.setError("Máximo 40 caracteres"); return;
+            }
+            search.setEnabled(false);
+            message.setText("Buscando juegos libres de " + selected + "...");
+            try {
+                downloadQueue.execute(() -> {
+                    try {
+                        java.util.List<OkubiHomebrewHubClient.FreeGame> titles =
+                                OkubiHomebrewHubClient.search(selected, query);
+                        runOnUiThread(() -> {
+                            if (closed || isFinishing()) return;
+                            search.setEnabled(true);
+                            matches.removeAllViews();
+                            message.setText(titles.isEmpty() ? "Sin resultados con licencia libre."
+                                    : titles.size() + " juego(s) encontrados para " + selected);
+                            for (OkubiHomebrewHubClient.FreeGame item : titles) {
+                                Game game = new Game(item.title, item.system,
+                                        "Homebrew Hub · licencia " + item.license,
+                                        item.url, true, item.filename, true);
+                                LinearLayout card = new LinearLayout(this);
+                                card.setOrientation(LinearLayout.VERTICAL);
+                                card.setPadding(dp(12), dp(8), dp(12), dp(8));
+                                LinearLayout.LayoutParams cardParams =
+                                        new LinearLayout.LayoutParams(-1, -2);
+                                cardParams.topMargin = dp(8);
+                                matches.addView(card, cardParams);
+                                card.addView(label(game.name + " · " + game.system, 17));
+                                card.addView(label(game.genre, 12));
+                                TextView status = label("", 12);
+                                card.addView(status);
+                                indieStatuses.put(game, status);
+                                Button action = new Button(this);
+                                action.setAllCaps(false);
+                                card.addView(action);
+                                indieActions.put(game, action);
+                                action.setOnClickListener(tap -> {
+                                    if (verifiedDirectGame(game)) playDirectGame(game);
+                                    else if (!directDownloading) download(game);
+                                });
+                                updateIndieAction(game);
+                            }
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> {
+                            if (closed || isFinishing()) return;
+                            search.setEnabled(true);
+                            message.setText("No se pudo cargar Homebrew Hub: "
+                                    + error.getClass().getSimpleName());
+                        });
+                    }
+                });
+            } catch (RejectedExecutionException error) {
+                search.setEnabled(true);
+                message.setText("Buscador no disponible.");
+            }
+        });
+    }
+
+    private void showMulticonsoleSources(LinearLayout root) {
+        root.addView(label("EXPLORAR TODAS LAS CONSOLAS", 19));
+        root.addView(label("Solo fuentes gratuitas autorizadas o tiendas oficiales. "
+                + "Algunos sistemas todavía requieren un emulador compatible.", 12));
+        for (String[] source : MULTICONSOLE_SOURCES) {
+            LinearLayout panel = new LinearLayout(this);
+            panel.setOrientation(LinearLayout.VERTICAL);
+            panel.setPadding(dp(14), dp(10), dp(14), dp(10));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0xFF1E1529);
+            bg.setCornerRadius(dp(14));
+            panel.setBackground(bg);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+            params.topMargin = dp(8);
+            root.addView(panel, params);
+            panel.addView(label(source[0], 17));
+            panel.addView(label(source[2], 12));
+            Button action = new Button(this);
+            action.setAllCaps(false);
+            action.setText("Explorar fuente oficial ↗");
+            action.setOnClickListener(v -> openExternal(source[1]));
+            panel.addView(action);
+        }
+    }
+
     private void showNintendoSources(LinearLayout root) {
         root.addView(label("NINTENDO  /  FANGAMES Y ROM HACKS", 19));
         root.addView(label(
@@ -594,6 +796,9 @@ public class OkubiCatalogActivity extends Activity {
         showDownloadCenter(root);
         showDirectDownloads(root);
         showNintendoSources(root);
+        showMulticonsoleSources(root);
+        showDownloadedHubGames(root);
+        showHomebrewHubSearch(root);
         root.addView(label("HOMEBREW  /  JUEGOS INDEPENDIENTES", 19));
         root.addView(label("Los juegos descargados dentro de OKUBI muestran JUGAR. " +
                 "Si descargaste desde el navegador, vincula una sola vez tu archivo " +
@@ -644,14 +849,44 @@ public class OkubiCatalogActivity extends Activity {
     }
     /** The app-owned Ascension path is private and cannot be modified by other apps. */
     private File directHomebrewFile(Game game) {
-        return new File(getFilesDir(), "okubi/homebrew/ascension.gb");
+        String fileName = game.hubApproved
+                ? game.privateFileName
+                : "2048 GB".equals(game.name) ? "2048gb.gb" : "ascension.gb";
+        return new File(getFilesDir(), "okubi/homebrew/" + fileName);
     }
 
     private boolean verifiedDirectGame(Game game) {
         if (!game.direct) return false;
         File file = directHomebrewFile(game);
         return file.isFile() && file.length() >= 32768
-                && file.length() <= 8L * 1024 * 1024;
+                && file.length() <= 8L * 1024 * 1024
+                && hasGameBoyHeader(file);
+    }
+
+    /** Reject HTML/error pages and incomplete binary files before launching. */
+    private static boolean hasGameBoyHeader(File file) {
+        if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gba")) {
+            try (java.io.RandomAccessFile rom = new java.io.RandomAccessFile(file, "r")) {
+                if (rom.length() < 32768) return false;
+                rom.seek(0xB2);
+                return rom.readUnsignedByte() == 0x96;
+            } catch (IOException error) { return false; }
+        }
+
+        // Official Nintendo cartridge header logo at 0x104; needed by SameBoy.
+        final String logo = "CEED6666CC0D000B03730083000C000D0008111F8889000EDC"
+                + "CC6EE6DDDDD999BBBB67636E0EECCCDDDC999FBBB9333E";
+        try (java.io.RandomAccessFile rom = new java.io.RandomAccessFile(file, "r")) {
+            if (rom.length() < 0x150) return false;
+            rom.seek(0x104);
+            for (int i = 0; i < 48; i++) {
+                int expected = Integer.parseInt(logo.substring(i * 2, i * 2 + 2), 16);
+                if (rom.readUnsignedByte() != expected) return false;
+            }
+            return true;
+        } catch (IOException | NumberFormatException error) {
+            return false;
+        }
     }
 
     private void playDirectGame(Game game) {
@@ -661,8 +896,10 @@ public class OkubiCatalogActivity extends Activity {
                     Toast.LENGTH_LONG).show();
             return;
         }
-        if (!SameBoyNative.isAvailable()) {
-            Toast.makeText(this, "Descargado, pero el núcleo GB no está disponible",
+        boolean available = "GBA".equals(game.system) ? SameBoyNative.isGbaAvailable()
+                : SameBoyNative.isAvailable();
+        if (!available) {
+            Toast.makeText(this, "Descargado, pero el emulador requerido no está disponible",
                     Toast.LENGTH_LONG).show();
             return;
         }
@@ -670,7 +907,7 @@ public class OkubiCatalogActivity extends Activity {
         play.putExtra(OkubiGameBoyActivity.EXTRA_HOMEBREW_PATH,
                 directHomebrewFile(game).getAbsolutePath());
         play.putExtra(OkubiGameBoyActivity.EXTRA_NAME, game.name);
-        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, "GB");
+        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, game.system);
         startActivity(play);
     }
 
@@ -684,7 +921,8 @@ public class OkubiCatalogActivity extends Activity {
                 action.setEnabled(false);
                 status.setText("Descarga directa del autor en curso");
             } else if (verifiedDirectGame(game)) {
-                action.setText(SameBoyNative.isAvailable()
+                action.setText(("GBA".equals(game.system) ? SameBoyNative.isGbaAvailable()
+                            : SameBoyNative.isAvailable())
                         ? "▶ JUGAR EN OKUBI" : "✓ DESCARGADO");
                 action.setEnabled(true);
                 status.setText("✓ Archivo guardado dentro de OKUBI · no es una app Android");
@@ -767,9 +1005,19 @@ public class OkubiCatalogActivity extends Activity {
 
     private void download(Game game) {
         Uri uri = Uri.parse(game.url);
+        boolean official = !game.hubApproved && (
+                ("raw.githubusercontent.com".equals(uri.getHost())
+                 && "/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath()))
+                || ("hh3.gbdev.io".equals(uri.getHost())
+                 && "/api/entry/2048gb/2048.gb".equals(uri.getPath())));
+        boolean approvedHub = game.hubApproved
+                && "hh3.gbdev.io".equals(uri.getHost())
+                && uri.getPath().matches("/api/entry/[a-zA-Z0-9_-]{2,80}/[A-Za-z0-9_.-]{1,80}\\.(gb|gbc|gba)")
+                && game.privateFileName != null
+                && game.privateFileName.matches("[A-Za-z0-9_.-]{1,160}\\.(gb|gbc|gba)");
         if (!game.direct || !"https".equals(uri.getScheme())
-                || !"raw.githubusercontent.com".equals(uri.getHost())
-                || !"/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath())) {
+                || !(official || approvedHub)
+                || uri.getQuery() != null || uri.getFragment() != null) {
             Toast.makeText(this, "Solo se permiten ROMs homebrew autorizadas",
                     Toast.LENGTH_LONG).show();
             return;
@@ -790,12 +1038,12 @@ public class OkubiCatalogActivity extends Activity {
                 Toast.LENGTH_SHORT).show();
         try {
             downloadQueue.execute(() -> {
-                File target = new File(getFilesDir(), "okubi/homebrew/ascension.gb");
+                File target = directHomebrewFile(game);
                 try {
                     File directory = target.getParentFile();
                     if (!directory.isDirectory() && !directory.mkdirs())
                         throw new IllegalStateException("No se pudo crear la biblioteca");
-                    if (!target.isFile() || target.length() < 32768) {
+                    if (!verifiedDirectGame(game)) {
                         HttpURLConnection connection = (HttpURLConnection)new URL(game.url).openConnection();
                         connection.setConnectTimeout(12000);
                         connection.setReadTimeout(12000);
@@ -835,6 +1083,10 @@ public class OkubiCatalogActivity extends Activity {
                                     throw new IllegalStateException("Descarga incompleta");
                                 atomic.finishWrite(out);
                                 out = null;
+                                if (!hasGameBoyHeader(target)) {
+                                    target.delete();
+                                    throw new IOException("La descarga no es una ROM Game Boy válida");
+                                }
                             } catch (Exception error) {
                                 if (out != null) atomic.failWrite(out);
                                 throw error;
@@ -848,7 +1100,10 @@ public class OkubiCatalogActivity extends Activity {
                         if (closed || isFinishing()) return;
                         updateIndieAction(game);
                         refreshDownloadCenter();
-                        if (!SameBoyNative.isAvailable()) {
+                        recordHubGame(game);
+                        if (!("GBA".equals(game.system)
+                                ? SameBoyNative.isGbaAvailable()
+                                : SameBoyNative.isAvailable())) {
                             Toast.makeText(this,
                                 "Juego descargado. El motor SameBoy aún no está disponible en este APK",
                                 Toast.LENGTH_LONG).show();
@@ -858,7 +1113,7 @@ public class OkubiCatalogActivity extends Activity {
                         play.putExtra(OkubiGameBoyActivity.EXTRA_HOMEBREW_PATH,
                                 target.getAbsolutePath());
                         play.putExtra(OkubiGameBoyActivity.EXTRA_NAME, game.name);
-                        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, "GB");
+                        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, game.system);
                         startActivity(play);
                     });
                 } catch (Exception error) {

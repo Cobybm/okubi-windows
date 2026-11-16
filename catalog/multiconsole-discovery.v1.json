@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "title": "OKUBI 遊 - Ampliación multicónsola",
+  "reviewed": "2026-11-16",
+  "status": "catalog_seed_not_installed",
+  "policy": "Solo descargas directas desde autores/servicios que las autoricen. No alojar ROMs comerciales. Juegos famosos comerciales: ficha e importación de copias legítimas o tienda oficial.",
+  "coverage": [
+    {
+      "family": "Nintendo",
+      "platforms": [
+        "NES",
+        "SNES",
+        "N64",
+        "GB",
+        "GBC",
+        "GBA",
+        "NDS",
+        "3DS",
+        "GameCube",
+        "Wii",
+        "Wii U"
+      ]
+    },
+    {
+      "family": "PlayStation",
+      "platforms": [
+        "PS1",
+        "PS2",
+        "PS3",
+        "PSP",
+        "PS Vita"
+      ]
+    },
+    {
+      "family": "Sega",
+      "platforms": [
+        "Master System",
+        "Genesis/Mega Drive",
+        "Saturn",
+        "Dreamcast"
+      ]
+    },
+    {
+      "family": "Xbox",
+      "platforms": [
+        "Xbox",
+        "Xbox 360"
+      ]
+    },
+    {
+      "family": "Arcade/retro",
+      "platforms": [
+        "MAME",
+        "Neo Geo",
+        "Atari 2600",
+        "Atari Jaguar",
+        "PC Engine",
+        "Commodore 64",
+        "Amiga",
+        "DOS"
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "itch.io homebrew free",
+      "url": "https://itch.io/games/free/tag-homebrew",
+      "download_mode": "creator_page",
+      "scope": "multi-platform"
+    },
+    {
+      "name": "itch.io verified downloadable free homebrew",
+      "url": "https://itch.io/games/top-rated/downloadable/free/tag-homebrew",
+      "download_mode": "creator_page",
+      "scope": "multi-platform"
+    },
+    {
+      "name": "Homebrew Hub GB/GBC/GBA",
+      "url": "https://hh3.gbdev.io/api",
+      "documentation": "https://github.com/gbdev/homebrewhub/blob/main/API.md",
+      "download_mode": "api_license_checked",
+      "scope": "GB/GBC/GBA"
+    },
+    {
+      "name": "itch.io NES ROM",
+      "url": "https://itch.io/games/free/tag-nes-rom",
+      "download_mode": "creator_page",
+      "scope": "NES"
+    },
+    {
+      "name": "itch.io SNES homebrew",
+      "url": "https://itch.io/games/newest/free/tag-homebrew/tag-snes",
+      "download_mode": "creator_page",
+      "scope": "SNES"
+    }
+  ],
+  "discovered": [
+    {
+      "title": "Spacegulls",
+      "platform": "NES",
+      "genre": "Plataformas",
+      "listing": "https://itch.io/games/free/tag-homebrew",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Hayato's Journey",
+      "platform": "Genesis",
+      "genre": "Acción",
+      "listing": "https://itch.io/games/free/tag-homebrew",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Goodboy Galaxy DEMO",
+      "platform": "GBA",
+      "genre": "Exploración",
+      "listing": "https://itch.io/games/free/tag-homebrew",
+      "access": "free_demo_creator_page"
+    },
+    {
+      "title": "Dottie Flowers",
+      "platform": "SNES",
+      "genre": "Plataformas",
+      "listing": "https://itch.io/games/top-rated/downloadable/free/tag-homebrew",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Yume Nikki PS1 (demo)",
+      "platform": "PS1",
+      "genre": "Aventura",
+      "listing": "https://itch.io/games/top-rated/downloadable/free/tag-homebrew",
+      "access": "free_demo_creator_page"
+    },
+    {
+      "title": "Downtown Dash",
+      "platform": "Atari Jaguar",
+      "genre": "Carreras",
+      "listing": "https://itch.io/games/newest/free/tag-homebrew/tag-rom",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Shmoop & Sk1b: Yarn Patrol",
+      "platform": "PC Engine",
+      "genre": "Shooter",
+      "listing": "https://itch.io/games/newest/free/tag-homebrew/tag-rom",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Silueta DS",
+      "platform": "NDS",
+      "genre": "Lucha",
+      "listing": "https://itch.io/games/new-and-popular/free/lang-en/tag-homebrew",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "FERRUM ARENA",
+      "platform": "NDS",
+      "genre": "Lucha",
+      "listing": "https://itch.io/games/new-and-popular/free/lang-en/tag-homebrew",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Varooom 3D",
+      "platform": "GBA",
+      "genre": "Carreras",
+      "listing": "https://itch.io/games/free/tag-homebrew/tag-open-source",
+      "access": "free_creator_page"
+    },
+    {
+      "title": "Butano Fighter",
+      "platform": "GBA",
+      "genre": "Shooter",
+      "listing": "https://itch.io/games/free/tag-homebrew/tag-open-source",
+      "access": "free_creator_page"
+    }
+  ],
+  "integration_requirements": [
+    "No mostrar Descargar directo sin endpoint descargable oficial y permiso confirmado",
+    "Mostrar visiblemente Demo cuando aplique",
+    "Validar formato, licencia, autor y hash antes de importar",
+    "No prometer compatibilidad con todas las consolas",
+    "Separar tienda de juegos gratis, compras oficiales y ROMs del usuario",
+    "Nunca sobrescribir partidas ni cambios de controles"
+  ],
+  "notes": "Los resultados de itch.io son descubrimientos verificados a nivel listado, no una verificación individual de licencia ni acceso directo. Los usuarios no deberían tener que buscar manualmente: usar metadatos curados y descargar automáticamente cuando exista permiso y URL persistente."
+}

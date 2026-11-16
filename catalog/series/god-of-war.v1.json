@@ -1,0 +1,179 @@
+{
+  "schema_version": 1,
+  "series": "God of War",
+  "last_reviewed": "2026-11-16",
+  "official_source": "https://www.playstation.com/es-bo/god-of-war/",
+  "status": "metadata_only_not_integrated",
+  "rights": "Sony Interactive Entertainment; no descargar ni distribuir ROMs/ISO comerciales por terceros no autorizados",
+  "games": [
+    {
+      "id": "god-of-war-2005",
+      "title": "God of War",
+      "year": 2005,
+      "platforms": [
+        "PS2"
+      ],
+      "emulator_preference": "PCSX2",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested",
+      "notes": "El usuario solicita edición en español; verificar disco/imagen propia PAL o edición regional, idioma de voces y subtítulos sin asumir traducción."
+    },
+    {
+      "id": "god-of-war-2007",
+      "title": "God of War II",
+      "year": 2007,
+      "platforms": [
+        "PS2"
+      ],
+      "emulator_preference": "PCSX2",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2008",
+      "title": "God of War: Chains of Olympus",
+      "year": 2008,
+      "platforms": [
+        "PSP"
+      ],
+      "emulator_preference": "PPSSPP",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2010",
+      "title": "God of War III",
+      "year": 2010,
+      "platforms": [
+        "PS3"
+      ],
+      "emulator_preference": "RPCS3",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2010",
+      "title": "God of War: Ghost of Sparta",
+      "year": 2010,
+      "platforms": [
+        "PSP"
+      ],
+      "emulator_preference": "PPSSPP",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2013",
+      "title": "God of War: Ascension",
+      "year": 2013,
+      "platforms": [
+        "PS3"
+      ],
+      "emulator_preference": "RPCS3",
+      "arc": "original_greek",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2015",
+      "title": "God of War III Remastered",
+      "year": 2015,
+      "platforms": [
+        "PS4"
+      ],
+      "emulator_preference": null,
+      "arc": "remaster",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2018-2018",
+      "title": "God of War",
+      "year": 2018,
+      "platforms": [
+        "PS4",
+        "PC"
+      ],
+      "emulator_preference": "native_PC_only",
+      "arc": "norse",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2022",
+      "title": "God of War Ragnarök",
+      "year": 2022,
+      "platforms": [
+        "PS4",
+        "PS5",
+        "PC"
+      ],
+      "emulator_preference": "native_PC_only",
+      "arc": "norse",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    },
+    {
+      "id": "god-of-war-2026",
+      "title": "God of War Sons of Sparta",
+      "year": 2026,
+      "platforms": [
+        "PS5"
+      ],
+      "emulator_preference": null,
+      "arc": "spinoff",
+      "language_es": "verify_region_and_edition",
+      "commercial": true,
+      "download_mode": "official_purchase_or_user_import",
+      "rom_download_url": null,
+      "legitimate_store_url": "https://www.playstation.com/es-bo/god-of-war/",
+      "compatibility": "not_tested"
+    }
+  ],
+  "additional": {
+    "spin_off": "God of War: Betrayal (2007, móviles Java antiguos; disponibilidad no verificada)",
+    "future": "God of War Laufey anunciado para 2027; no disponible todavía",
+    "extra": "God of War Ragnarök Valhalla es DLC gratuito para propietarios de Ragnarök"
+  }
+}

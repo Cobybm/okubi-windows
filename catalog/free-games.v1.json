@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "catalog_name": "OKUBI 遊 — Descubre juegos gratuitos",
+  "last_reviewed": "2026-11-16",
+  "policy": "Solo juegos gratuitos con descarga autorizada desde páginas oficiales o proyectos abiertos. Gratis no implica permiso para redistribuir. No alojar ROMs de juegos comerciales ni saltar accesos o pagos.",
+  "sources": [
+    {
+      "id": "homebrewhub",
+      "name": "Homebrew Hub",
+      "url": "https://hh.gbdev.io",
+      "api_base": "https://hh3.gbdev.io/api",
+      "platforms": [
+        "GB",
+        "GBC",
+        "GBA"
+      ],
+      "kind": "api",
+      "notes": "API documentada /search y /entry/<slug>.json. Antes de descarga automática comprobar la licencia de cada entrada, tipo y archivo playable."
+    },
+    {
+      "id": "itch",
+      "name": "itch.io Homebrew",
+      "url": "https://itch.io/games/free/tag-homebrew",
+      "kind": "external_catalog",
+      "notes": "Descarga mediante página del autor; no extraer enlaces temporales ni evitar pasos de itch.io."
+    },
+    {
+      "id": "gbdev",
+      "name": "gbdev — open-source homebrew",
+      "url": "https://github.com/gbdev/awesome-gbdev",
+      "kind": "curated_source"
+    },
+    {
+      "id": "gbadev",
+      "name": "gbadev — open-source GBA",
+      "url": "https://github.com/gbadev-org/awesome-gbadev",
+      "kind": "curated_source"
+    }
+  ],
+  "games": [
+    {
+      "id": "2048-gb",
+      "title": "2048 GB",
+      "platform": "GB",
+      "genre": "Puzzle",
+      "developer": "Sanqui",
+      "source": "homebrewhub",
+      "detail_url": "https://github.com/Sanqui/2048-gb",
+      "api_manifest": "https://hh3.gbdev.io/api/entry/2048gb.json",
+      "api_download_pattern": "https://hh3.gbdev.io/api/entry/2048gb/{filename}",
+      "license": "Zlib",
+      "delivery": "api_license_checked",
+      "notes": "Usar filename de files[] con playable=true y validar licencia."
+    },
+    {
+      "id": "tobu-tobu-girl-deluxe",
+      "title": "Tobu Tobu Girl Deluxe",
+      "platform": "GBC",
+      "genre": "Plataformas",
+      "developer": "Tangram Games",
+      "source": "itch",
+      "detail_url": "https://tangramgames.itch.io/tobu-tobu-girl-deluxe",
+      "license": "MIT (código); CC BY 4.0 (recursos)",
+      "delivery": "official_page",
+      "expected_filename": "tobudx.gb"
+    },
+    {
+      "id": "bobl",
+      "title": "Böbl",
+      "platform": "NES",
+      "genre": "Metroidvania",
+      "developer": "Morphcat Games",
+      "source": "itch",
+      "detail_url": "https://morphcatgames.itch.io/bobl",
+      "license": "Distribución gratuita en página del autor; sin permiso verificado para redistribución",
+      "delivery": "official_page"
+    },
+    {
+      "id": "opossum-country",
+      "title": "Opossum Country",
+      "platform": "GBC",
+      "genre": "Aventura y terror",
+      "developer": "BenJelter",
+      "source": "itch",
+      "detail_url": "https://benjelter.itch.io/opossum-country",
+      "license": "Distribución gratuita en página del autor; sin permiso verificado para redistribución",
+      "delivery": "official_page",
+      "expected_filename": "Opossum Country.gbc"
+    },
+    {
+      "id": "2048-gameboy-wyatt",
+      "title": "2048 Game Boy Edition",
+      "platform": "GB",
+      "genre": "Puzzle",
+      "developer": "Wyatt Ferguson",
+      "source": "github",
+      "detail_url": "https://github.com/wyattferguson/2048-gb",
+      "license": "MIT",
+      "delivery": "official_file",
+      "official_file_url": "https://github.com/wyattferguson/2048-gb/blob/master/2048.gb"
+    }
+  ],
+  "download_rules": {
+    "require_https": true,
+    "allow_only_original_sources": true,
+    "verify_file_extension": [
+      ".gb",
+      ".gbc",
+      ".gba",
+      ".nes"
+    ],
+    "verify_magic_when_supported": true,
+    "max_file_size_mb": 128,
+    "sha256_after_download": true,
+    "store_in_user_library": true,
+    "do_not_overwrite_saves": true,
+    "permission_gate": "No descargar automáticamente sin verificar licencia para uso final, fuente y formato",
+    "no_remote_code_execution": true,
+    "report_errors": true
+  },
+  "ui": {
+    "tabs": [
+      "Descubrir",
+      "Mis juegos",
+      "Descargas"
+    ],
+    "actions": [
+      "Ver ficha",
+      "Descargar cuando fuente permite acceso directo",
+      "Abrir descarga oficial",
+      "Importar y jugar"
+    ],
+    "first_play_control_guide": true
+  }
+}

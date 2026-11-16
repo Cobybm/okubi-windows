@@ -36,6 +36,7 @@ android {
     }
 
     buildTypes {
+        // Side-by-side QA uses a separate package but the same public launcher name.
         // QA57 runs beside an existing Android install instead of upgrading
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
@@ -43,7 +44,7 @@ android {
             if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
                 applicationIdSuffix '.qa57'
                 versionNameSuffix '-qa57'
-                manifestPlaceholders = [okubiAppLabel: 'OKUBI QA57 遊']
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
             }
         }
         release {
