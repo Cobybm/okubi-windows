@@ -1,10 +1,10 @@
-name: OKUBI Phase 86 - Direct Windows Setup and Android APK
+name: OKUBI Phase 87 - Direct Windows Setup with resilient launcher
 
 on:
   push:
-    branches: [qa/okubi-phase86-direct-installers]
+    branches: [qa/okubi-phase87-launcher-reliability]
   pull_request:
-    branches: [qa/okubi-phase85-native-windows-cli-smoke]
+    branches: [qa/okubi-phase86-direct-installers]
   workflow_dispatch:
 
 permissions:
@@ -86,14 +86,14 @@ jobs:
           $compiler = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
           & $compiler "/DSourceRoot=$env:GITHUB_WORKSPACE" installer/phase86/OKUBI-QA86.iss
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed' }
-          if (-not (Test-Path 'build/phase86/out/OKUBI-Windows-Instalar-QA86.exe')) {
+          if (-not (Test-Path 'build/phase86/out/OKUBI-Windows-Instalar-QA87.exe')) {
             throw 'Windows Setup EXE is missing'
           }
       - name: Smoke-test Windows setup installation and original EXE with no ROMs
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = (Resolve-Path build/phase86/out/OKUBI-Windows-Instalar-QA86.exe).Path
+          $installer = (Resolve-Path build/phase86/out/OKUBI-Windows-Instalar-QA87.exe).Path
           $folder = Join-Path $env:RUNNER_TEMP ('OKUBI-QA86-install-' + [guid]::NewGuid().ToString('N'))
           $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/DIR=' + $folder))
           $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
@@ -110,53 +110,39 @@ jobs:
           }
           $verify = Start-Process -FilePath $exe -ArgumentList '--verify-windows-release' -WorkingDirectory (Split-Path $exe -Parent) -PassThru -Wait
           if ($verify.ExitCode -ne 0) { throw 'Installed application runtime verification failed' }
+          # Exercise the EXACT Start-menu launcher: separate QA profile and
+          # child process integrity test, not just the underlying Java EXE.
+          $launcherCheck = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+          if ($launcherCheck.ExitCode -ne 0) {
+            throw 'Actual Start-menu launcher could not open its packaged child safely'
+          }
+          # This may only modify a disposable temporary copy in the runner.
+          $originalDll = [IO.File]::ReadAllBytes($dstCore)
+          try {
+            $damaged = [byte[]]$originalDll.Clone()
+            $damaged[$damaged.Length - 1] = [byte]($damaged[$damaged.Length - 1] -bxor 1)
+            [IO.File]::WriteAllBytes($dstCore, $damaged)
+            $tamperCheck = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+            if ($tamperCheck.ExitCode -eq 0) {
+              throw 'Modified DLL was incorrectly accepted by the user launcher'
+            }
+          } finally {
+            [IO.File]::WriteAllBytes($dstCore, $originalDll)
+          }
+          $launcherRestored = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+          if ($launcherRestored.ExitCode -ne 0) {
+            throw 'Restored DLL did not pass launcher self-test'
+          }
           $uninstaller = Join-Path $folder 'unins000.exe'
           if (-not (Test-Path $uninstaller)) { throw 'Uninstaller not installed' }
           $u = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
           if ($u.ExitCode -ne 0) { throw 'Installer cleanup failed' }
-          Write-Host 'PASS: real setup installs, works, and uninstalls; user data not accessed.'
+          Write-Host 'PASS: QA87 setup installs, launcher checks packaged core and rejects tamper, restores, uninstalls without deleting QA86 saves.'
       - name: Upload real Windows setup EXE only
         uses: actions/upload-artifact@v4
         with:
-          name: OKUBI-Windows-Instalar-QA86-EXE
-          path: build/phase86/out/OKUBI-Windows-Instalar-QA86.exe
+          name: OKUBI-Windows-Instalar-QA87-EXE
+          path: build/phase86/out/OKUBI-Windows-Instalar-QA87.exe
           retention-days: 14
           if-no-files-found: error
 
-  android-standalone-apk:
-    name: Copy original QA57 Android APK unchanged
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout baseline
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Get approved standalone Android APK
-        uses: actions/download-artifact@v4
-        with:
-          name: OKUBI-Android-Migration-QA57-Side-by-Side
-          run-id: 43612388104
-          github-token: ${{ github.token }}
-          repository: Cobybm/okubi-windows
-          path: build/phase86/apk-reference
-      - name: Verify APK checksum and keep APK bytes identical
-        run: |
-          set -euo pipefail
-          cd build/phase86/apk-reference
-          test -f OKUBI-Android-Migration-QA57.apk
-          test -f SHA256SUMS.txt
-          original="$(cut -d ' ' -f 1 SHA256SUMS.txt)"
-          actual="$(sha256sum OKUBI-Android-Migration-QA57.apk | cut -d ' ' -f 1)"
-          test "$original" = "$actual"
-          mkdir -p ../apk-direct
-          cp OKUBI-Android-Migration-QA57.apk ../apk-direct/OKUBI-Android-QA57.apk
-          cmp OKUBI-Android-Migration-QA57.apk ../apk-direct/OKUBI-Android-QA57.apk
-          echo 'PASS: original side-by-side QA Android APK intact; no game saves touched'
-      - name: Upload Android QA APK only
-        uses: actions/upload-artifact@v4
-        with:
-          name: OKUBI-Android-QA57-APK
-          path: build/phase86/apk-direct/OKUBI-Android-QA57.apk
-          retention-days: 14
-          if-no-files-found: error
