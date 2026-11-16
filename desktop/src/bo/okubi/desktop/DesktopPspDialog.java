@@ -32,8 +32,8 @@ public final class DesktopPspDialog extends JDialog {
     private final JLabel status=new JLabel("Importa tu juego PSP y configura PPSSPP.");
     private final JButton play=new JButton("▶ JUGAR PSP");
 
-    public DesktopPspDialog(JFrame owner) throws IOException {
-        super(owner,"OKUBI 遊 · PSP · PPSSPP",Dialog.ModalityType.MODELESS);
+    public DesktopPspDialog(java.awt.Window owner) throws IOException {
+        super(owner,"OKUBI 遊 · PSP · PPSSPP",Dialog.ModalityType.APPLICATION_MODAL);
         library=new DesktopPspLauncher.Library(DesktopPspLauncher.defaultSettings());
         setMinimumSize(new Dimension(630,430));
         setSize(780,490);
@@ -137,7 +137,7 @@ public final class DesktopPspDialog extends JDialog {
     private void chooseEmulator() {
         JFileChooser picker=new JFileChooser();
         picker.setDialogTitle("Elige PPSSPPWindows64.exe desde la descarga oficial");
-        picker.setFileFilter(new FileNameExtensionFilter("PPSSPP Windows",".exe"));
+        picker.setFileFilter(new FileNameExtensionFilter("PPSSPP Windows","exe"));
         if(picker.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION)return;
         Path candidate=picker.getSelectedFile().toPath();
         int approved=JOptionPane.showConfirmDialog(this,
