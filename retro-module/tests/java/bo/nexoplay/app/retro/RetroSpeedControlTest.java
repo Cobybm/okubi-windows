@@ -53,6 +53,30 @@ public final class RetroSpeedControlTest {
         audio.setStep(1);
         check(audio.transform(nativeSamples,200,accelerated)==200,
                 "normal soundtrack restored immediately");
+        check(RetroSpeedControl.maxOutputShorts(8192)==16384,
+                "slow playback reserves twice the native stereo buffer");
+        short[] maximumInput = new short[8192];
+        for (int i=0;i<maximumInput.length;i++)
+            maximumInput[i]=(short)(i%2==0?1111:-2222);
+        short[] slowOutput =
+                new short[RetroSpeedControl.maxOutputShorts(maximumInput.length)];
+        audio.setStep(0);
+        check(audio.transform(maximumInput,maximumInput.length,slowOutput)==16384,
+                "x0.5 on max native audio does not overflow the PCM output buffer");
+        check(slowOutput[0]==1111 && slowOutput[1]==-2222
+                && slowOutput[2]==1111 && slowOutput[3]==-2222,
+                "slow soundtrack duplicates complete stereo frames");
+        check(slowOutput[16382]==1111 && slowOutput[16383]==-2222,
+                "slow PCM does not truncate the final stereo frame");
+        audio.setStep(1);
+        boolean invalidCapacity=false;
+        try { RetroSpeedControl.maxOutputShorts(8191); }
+        catch(IllegalArgumentException expected){ invalidCapacity=true; }
+        check(invalidCapacity,"reject odd stereo input capacities");
+        invalidCapacity=false;
+        try { RetroSpeedControl.maxOutputShorts(Integer.MAX_VALUE-1); }
+        catch(IllegalArgumentException expected){ invalidCapacity=true; }
+        check(invalidCapacity,"reject integer overflow on requested audio capacity");
         boolean rejected=false;
         try{audio.transform(nativeSamples,199,accelerated);}
         catch(IllegalArgumentException expected){rejected=true;}

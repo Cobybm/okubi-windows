@@ -2105,7 +2105,10 @@ public final class OkubiGameBoyActivity extends Activity {
 
             int[] imagePixels = new int[frameWidth * frameHeight];
             short[] samples = new short[8192];
-            short[] acceleratedSamples = new short[8192];
+            // Slowing playback to x0.5 doubles the stereo samples emitted
+            // for each native frame. Allocate enough space once, not per frame.
+            short[] acceleratedSamples =
+                    new short[RetroSpeedControl.maxOutputShorts(samples.length)];
             // No allocations during emulation. Keep at most ~340ms of 48kHz
             // stereo PCM, preserving data Android did not yet accept.
             RetroPcmQueue pendingMusic = new RetroPcmQueue(32768);

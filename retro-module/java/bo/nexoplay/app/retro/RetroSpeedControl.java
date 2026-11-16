@@ -39,6 +39,19 @@ public final class RetroSpeedControl {
     }
 
     /**
+     * Worst-case output capacity in interleaved PCM shorts. At 0.5x playback,
+     * every stereo input frame is emitted twice; all other supported speeds
+     * need no more output. Reserve this buffer once before entering the
+     * emulation worker to avoid crashes or per-frame allocations.
+     */
+    public static int maxOutputShorts(int inputShorts) {
+        if (inputShorts < 0 || (inputShorts & 1) != 0
+                || inputShorts > Integer.MAX_VALUE / 2)
+            throw new IllegalArgumentException("Invalid stereo PCM buffer capacity");
+        return inputShorts * 2;
+    }
+
+    /**
      * Fallback-free device compatibility: fixed-rate AudioTrack at native
      * sample rate, accelerated PCM by removing interleaved stereo frames.
      * Faster pitch and game soundtrack, never mute fast-forward. No allocations
