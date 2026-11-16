@@ -147,3 +147,42 @@ jobs:
           PY
       - name: Run portable Android regression suite
         run: python3 -m unittest discover -s retro-module/tests -v
+
+  native-ps1-bridge:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Build actual JNI and mock GB+PS1 cores
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build/native,build/classes,build/tests | Out-Null
+          $jni = "/I$env:JAVA_HOME\include"
+          $win = "/I$env:JAVA_HOME\include\win32"
+          & cl.exe /nologo /LD /O2 /W3 $jni $win desktop/native/okubi_libretro_jni.c /link /OUT:build/native/okubi_libretro_jni.dll
+          if ($LASTEXITCODE -ne 0) { throw "JNI compile failed" }
+          & cl.exe /nologo /LD /O2 /W3 desktop/tests/native/mock_libretro_core.c /link /OUT:build/native/mock_libretro_core.dll
+          if ($LASTEXITCODE -ne 0) { throw "GB dummy core failed" }
+          & cl.exe /nologo /LD /O2 /W3 desktop/tests/native/mock_ps1_libretro_core.c /link /OUT:build/native/mock_ps1_libretro_core.dll
+          if ($LASTEXITCODE -ne 0) { throw "PS1 dummy core failed" }
+      - name: Java and end-to-end tests (NO commercial ROM or BIOS)
+        shell: pwsh
+        run: |
+          $src = @(Get-ChildItem -Recurse desktop/src -Filter *.java | ForEach-Object FullName)
+          $tests = @(Get-ChildItem -Recurse desktop/tests -Filter *.java | ForEach-Object FullName)
+          & javac -encoding UTF-8 -d build/classes $src retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+          if ($LASTEXITCODE -ne 0) { throw "Java compilation failed" }
+          & javac -encoding UTF-8 -cp build/classes -d build/tests $tests
+          if ($LASTEXITCODE -ne 0) { throw "Java tests compilation failed" }
+          $env:JAVA_TOOL_OPTIONS = "-Dokubi.native.bridge=$((Resolve-Path build/native/okubi_libretro_jni.dll).Path)"
+          & java -ea -cp "build/classes;build/tests" bo.okubi.desktop.EmbeddedCoreTest (Resolve-Path build/native/mock_libretro_core.dll).Path
+          if ($LASTEXITCODE -ne 0) { throw "Existing GB core regression" }
+          & java -ea -cp "build/classes;build/tests" bo.okubi.desktop.DesktopPs1NativeCoreTest (Resolve-Path build/native/mock_ps1_libretro_core.dll).Path
+          if ($LASTEXITCODE -ne 0) { throw "PS1 JNI failed" }
