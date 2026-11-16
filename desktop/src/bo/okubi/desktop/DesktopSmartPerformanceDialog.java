@@ -234,16 +234,18 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         JPanel footer = new JPanel(new BorderLayout(8, 8));
         footer.setBackground(BG);
         // Two rows prevent button clipping at 800 px or Windows 125/150% DPI.
-        JPanel tools = new JPanel(new GridLayout(2, 3, 9, 7));
+        JPanel tools = new JPanel(new GridLayout(2, 4, 7, 7));
         tools.setBackground(BG);
         tools.setBorder(BorderFactory.createEmptyBorder(1, 0, 1, 0));
         tools.add(button("Añadir juego", this::addFile));
         tools.add(button("Importar carpeta", this::addFolder));
         tools.add(button("Elegir emulador .exe", this::chooseEmulator));
+        tools.add(button("¿QUÉ FORMATO?", this::inspectPlayStationFormat));
         tools.add(button("Página oficial", this::officialPage));
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
         tools.add(play);
+        tools.add(button("PSP / PS VITA", this::showPortableEmulators));
         footer.add(tools, BorderLayout.NORTH);
         status.setForeground(MUTED);
         status.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -402,37 +404,73 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             }
         }.execute();
     }
+    private void inspectPlayStationFormat() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("OKUBI · Analizar archivos PlayStation sin modificarlos");
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+        try {
+            var advice = DesktopPlaystationFormatAdvisor.inspect(
+                    chooser.getSelectedFile().toPath());
+            JOptionPane.showMessageDialog(this, advice.summary(),
+                    "OKUBI · Formato reconocido", JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException error) {
+            report(error);
+        }
+    }
+
     private void addFile() {
         JFileChooser choose = new JFileChooser();
-        choose.setDialogTitle("Seleccionar juego legítimo PS1 / PS2 / PS3");
+        choose.setDialogTitle("Importar juegos propios · PS1/PS2/PS3; revisar PSP/Vita");
         if (choose.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
         Path path = choose.getSelectedFile().toPath();
-        var suggested = DesktopSmartPerformance.suggestConsole(
-                path.getFileName().toString());
-        if (suggested == null) {
-            report(new IOException("Formato no admitido en esta fase: "
-                    + path.getFileName()));
-            return;
-        }
-        DesktopSmartPerformance.Console console = suggested;
-        String name = path.getFileName().toString().toLowerCase(Locale.ROOT);
-        if (name.endsWith(".iso") || name.endsWith(".chd")) {
-            var selected = JOptionPane.showInputDialog(this,
-                    "¿De qué consola es realmente este archivo?\n"
-                    + "El formato por sí solo no permite adivinarlo.",
-                    "Verificar consola", JOptionPane.QUESTION_MESSAGE, null,
-                    new DesktopSmartPerformance.Console[]{
-                            DesktopSmartPerformance.Console.PS1,
-                            DesktopSmartPerformance.Console.PS2}, suggested);
-            if (!(selected instanceof DesktopSmartPerformance.Console c)) return;
-            console = c;
-        }
         try {
-            catalog.addGame(path, console);
+            var advice = DesktopPlaystationFormatAdvisor.inspect(path);
+            boolean ps1 = DesktopSmartPerformance.acceptedFile(
+                    DesktopSmartPerformance.Console.PS1, path.getFileName().toString());
+            boolean ps2 = DesktopSmartPerformance.acceptedFile(
+                    DesktopSmartPerformance.Console.PS2, path.getFileName().toString());
+            boolean ps3 = DesktopSmartPerformance.acceptedFile(
+                    DesktopSmartPerformance.Console.PS3, path.getFileName().toString());
+            if (!ps1 && !ps2 && !ps3) {
+                JOptionPane.showMessageDialog(this,
+                        advice.summary() + "\n\nSi es PSP, abre tu copia con PPSSPP. "
+                        + "Si es PS Vita, instala el archivo desde Vita3K. "
+                        + "Para paquetes PS3 usa primero el instalador de RPCS3.",
+                        "OKUBI · Información de importación", JOptionPane.INFORMATION_MESSAGE);
+                return;
+            }
+            DesktopSmartPerformance.Console choice =
+                    DesktopSmartPerformance.suggestConsole(path.getFileName().toString());
+            if ((ps1 && ps2) || choice == null) {
+                var options = ps1 && ps2
+                        ? new DesktopSmartPerformance.Console[]{
+                            DesktopSmartPerformance.Console.PS1,
+                            DesktopSmartPerformance.Console.PS2}
+                        : ps1 ? new DesktopSmartPerformance.Console[]{
+                            DesktopSmartPerformance.Console.PS1}
+                        : ps2 ? new DesktopSmartPerformance.Console[]{
+                            DesktopSmartPerformance.Console.PS2}
+                        : new DesktopSmartPerformance.Console[]{
+                            DesktopSmartPerformance.Console.PS3};
+                Object selected = JOptionPane.showInputDialog(this,
+                        advice.summary() + "\n\n¿De qué consola es tu archivo?",
+                        "OKUBI · Confirmar emulador", JOptionPane.QUESTION_MESSAGE,
+                        null, options, options[0]);
+                if (!(selected instanceof DesktopSmartPerformance.Console console)) return;
+                choice = console;
+            } else if (!advice.warnings().isEmpty()) {
+                int confirmed = JOptionPane.showConfirmDialog(this,
+                        advice.summary()+"\n\n¿Importar esta referencia de todos modos?",
+                        "OKUBI · Verificación", JOptionPane.YES_NO_OPTION,
+                        JOptionPane.WARNING_MESSAGE);
+                if (confirmed != JOptionPane.YES_OPTION) return;
+            }
+            catalog.addGame(path, choice);
             refreshCatalog(path.toAbsolutePath().normalize());
-            status.setText("Juego añadido como referencia: " + path.getFileName());
+            status.setText("Juego registrado para "+choice.label+": "+path.getFileName());
         } catch (IOException problem) { report(problem); }
     }
+
     private void addFolder() {
         JFileChooser choose = new JFileChooser();
         choose.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
@@ -464,6 +502,21 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
                 DesktopSmartPerformance.Console.PS1);
         return chosen instanceof DesktopSmartPerformance.Console console ? console : null;
     }
+    private void showPortableEmulators() {
+        JOptionPane.showMessageDialog(this,
+                "PSP · PPSSPP (Windows/Android)\n"
+                + "Formatos: ISO, CSO, CHD y EBOOT.PBP de tu propia PSP.\n"
+                + "Sitio oficial: https://www.ppsspp.org/\n\n"
+                + "PS VITA · Vita3K (Windows/Android)\n"
+                + "Formatos instalables: VPK, ZIP, VCI y PKG con licencia legítima.\n"
+                + "Sitio oficial: https://vita3k.org/\n\n"
+                + "Estas consolas se reconocen en el diagnóstico. La versión actual\n"
+                + "de SMART PC todavía no inicia PSP ni PS Vita desde OKUBI.\n"
+                + "No distribuimos firmware o juegos comerciales.",
+                "OKUBI · Bases recomendadas para consolas portátiles",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
     private void chooseEmulator() {
         var console = currentConsole();
         if (console == null) return;
