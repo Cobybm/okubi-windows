@@ -1303,6 +1303,26 @@ public final class OkubiGameBoyActivity extends Activity {
         return label;
     }
 
+    private void sendMediaCommand(int keyCode) {
+        // User-requested media buttons only. No notification-listener access,
+        // no reading other apps' metadata or private playback history.
+        AudioManager manager=(AudioManager)getSystemService(AUDIO_SERVICE);
+        if (manager==null) {
+            setStatus("Control multimedia no disponible");
+            return;
+        }
+        try {
+            long now=SystemClock.uptimeMillis();
+            manager.dispatchMediaKeyEvent(new KeyEvent(now,now,
+                    KeyEvent.ACTION_DOWN,keyCode,0));
+            manager.dispatchMediaKeyEvent(new KeyEvent(now,now,
+                    KeyEvent.ACTION_UP,keyCode,0));
+            setStatus("Comando enviado a la app de música (si es compatible)");
+        } catch (RuntimeException denied) {
+            setStatus("La app de música o Android no permiten este control");
+        }
+    }
+
     private void showAudioSettings() {
         beginDialog();
         LinearLayout container = new LinearLayout(this);
@@ -1329,6 +1349,36 @@ public final class OkubiGameBoyActivity extends Activity {
         safe.setText("Modo audio seguro (búfer estable)");
         safe.setChecked(safeAudio);
         container.addView(safe);
+        container.addView(dialogLabel("OKUBI 遊 · Música del teléfono"));
+        ImageView mediaLogo = new ImageView(this);
+        mediaLogo.setImageResource(bo.nexoplay.app.R.drawable.ic_okubi);
+        mediaLogo.setContentDescription("Logo OKUBI, mando y espada");
+        container.addView(mediaLogo, new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout media = new LinearLayout(this);
+        media.setGravity(Gravity.CENTER_VERTICAL);
+        for (int index=0; index<3; index++) {
+            final int key = index==0 ? KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                    : index==1 ? KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    : KeyEvent.KEYCODE_MEDIA_NEXT;
+            Button button = new Button(this);
+            button.setText(index==0 ? "◀◀" : index==1 ? "▶ / ❚❚" : "▶▶");
+            button.setContentDescription(index==0 ? "Canción anterior"
+                    : index==1 ? "Reproducir o pausar música externa"
+                    : "Canción siguiente");
+            media.addView(button, new LinearLayout.LayoutParams(0, dp(50), 1f));
+            button.setOnClickListener(v -> sendMediaCommand(key));
+        }
+        container.addView(media);
+        Button systemVolume = new Button(this);
+        systemVolume.setText("Volumen multimedia del teléfono");
+        systemVolume.setOnClickListener(v -> {
+            AudioManager manager=(AudioManager)getSystemService(AUDIO_SERVICE);
+            if(manager!=null) manager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI);
+        });
+        container.addView(systemVolume);
+        container.addView(dialogLabel("El volumen y silencio de arriba afectan solo al juego. Las canciones externas dependen de la app de música activa; Android no permite aislar su volumen de otras apps sin permisos especiales."));
+        container.addView(dialogLabel("En aceleración ×1.25–×4 el audio del juego sigue sonando más rápido. Si un teléfono no acepta esa velocidad, usa ×1–×2."));
         container.addView(dialogLabel("Si escuchas un pitido, prueba primero Silenciar y después Reiniciar audio. No subas el volumen hasta comprobarlo."));
         new AlertDialog.Builder(this)
                 .setTitle("OKUBI · Sonido")
