@@ -104,22 +104,22 @@ public final class ControlGuideRegistry {
     private static Map<String, Map<String, Binding>> createDefaults() {
         Map<String, Map<String, Binding>> map = new LinkedHashMap<>();
         map.put("gba", layout(new String[][] {
-            {"Move", "W/A/S/D", "D-pad"}, {"A", "J", "South"}, {"B", "K", "East"},
-            {"L", "Q", "LB"}, {"R", "E", "RB"}, {"Start", "Enter", "Start"}, {"Select", "Shift", "Back"}
+            {"Move", "Arrow keys", "D-pad"}, {"A", "X", "South"}, {"B", "Z", "East"},
+            {"L", "Q", "LB"}, {"R", "W", "RB"}, {"Start", "Enter", "Start"}, {"Select", "Space", "Back"}
         }));
         map.put("nes", layout(new String[][] {
-            {"Move", "W/A/S/D", "D-pad"}, {"A", "J", "South"}, {"B", "K", "East"},
-            {"Start", "Enter", "Start"}, {"Select", "Shift", "Back"}
+            {"Move", "Arrow keys", "D-pad"}, {"A", "X", "South"}, {"B", "Z", "East"},
+            {"Start", "Enter", "Start"}, {"Select", "Space", "Back"}
         }));
         map.put("snes", layout(new String[][] {
-            {"Move", "W/A/S/D", "D-pad"}, {"A", "J", "East"}, {"B", "K", "South"},
-            {"X", "U", "North"}, {"Y", "I", "West"}, {"L", "Q", "LB"}, {"R", "E", "RB"},
-            {"Start", "Enter", "Start"}, {"Select", "Shift", "Back"}
+            {"Move", "Arrow keys", "D-pad"}, {"A", "X", "East"}, {"B", "Z", "South"},
+            {"X", "S", "North"}, {"Y", "A", "West"}, {"L", "Q", "LB"}, {"R", "W", "RB"},
+            {"Start", "Enter", "Start"}, {"Select", "Space", "Back"}
         }));
         map.put("playstation", layout(new String[][] {
-            {"Move", "W/A/S/D", "Left stick / D-pad"}, {"Cross", "J", "South"}, {"Circle", "K", "East"},
-            {"Square", "U", "West"}, {"Triangle", "I", "North"}, {"L1", "Q", "LB"}, {"R1", "E", "RB"},
-            {"Start", "Enter", "Start"}, {"Select", "Shift", "Back"}
+            {"Move", "Configure in external emulator", "Left stick / D-pad"}, {"Cross", "Configure in external emulator", "South"}, {"Circle", "Configure in external emulator", "East"},
+            {"Square", "Configure in external emulator", "West"}, {"Triangle", "Configure in external emulator", "North"}, {"L1", "Configure in external emulator", "LB"}, {"R1", "Configure in external emulator", "RB"},
+            {"Start", "Enter", "Start"}, {"Select", "Space", "Back"}
         }));
         map.put("genesis", layout(new String[][] {
             {"Move", "W/A/S/D", "D-pad"}, {"A", "J", "West"}, {"B", "K", "South"},
