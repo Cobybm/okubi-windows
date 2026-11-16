@@ -245,7 +245,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
         tools.add(play);
-        tools.add(button("PSP / PS VITA", this::showPortableEmulators));
+        tools.add(button("▶ PSP · PPSSPP", this::showPspLibrary));
         footer.add(tools, BorderLayout.NORTH);
         status.setForeground(MUTED);
         status.setFont(new Font("Segoe UI", Font.PLAIN, 11));
@@ -509,6 +509,15 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
                 DesktopSmartPerformance.Console.PS1);
         return chosen instanceof DesktopSmartPerformance.Console console ? console : null;
     }
+    private void showPspLibrary() {
+        try {
+            new DesktopPspDialog(this).setVisible(true);
+            status.setText("Biblioteca PSP gestionada separadamente, sin tocar partidas.");
+        } catch (IOException error) {
+            report(error);
+        }
+    }
+
     private void showPortableEmulators() {
         JOptionPane.showMessageDialog(this,
                 "PSP · PPSSPP (Windows/Android)\n"
