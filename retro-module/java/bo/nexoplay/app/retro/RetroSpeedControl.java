@@ -38,6 +38,36 @@ public final class RetroSpeedControl {
         return Math.min(192000, Math.max(8000, (int)Math.round(rate * multiplier(speedIndex))));
     }
 
+    /**
+     * Fallback-free device compatibility: fixed-rate AudioTrack at native
+     * sample rate, accelerated PCM by removing interleaved stereo frames.
+     * Faster pitch and game soundtrack, never mute fast-forward. No allocations
+     * in the render worker; preserve fractional position across core frames.
+     */
+    public static final class AudioAccelerator {
+        private double phase;
+        private int step = NORMAL;
+        public void setStep(int value) {
+            int updated=normalize(value);
+            if(updated!=step){step=updated;phase=0.0;}
+        }
+        public int transform(short[] input,int length,short[] target) {
+            if(input==null||target==null||length<0||length>input.length
+                    ||(length&1)!=0)throw new IllegalArgumentException("PCM stereo");
+            int frames=length/2, out=0;
+            double stride=multiplier(step);
+            while(phase<frames) {
+                int at=(int)phase*2;
+                if(out+2>target.length)throw new IllegalArgumentException("PCM capacity");
+                target[out++]=input[at];
+                target[out++]=input[at+1];
+                phase+=stride;
+            }
+            phase-=frames;
+            return out;
+        }
+    }
+
     /** Preserve every core/audio frame; skip only expensive video transfers at high speed. */
     public static boolean presentFrame(int index, long frameNumber) {
         double speed = multiplier(index);
