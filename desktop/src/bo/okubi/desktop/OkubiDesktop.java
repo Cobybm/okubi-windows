@@ -1281,6 +1281,17 @@ public final class OkubiDesktop {
                 renderGames();
                 setStatus(added ? "Juego descargado e importado: " + rom.getFileName()
                         : "Ya estaba en tu biblioteca: " + rom.getFileName());
+                DesktopLibrary.Game selected = library.games().stream()
+                        .filter(g -> g.rom.equals(rom.toAbsolutePath().normalize()))
+                        .findFirst().orElse(null);
+                if (selected != null && JOptionPane.showConfirmDialog(window,
+                        "Descarga verificada: " + selected.title()
+                        + "\\nConsola: " + selected.console.label
+                        + "\\n\\n¿Quieres jugar ahora con el emulador disponible?",
+                        "OKUBI 遊 · Descargar y jugar", JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
+                    play(selected);
+                }
             } catch (IOException problem) {
                 showError("No se pudo importar: " + problem.getMessage());
             }
