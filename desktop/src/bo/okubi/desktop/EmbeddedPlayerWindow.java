@@ -69,6 +69,7 @@ public final class EmbeddedPlayerWindow {
     private final AtomicBoolean capture = new AtomicBoolean();
     private final AtomicBoolean muted = new AtomicBoolean();
     private final AtomicInteger speedStep = new AtomicInteger();
+    private final AtomicInteger gameVolume = new AtomicInteger(100);
     private final java.util.List<CinemaButton> speedButtons = new java.util.ArrayList<>();
     private Rectangle previousSize;
 
@@ -107,6 +108,7 @@ public final class EmbeddedPlayerWindow {
         actions.setOpaque(false);
         actions.add(new CinemaButton("F5 Guardar", false, () -> quickSave.set(true)));
         addSpeedButton(actions);
+        actions.add(new CinemaButton("♫ MÚSICA",false,this::showMediaPanel));
         actions.add(new CinemaButton("F9 Cargar", false, this::confirmLoad));
         actions.add(new CinemaButton("☰ MENÚ / ESC", true, this::toggleControlCenter));
         actions.add(new CinemaButton("⛶", false, this::toggleMaximize));
@@ -172,6 +174,12 @@ public final class EmbeddedPlayerWindow {
                         picture.putClientProperty("fullHeld", Boolean.TRUE);
                     }
                     event.consume();
+                } else if (event.getKeyCode() == KeyEvent.VK_F8) {
+                    if (!Boolean.TRUE.equals(picture.getClientProperty("musicHeld"))) {
+                        showMediaPanel();
+                        picture.putClientProperty("musicHeld", Boolean.TRUE);
+                    }
+                    event.consume();
                 } else if (event.getKeyCode() == KeyEvent.VK_F6) {
                     if (!Boolean.TRUE.equals(picture.getClientProperty("speedHeld"))) {
                         cycleSpeed();
@@ -219,6 +227,8 @@ public final class EmbeddedPlayerWindow {
                     picture.putClientProperty("quickSaveHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F6)
                     picture.putClientProperty("speedHeld", Boolean.FALSE);
+                else if (event.getKeyCode() == KeyEvent.VK_F8)
+                    picture.putClientProperty("musicHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F9)
                     picture.putClientProperty("quickLoadHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F12)
@@ -403,6 +413,58 @@ public final class EmbeddedPlayerWindow {
         hudFooter.setVisible(view.footer());
         root.revalidate();
         root.repaint();
+    }
+
+    private void sendSystemMedia(int command) {
+        // User explicitly pressed a media control: no access to song history
+        // or private player metadata; Windows routes this to its active player.
+        try {
+            if (!WindowsRetroNative.sendMediaCommand(command))
+                info("La aplicación de música no respondió a esta tecla");
+            else info("Control multimedia enviado · depende del reproductor");
+        } catch (UnsatisfiedLinkError | RuntimeException unavailable) {
+            info("Controles multimedia de Windows no disponibles");
+        }
+    }
+
+    private void showMediaPanel() {
+        javax.swing.JPanel panel = new javax.swing.JPanel(new BorderLayout(8,8));
+        panel.setBackground(new Color(25,18,38));
+        javax.swing.JLabel brand = new javax.swing.JLabel("OKUBI 遊  ·  MÚSICA Y AUDIO");
+        brand.setFont(new Font("Segoe UI",Font.BOLD,17));
+        brand.setForeground(PINK);
+        panel.add(brand,BorderLayout.NORTH);
+        JPanel media = new JPanel(new java.awt.GridLayout(2,3,6,6));
+        media.setOpaque(false);
+        media.add(new CinemaButton("◀ ANTERIOR",false,()->sendSystemMedia(0)));
+        media.add(new CinemaButton("▶ PAUSA",false,()->sendSystemMedia(1)));
+        media.add(new CinemaButton("SIGUIENTE ▶",false,()->sendSystemMedia(2)));
+        media.add(new CinemaButton("SISTEMA MUTE",false,()->sendSystemMedia(3)));
+        media.add(new CinemaButton("SOLO JUEGO M",false,this::toggleMute));
+        media.add(new CinemaButton("VELOCIDAD F6",false,this::cycleSpeed));
+        panel.add(media,BorderLayout.CENTER);
+        JPanel lower = new JPanel(new BorderLayout(6,3));
+        lower.setOpaque(false);
+        javax.swing.JLabel gainLabel = new javax.swing.JLabel("Volumen SOLO del juego: "
+                + gameVolume.get() + "%");
+        gainLabel.setForeground(MUTED);
+        javax.swing.JSlider gain = new javax.swing.JSlider(0,100,gameVolume.get());
+        gain.setOpaque(false);
+        gain.addChangeListener(e->{
+            gameVolume.set(gain.getValue());
+            gainLabel.setText("Volumen SOLO del juego: "+gain.getValue()+"%");
+        });
+        lower.add(gainLabel,BorderLayout.NORTH);
+        lower.add(gain,BorderLayout.CENTER);
+        javax.swing.JLabel note = new javax.swing.JLabel(
+                "<html>Las teclas de música controlan el reproductor activo si Windows lo admite.<br>"
+                + "Mute del sistema afecta TODO el sonido del PC, no solo OKUBI.</html>");
+        note.setForeground(MUTED);
+        lower.add(note,BorderLayout.SOUTH);
+        panel.add(lower,BorderLayout.SOUTH);
+        javax.swing.JOptionPane.showMessageDialog(window,panel,
+                "OKUBI 遊 · Audio y música externa",javax.swing.JOptionPane.PLAIN_MESSAGE);
+        picture.requestFocusInWindow();
     }
 
     private void addSpeedButton(JPanel bar) {
@@ -911,7 +973,8 @@ public final class EmbeddedPlayerWindow {
                 if (sound != null && count > 0 && !muted.get()) {
                     // Never mute at >1x. Output fewer PCM frames at normal device
                     // sample rate, so the ORIGINAL soundtrack plays faster/higher.
-                    int bytes=soundtrack.convert(audio,Math.min(count,audio.length),pcm);
+                    int bytes=soundtrack.convert(audio,Math.min(count,audio.length),
+                            pcm,gameVolume.get());
                     if (sound.available() >= bytes && bytes > 0)
                         sound.write(pcm, 0, bytes);
                 }
