@@ -46,10 +46,7 @@ android {
                 applicationIdSuffix '.tour'
                 versionNameSuffix '-tour'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
-            } else
-            // Final Phase 2 lives beside both the installed canonical app
-            // and older QA57. A CI debug key cannot update their signatures.
-            if (project.findProperty('okubiFinalPhase2Isolated')?.toString() == 'true') {
+            } else if (project.findProperty('okubiFinalPhase2Isolated')?.toString() == 'true') {
                 applicationIdSuffix '.phase2'
                 versionNameSuffix '-phase2'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
