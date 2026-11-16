@@ -23,7 +23,7 @@ jobs:
   api35-real-launch:
     name: Android 15 x86_64 install and launch with framework readiness gates
     runs-on: ubuntu-latest
-    timeout-minutes: 32
+    timeout-minutes: 38
     steps:
       - name: Checkout unprivileged QA scripts
         uses: actions/checkout@v4
@@ -49,18 +49,27 @@ jobs:
           sha256sum --check --strict SHA256SUMS.txt
           echo 'PASS: exact QA89 APK from Phase89 build; no APK repackaging or install yet'
 
-      - name: Enable Linux hardware-accelerated Android emulation
+      - name: Select accelerated KVM or explicit unsupported software-emulation fallback
         shell: bash
         run: |
           set -euo pipefail
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
-            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm || {
-            echo 'ERROR: /dev/kvm not available; do not claim Android 15 launch validation'
-            exit 1
-          }
+          if [[ -e /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then
+            echo 'OKUBI_EMULATOR_ACCEL=on' >> "$GITHUB_ENV"
+            echo 'KVM is available; use hardware acceleration.'
+          else
+            # GitHub-hosted runners do not always expose /dev/kvm. Software
+            # emulation is explicitly unsupported/slow in Android tooling,
+            # but it can run a smoke test when given enough time.
+            echo 'OKUBI_EMULATOR_ACCEL=off' >> "$GITHUB_ENV"
+            echo 'ANDROID_I_WANT_MY_TCG=yes' >> "$GITHUB_ENV"
+            echo 'KVM unavailable; explicitly use slow TCG, do NOT skip API35 launch.'
+          fi
+
+      - name: Install Java 17 for Android tooling
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
       - name: Install Android SDK emulator and API35 x86_64 image
         uses: android-actions/setup-android@v4
@@ -82,6 +91,7 @@ jobs:
           emulator -avd okubi_qa91_api35 -no-window -no-snapshot \
             -no-audio -no-boot-anim -gpu swiftshader_indirect \
             -camera-back none -camera-front none -memory 2048 -cores 2 \
+            -accel "$OKUBI_EMULATOR_ACCEL" \
             > "$log" 2>&1 &
           emulator_pid=$!
           diagnose() {
