@@ -1,0 +1,149 @@
+name: OKUBI Phase91 - Android 15 API35 Real APK Launch
+
+on:
+  push:
+    branches:
+      - qa/okubi-phase91-android35-boot-stability
+  pull_request:
+    branches:
+      - fix/okubi-phase90-desktop-pcm-frame-invariants
+  workflow_dispatch:
+
+# CI-only isolated installation of the already-verified QA89 build.
+# Never downloads ROMs/BIOS or modifies any owner's real phone or saves.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: okubi-phase91-android35-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api35-real-launch:
+    name: Android 15 x86_64 install and launch with framework readiness gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - name: Checkout unprivileged QA scripts
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Restore immutable QA89 APK from its build workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE89-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          run-id: 43899549160
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/qa91-android-apk
+
+      - name: Verify the downloaded APK checksum and isolated identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/qa91-android-apk
+          test -s OKUBI-Android-QA89-Universal.apk
+          test -s SHA256SUMS.txt
+          sha256sum --check --strict SHA256SUMS.txt
+          echo 'PASS: exact QA89 APK from Phase89 build; no APK repackaging or install yet'
+
+      - name: Select accelerated KVM or explicit unsupported software-emulation fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -e /dev/kvm && -r /dev/kvm && -w /dev/kvm ]]; then
+            echo 'OKUBI_EMULATOR_ACCEL=on' >> "$GITHUB_ENV"
+            echo 'KVM is available; use hardware acceleration.'
+          else
+            # GitHub-hosted runners do not always expose /dev/kvm. Software
+            # emulation is explicitly unsupported/slow in Android tooling,
+            # but it can run a smoke test when given enough time.
+            echo 'OKUBI_EMULATOR_ACCEL=off' >> "$GITHUB_ENV"
+            echo 'ANDROID_I_WANT_MY_TCG=yes' >> "$GITHUB_ENV"
+            echo 'KVM unavailable; explicitly use slow TCG, do NOT skip API35 launch.'
+          fi
+
+      - name: Install Java 17 for Android tooling
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK emulator and API35 x86_64 image
+        uses: android-actions/setup-android@v4
+
+      - name: Acquire API35 system image and create disposable virtual phone
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'platform-tools' 'emulator' \
+            'system-images;android-35;google_apis;x86_64'
+          echo no | avdmanager create avd -n okubi_qa91_api35 \
+            -k 'system-images;android-35;google_apis;x86_64' --force
+
+      - name: Boot Android 15, wait for input/package services, install and launch real APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/okubi-api35-emulator.log"
+          emulator -avd okubi_qa91_api35 -no-window -no-snapshot \
+            -no-audio -no-boot-anim -gpu swiftshader_indirect \
+            -camera-back none -camera-front none -memory 2048 -cores 2 \
+            -accel "$OKUBI_EMULATOR_ACCEL" \
+            > "$log" 2>&1 &
+          emulator_pid=$!
+          diagnose() {
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo 'ERROR: API35 boot/install/launch failed; emulator log follows'
+              tail -n 140 "$log" || true
+              adb logcat -d -t 100 '*:E' || true
+            fi
+            adb emu kill >/dev/null 2>&1 || true
+            kill "$emulator_pid" >/dev/null 2>&1 || true
+            exit "$rc"
+          }
+          trap diagnose EXIT
+
+          # Boot-completed alone is NOT sufficient. Phase89 failed before
+          # its test script because an external action injected keyevent 82
+          # while Android's input service was not yet accepting ADB calls.
+          deadline=$((SECONDS + 900))
+          ready=0
+          while (( SECONDS < deadline )); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              echo 'ERROR: Emulator process exited before Android was ready'
+              exit 1
+            fi
+            boot="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            input="$(adb shell service check input 2>/dev/null || true)"
+            package="$(adb shell service check package 2>/dev/null || true)"
+            if [[ "$boot" == "1" && "$input" == *"found"* && "$package" == *"found"* ]]; then
+              ready=1
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo 'ERROR: Android 15 framework never became ready (boot, input and package services)'
+            exit 1
+          fi
+          sdk="$(adb shell getprop ro.build.version.sdk | tr -d '\r')"
+          test "$sdk" = 35 || { echo "ERROR: wrong Android SDK: $sdk"; exit 1; }
+
+          # ADB package manager and activity manager must succeed on the
+          # fresh emulator. A process still alive after launch is required.
+          apk=build/qa91-android-apk/OKUBI-Android-QA89-Universal.apk
+          adb install "$apk"
+          adb shell pm path bo.nexoplay.app.unified.qa89 | grep -F 'package:'
+          adb shell am start -W -n \
+            bo.nexoplay.app.unified.qa89/bo.nexoplay.app.MainActivity
+          sleep 8
+          adb shell pidof bo.nexoplay.app.unified.qa89 | grep -E '^[0-9]+'
+          adb shell dumpsys activity activities | grep -F 'bo.nexoplay.app.unified.qa89' || {
+            echo 'ERROR: QA89 process exists but home Activity is not present'
+            exit 1
+          }
+          echo 'PASS: QA89 installed and launched on Android 15 API35 without ROMs or package replacement'

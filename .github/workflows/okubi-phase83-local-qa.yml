@@ -1,0 +1,89 @@
+name: OKUBI Phase 83 - Local Device QA Tools (non-destructive)
+
+on:
+  push:
+    branches: [qa/okubi-phase83-local-device-preflight]
+  pull_request:
+    branches: [release/okubi-phase82-final-acceptance-gates]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: phase83-localqa-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-android:
+    name: Offline Android signature/update compatibility tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout source without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test local Android identity and signing logic
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase83_android_local_preflight.py' -v
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase82_final_audit.py' -v
+  physical-windows-kit-preflight:
+    name: Validate actual Windows source-built QA ZIP via PowerShell (no launch)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch approved Phase81B QA source-built artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          path: build/phase83/windows
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Run read-only PowerShell local QA verification
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = 'build/phase83/windows'
+          $zips = @(Get-ChildItem -Path $folder -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')
+          $checksums = @(Get-ChildItem -Path $folder -Recurse -File -Filter 'SHA256SUMS.txt')
+          if ($zips.Count -ne 1 -or $checksums.Count -ne 1) { throw 'Approved QA ZIP/checksum not found exactly once' }
+          $arguments = @('-NoProfile', '-File', 'tools/okubi_phase83_windows_local_qa.ps1', '-Archive', $zips[0].FullName, '-Checksum', $checksums[0].FullName, '-Report', 'build/phase83/windows-check.json')
+          & pwsh @arguments
+          if ($LASTEXITCODE -ne 0) { throw 'Real ZIP local QA preflight rejected' }
+          $report = Get-Content build/phase83/windows-check.json -Raw | ConvertFrom-Json
+          if ($report.package_integrity_sha256 -ne 'pass' -or
+              $report.launched_on_real_pc -ne $false -or
+              $report.public_release_authorized -ne $false) {
+            throw 'Local QA script claimed unperformed physical tests or publication'
+          }
+      - name: Tampered checksum must fail without extracting or running
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $archive = @(Get-ChildItem build/phase83/windows -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')[0]
+          $bad = Join-Path $env:RUNNER_TEMP 'phase83-invalid-sha256.txt'
+          [IO.File]::WriteAllText($bad, (('0' * 64) + ' *' + $archive.Name + [Environment]::NewLine))
+          $args = @('-NoProfile','-File','tools/okubi_phase83_windows_local_qa.ps1','-Archive',$archive.FullName,'-Checksum',$bad)
+          & pwsh @args
+          $denied = $LASTEXITCODE
+          if ($denied -ne 1) { throw 'Tampered archive unexpectedly accepted' }
+          $global:LASTEXITCODE = 0
+      - name: Publish only generic source QA test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE83-NON-SENSITIVE-LOCAL-QA-REPORT
+          path: build/phase83/windows-check.json
+          if-no-files-found: error
+          retention-days: 14

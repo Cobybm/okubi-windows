@@ -1,0 +1,125 @@
+name: OKUBI Phase 81B - Fast Source Artifact Assembly Smoke QA
+
+on:
+  push:
+    branches:
+      - integration/okubi-phase81b-source-built-desktop-qa
+  pull_request:
+    branches:
+      - feat/okubi-phase81-source-built-windows-cores
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: phase81b-fast-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  fast-verified-assembly:
+    name: Reuse three already source-built CI DLLs to validate integrated QA ZIP
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout source without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python source and ZIP safety testing
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Get verified Phase80 QA Windows baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-Desktop-Windows-Phase69-QA-1.0.13
+          path: build/phase81b/phase80-baseline
+          run-id: 43612388002
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Get SHA-verified source-built SameBoy from approved CI
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-sameboy-SOURCE-AND-WINDOWS-DLL-QA
+          path: build/phase81/sameboy-artifact
+          run-id: 43614000789
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Get SHA-verified source-built mGBA from approved CI
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-mgba-SOURCE-AND-WINDOWS-DLL-QA
+          path: build/phase81/mgba-artifact
+          run-id: 43614000789
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Get SHA-verified source-built Supafaust from approved CI
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-SUPAFAUST-SOURCE-AND-WINDOWS-DLL-QA
+          path: build/phase81/supafaust-artifact
+          run-id: 43614000765
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Validate source archives, build recipes and non-destructive ZIP overlay
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase81b_source_bundle.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Source bundle regression' }
+          $baseline = 'build/phase81b/phase80-baseline'
+          $zips = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64.zip')
+          $hashes = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-SHA256SUMS.txt')
+          if ($zips.Count -ne 1 -or $hashes.Count -ne 1) {
+             throw 'Original approved ZIP or SHA256 manifest missing'
+          }
+          $opts = @(
+            'tools/okubi_phase81b_source_bundle.py',
+            '--phase80-zip', $zips[0].FullName,
+            '--phase80-checksums', $hashes[0].FullName,
+            '--phase79-evidence', 'tools/okubi_phase79_windows_core_evidence.json',
+            '--source-builds', 'build/phase81',
+            '--source-scripts', 'tools',
+            '--output-dir', 'build/phase81b/candidate'
+          )
+          & python @opts
+          if ($LASTEXITCODE -ne 0) { throw 'Integrated experimental QA package not verified' }
+      - name: Prepare Microsoft C toolchain for native DLL load test
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Load three DLLs from newly packaged ZIP and check Libretro API
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force build/phase81b/probe | Out-Null
+          & cl.exe /nologo /W3 /Fe:build/phase81b/probe/phase81_core_abi_probe.exe tools/phase81_core_abi_probe.c
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot build native Windows DLL loader' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = (Resolve-Path build/phase81b/candidate/OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip).Path
+          $zip = [IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+             $paths = @()
+             foreach ($dll in @('sameboy_libretro.dll', 'mgba_libretro.dll',
+                                 'mednafen_supafaust_libretro.dll')) {
+                $entry = $zip.GetEntry("OKUBI Desktop/app/cores/$dll")
+                if ($null -eq $entry) { throw "Missing DLL: $dll" }
+                $dst = Join-Path (Resolve-Path build/phase81b/probe).Path $dll
+                [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $dst, $true)
+                $paths += $dst
+             }
+          } finally { $zip.Dispose() }
+          & build/phase81b/probe/phase81_core_abi_probe.exe @paths
+          if ($LASTEXITCODE -ne 0) { throw 'Merged QA DLLs fail native Windows Libretro ABI' }
+      - name: Attach optional experimental QA ZIP, never mark stable
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-FAST-VERIFIED-SOURCE-CORE-QA-NOT-STABLE
+          path: |
+            build/phase81b/candidate/OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip
+            build/phase81b/candidate/SHA256SUMS.txt
+            build/phase81b/candidate/SOURCE-BUILT-QA-REPORT.json
+          retention-days: 4
+          if-no-files-found: error

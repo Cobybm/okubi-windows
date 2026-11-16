@@ -1,0 +1,122 @@
+name: OKUBI Phase 81B - Source-built Windows Integrated QA (not release)
+
+on:
+  push:
+    branches:
+      - integration/okubi-phase81b-source-built-desktop-qa
+  pull_request:
+    branches:
+      - feat/okubi-phase81-source-built-windows-cores
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: phase81b-integrated-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  windows-integrated-source-qa:
+    name: All three pinned-source cores + isolated Windows candidate
+    runs-on: windows-latest
+    timeout-minutes: 80
+    steps:
+      - name: Checkout source (no persistent credentials)
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Python 3.12 for source and archive validation
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Run synthetic integrity tests, including tampering and file preservation
+        shell: pwsh
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_phase81b_source_bundle.py' -v
+          if ($LASTEXITCODE -ne 0) { throw 'Source-built QA archive tests failed' }
+      - name: Download approved and pinned Phase80 Windows QA baseline
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-Desktop-Windows-Phase69-QA-1.0.13
+          path: build/phase81b/phase80-baseline
+          run-id: 43612388002
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Configure MSYS2 native Windows x64 source toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          install: >-
+            git
+            make
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-binutils
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+      - name: Compile all three cores from pinned upstream Git commits
+        shell: msys2 {0}
+        run: |
+          bash tools/phase81_build_windows_sameboy.sh .
+          bash tools/phase81_build_windows_mgba.sh .
+          bash tools/phase81_build_windows_supafaust.sh .
+      - name: Repack copy of Phase80, verify all 3 sources and preserve unrelated app bytes
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $baseline = 'build/phase81b/phase80-baseline'
+          $zips = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64.zip')
+          $hashes = @(Get-ChildItem $baseline -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-SHA256SUMS.txt')
+          if ($zips.Count -ne 1 -or $hashes.Count -ne 1) {
+            throw 'Approved Phase80 ZIP or checksum not found exactly once in downloaded artifact'
+          }
+          $options = @(
+            'tools/okubi_phase81b_source_bundle.py',
+            '--phase80-zip', $zips[0].FullName,
+            '--phase80-checksums', $hashes[0].FullName,
+            '--phase79-evidence', 'tools/okubi_phase79_windows_core_evidence.json',
+            '--source-builds', 'build/phase81',
+            '--source-scripts', 'tools',
+            '--output-dir', 'build/phase81b/candidate'
+          )
+          & python @options
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate failed integrity/old-app preservation' }
+      - name: Enable independent native Windows ABI loader
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - name: Verify all three packaged DLLs load with Libretro API v1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force build/phase81b/probe | Out-Null
+          & cl.exe /nologo /W3 /Fe:build/phase81b/probe/phase81_core_abi_probe.exe tools/phase81_core_abi_probe.c
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot compile native probe' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = (Resolve-Path build/phase81b/candidate/OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip).Path
+          $zip = [IO.Compression.ZipFile]::OpenRead($archive)
+          try {
+            $dlls = @('sameboy_libretro.dll','mgba_libretro.dll','mednafen_supafaust_libretro.dll')
+            $paths = @()
+            foreach ($dll in $dlls) {
+              $entry = $zip.GetEntry("OKUBI Desktop/app/cores/$dll")
+              if ($null -eq $entry) { throw "Core missing in ZIP: $dll" }
+              $destination = Join-Path (Resolve-Path build/phase81b/probe).Path $dll
+              [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$destination,$true)
+              $paths += $destination
+            }
+          } finally { $zip.Dispose() }
+          & build/phase81b/probe/phase81_core_abi_probe.exe @paths
+          if ($LASTEXITCODE -ne 0) { throw 'Native Libretro ABI incompatible in assembled QA archive' }
+      - name: Upload only isolated source-built Windows QA candidate and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          path: |
+            build/phase81b/candidate/OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip
+            build/phase81b/candidate/SHA256SUMS.txt
+            build/phase81b/candidate/SOURCE-BUILT-QA-REPORT.json
+          if-no-files-found: error
+          retention-days: 5

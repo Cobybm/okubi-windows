@@ -1,0 +1,182 @@
+{
+  "version": "0.15.0-alpha",
+  "name": "OKUBI Pokémon - formats",
+  "updated": "2026-11-03",
+  "note": "Format recognized != playable. Only GB/GBC have built-in SameBoy. Some platforms require emulator apps; newer consoles are catalog only on Galaxy A05s.",
+  "formats": [
+    {
+      "system": "Game Boy",
+      "extensions": [
+        "gb"
+      ],
+      "zip": true,
+      "mode": "built-in",
+      "engine": "SameBoy"
+    },
+    {
+      "system": "Game Boy Color",
+      "extensions": [
+        "gbc"
+      ],
+      "zip": true,
+      "mode": "built-in",
+      "engine": "SameBoy"
+    },
+    {
+      "system": "Game Boy Advance",
+      "extensions": [
+        "gba"
+      ],
+      "zip": "index/archive; external emulator-dependent",
+      "mode": "external",
+      "engine": "user-installed"
+    },
+    {
+      "system": "Nintendo DS",
+      "extensions": [
+        "nds",
+        "srl"
+      ],
+      "zip": "external melonDS supports ZIP and 7z",
+      "mode": "external",
+      "engine": "melonDS"
+    },
+    {
+      "system": "Nintendo 64",
+      "extensions": [
+        "z64",
+        "n64",
+        "v64"
+      ],
+      "zip": "external emulator-dependent",
+      "mode": "external",
+      "engine": "user-installed"
+    },
+    {
+      "system": "GameCube",
+      "extensions": [
+        "gcm"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "GameCube or Wii",
+      "extensions": [
+        "rvz"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "Wii",
+      "extensions": [
+        "wbfs",
+        "wia"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "Wii U",
+      "extensions": [
+        "wud",
+        "wux",
+        "wua"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "Ambiguous disc",
+      "extensions": [
+        "iso"
+      ],
+      "mode": "catalog",
+      "engine": null,
+      "note": "ISO is ambiguous and may belong to many systems"
+    },
+    {
+      "system": "Nintendo 3DS",
+      "extensions": [
+        "3ds",
+        "cci",
+        "cia",
+        "cxi"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "Nintendo Switch",
+      "extensions": [
+        "nsp",
+        "xci",
+        "nsz",
+        "xcz"
+      ],
+      "mode": "catalog",
+      "engine": null
+    },
+    {
+      "system": "ZIP",
+      "extensions": [
+        "zip"
+      ],
+      "mode": "container",
+      "engine": "In-memory GB/GBC; external emulator for others"
+    },
+    {
+      "system": "7Z/RAR/TAR",
+      "extensions": [
+        "7z",
+        "rar",
+        "tar",
+        "gz"
+      ],
+      "mode": "extract-first",
+      "engine": null
+    },
+    {
+      "system": "IPS patch",
+      "extensions": [
+        "ips"
+      ],
+      "mode": "patcher",
+      "engine": "OKUBI IPS"
+    },
+    {
+      "system": "BPS patch",
+      "extensions": [
+        "bps"
+      ],
+      "mode": "patcher",
+      "engine": "OKUBI BPS (CRC validation)"
+    },
+    {
+      "system": "UPS patch",
+      "extensions": [
+        "ups"
+      ],
+      "mode": "external-patcher",
+      "engine": null
+    },
+    {
+      "system": "Battery save",
+      "extensions": [
+        "sav",
+        "srm"
+      ],
+      "mode": "savedata",
+      "engine": "Existing GB/GBC SameBoy saves use SHA-256 .srm"
+    },
+    {
+      "system": "Quick state",
+      "extensions": [
+        "state"
+      ],
+      "mode": "savedata",
+      "engine": "Existing GB/GBC SameBoy states use SHA-256 .state"
+    }
+  ]
+}

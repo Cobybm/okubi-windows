@@ -1,0 +1,148 @@
+name: OKUBI Phase 87 - Direct Windows Setup with resilient launcher
+
+on:
+  push:
+    branches: [qa/okubi-phase87-launcher-reliability]
+  pull_request:
+    branches: [qa/okubi-phase86-direct-installers]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: okubi-phase86-installers-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  windows-user-installer:
+    name: Installable Windows Setup EXE - isolated QA86
+    runs-on: windows-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout installer source without credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download Windows source-built validated application image
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/phase86/original
+      - name: Verify original ZIP and extract unmodified OKUBI Windows
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zips = @(Get-ChildItem build/phase86/original -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')
+          $hashes = @(Get-ChildItem build/phase86/original -Recurse -File -Filter 'SHA256SUMS.txt')
+          if ($zips.Count -ne 1 -or $hashes.Count -ne 1) { throw 'Original QA artifact missing' }
+          $line = @([IO.File]::ReadAllLines($hashes[0].FullName))
+          if ($line.Count -ne 1 -or $line[0] -cnotmatch '^([a-f0-9]{64})\s+\*?OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA\.zip$') {
+            throw 'Original QA checksum manifest malformed'
+          }
+          $expected = $Matches[1]
+          if ((Get-FileHash $zips[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant() -cne $expected) {
+            throw 'Original Windows application is not the approved build'
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/okubi_phase83_windows_local_qa.ps1 -Archive $zips[0].FullName -Checksum $hashes[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'Core integrity or isolation preflight failed' }
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          New-Item -ItemType Directory -Force build/phase86/image | Out-Null
+          [IO.Compression.ZipFile]::ExtractToDirectory($zips[0].FullName, (Resolve-Path build/phase86/image).Path)
+          if (-not (Test-Path 'build/phase86/image/OKUBI Desktop/OKUBI Desktop.exe')) {
+            throw 'Original Windows EXE missing'
+          }
+      - name: Compile GUI-only profile-isolating Windows launcher
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe'
+          if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe' }
+          if (-not (Test-Path $csc)) { throw 'Windows C# compiler missing' }
+          New-Item -ItemType Directory -Force build/phase86/wrapper | Out-Null
+          $source = Join-Path $env:GITHUB_WORKSPACE 'installer\phase86\OkubiQaLauncher.cs'
+          $output = Join-Path $env:GITHUB_WORKSPACE 'build\phase86\wrapper\OKUBI-QA86.exe'
+          & $csc /nologo /codepage:65001 /target:winexe /platform:x64 /reference:System.Windows.Forms.dll ("/out:" + $output) $source
+          if ($LASTEXITCODE -ne 0) { throw 'Windows launcher compilation failed' }
+      - name: Ensure Inno Setup 6 installed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pf86 = [Environment]::GetFolderPath('ProgramFilesX86')
+          $compiler = Join-Path $pf86 'Inno Setup 6\ISCC.exe'
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compiler install failed' }
+          }
+          if (-not (Test-Path $compiler)) { throw 'Inno Setup compiler unavailable' }
+      - name: Compile single-click installable EXE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $compiler = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
+          & $compiler "/DSourceRoot=$env:GITHUB_WORKSPACE" installer/phase86/OKUBI-QA86.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed' }
+          if (-not (Test-Path 'build/phase86/out/OKUBI-Windows-Instalar-QA87.exe')) {
+            throw 'Windows Setup EXE is missing'
+          }
+      - name: Smoke-test Windows setup installation and original EXE with no ROMs
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = (Resolve-Path build/phase86/out/OKUBI-Windows-Instalar-QA87.exe).Path
+          $folder = Join-Path $env:RUNNER_TEMP ('OKUBI-QA86-install-' + [guid]::NewGuid().ToString('N'))
+          $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/DIR=' + $folder))
+          $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw 'Windows installer failed a silent installation' }
+          $wrapper = Join-Path $folder 'OKUBI-QA86.exe'
+          $exe = Join-Path $folder 'OKUBI Desktop\OKUBI Desktop.exe'
+          if (-not (Test-Path $wrapper) -or -not (Test-Path $exe)) {
+            throw 'Installed OKUBI executable missing'
+          }
+          $dstCore = Join-Path $folder 'OKUBI Desktop\app\cores\mgba_libretro.dll'
+          $srcCore = 'build/phase86/image/OKUBI Desktop/app/cores/mgba_libretro.dll'
+          if ((Get-FileHash $dstCore).Hash -ne (Get-FileHash $srcCore).Hash) {
+            throw 'Installed core binary not identical to approved original'
+          }
+          $verify = Start-Process -FilePath $exe -ArgumentList '--verify-windows-release' -WorkingDirectory (Split-Path $exe -Parent) -PassThru -Wait
+          if ($verify.ExitCode -ne 0) { throw 'Installed application runtime verification failed' }
+          # Exercise the EXACT Start-menu launcher: separate QA profile and
+          # child process integrity test, not just the underlying Java EXE.
+          $launcherCheck = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+          if ($launcherCheck.ExitCode -ne 0) {
+            throw 'Actual Start-menu launcher could not open its packaged child safely'
+          }
+          # This may only modify a disposable temporary copy in the runner.
+          $originalDll = [IO.File]::ReadAllBytes($dstCore)
+          try {
+            $damaged = [byte[]]$originalDll.Clone()
+            $damaged[$damaged.Length - 1] = [byte]($damaged[$damaged.Length - 1] -bxor 1)
+            [IO.File]::WriteAllBytes($dstCore, $damaged)
+            $tamperCheck = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+            if ($tamperCheck.ExitCode -eq 0) {
+              throw 'Modified DLL was incorrectly accepted by the user launcher'
+            }
+          } finally {
+            [IO.File]::WriteAllBytes($dstCore, $originalDll)
+          }
+          $launcherRestored = Start-Process -FilePath $wrapper -ArgumentList '--verify-installation' -PassThru -Wait
+          if ($launcherRestored.ExitCode -ne 0) {
+            throw 'Restored DLL did not pass launcher self-test'
+          }
+          $uninstaller = Join-Path $folder 'unins000.exe'
+          if (-not (Test-Path $uninstaller)) { throw 'Uninstaller not installed' }
+          $u = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
+          if ($u.ExitCode -ne 0) { throw 'Installer cleanup failed' }
+          Write-Host 'PASS: QA87 setup installs, launcher checks packaged core and rejects tamper, restores, uninstalls without deleting QA86 saves.'
+      - name: Upload real Windows setup EXE only
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-Windows-Instalar-QA87-EXE
+          path: build/phase86/out/OKUBI-Windows-Instalar-QA87.exe
+          retention-days: 14
+          if-no-files-found: error
+

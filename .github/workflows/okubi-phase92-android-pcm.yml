@@ -1,0 +1,61 @@
+name: OKUBI Phase92 - Android Stereo PCM Regression
+
+on:
+  push:
+    branches: [fix/okubi-phase92-android-stereo-queue-alignment]
+  pull_request:
+    branches: [qa/okubi-phase91-android35-boot-stability]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: okubi-phase92-stereo-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-pcm:
+    name: Verify Android stereo PCM queue and retro integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - name: Checkout without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android pure-Java audio alignment regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/phase92/classes
+          javac -encoding UTF-8 -d build/phase92/classes \
+            retro-module/java/bo/nexoplay/app/retro/RetroPcmQueue.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/RetroPcmQueueTest.java \
+            retro-module/java/bo/nexoplay/app/retro/RetroSpeedControl.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/RetroSpeedControlTest.java
+          java -ea -cp build/phase92/classes bo.nexoplay.app.retro.RetroPcmQueueTest
+          java -ea -cp build/phase92/classes bo.nexoplay.app.retro.RetroSpeedControlTest
+      - name: Verify worker rejects anomalous odd AudioTrack writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('retro-module/java/bo/nexoplay/app/retro/OkubiGameBoyActivity.java').read_text()
+          assert 'if ((written & 1) != 0 || written > pendingMusic.size())' in text
+          assert 'audioResetRequested = true;' in text
+          assert 'pendingMusic.consumed(written);' in text
+          print('PASS: Android worker detects invalid stereo device responses')
+          PY
+      - name: Run existing source and save-protection regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s retro-module/tests -v
+          echo 'PASS: pure-Java audio safety and retro regression suite; no ROM or user saves touched'

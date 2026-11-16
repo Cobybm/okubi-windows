@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "project": "OKUBI",
+  "updated": "2026-11-03",
+  "note": "Only metadata and creator-authorized games/patches. No commercial Pokémon ROMs or prepatched commercial ROMs are distributed. Personal use does not establish redistribution permission.",
+  "emulators": {
+    "integrated": [
+      "GB",
+      "GBC"
+    ],
+    "external_or_pending": [
+      "GBA",
+      "NDS",
+      "3DS",
+      "Switch"
+    ]
+  },
+  "games": [
+    {
+      "title": "Pokémon Rojo",
+      "console": "GB",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Azul",
+      "console": "GB",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Verde (Japón)",
+      "console": "GB",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Amarillo",
+      "console": "GB",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Oro",
+      "console": "GBC",
+      "category": "Johto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Plata",
+      "console": "GBC",
+      "category": "Johto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Cristal",
+      "console": "GBC",
+      "category": "Johto",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Rubí",
+      "console": "GBA",
+      "category": "Hoenn",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Zafiro",
+      "console": "GBA",
+      "category": "Hoenn",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Esmeralda",
+      "console": "GBA",
+      "category": "Hoenn",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Rojo Fuego",
+      "console": "GBA",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Verde Hoja",
+      "console": "GBA",
+      "category": "Kanto",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Trading Card Game",
+      "console": "GBC",
+      "category": "Cartas",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Pinball",
+      "console": "GBC",
+      "category": "Pinball",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Puzzle Challenge",
+      "console": "GBC",
+      "category": "Puzles",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Trading Card Game 2 (Japón)",
+      "console": "GBC",
+      "category": "Cartas",
+      "romIncluded": false,
+      "playableInOkubi": true
+    },
+    {
+      "title": "Pokémon Pinball: Rubí y Zafiro",
+      "console": "GBA",
+      "category": "Pinball",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Mundo Misterioso: Equipo de Rescate Rojo",
+      "console": "GBA",
+      "category": "RPG",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Diamante",
+      "console": "NDS",
+      "category": "Sinnoh",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Perla",
+      "console": "NDS",
+      "category": "Sinnoh",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Platino",
+      "console": "NDS",
+      "category": "Sinnoh",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Oro HeartGold",
+      "console": "NDS",
+      "category": "Johto",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Plata SoulSilver",
+      "console": "NDS",
+      "category": "Johto",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Negro",
+      "console": "NDS",
+      "category": "Teselia",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Blanco",
+      "console": "NDS",
+      "category": "Teselia",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Negro 2",
+      "console": "NDS",
+      "category": "Teselia",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Blanco 2",
+      "console": "NDS",
+      "category": "Teselia",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon X",
+      "console": "3DS",
+      "category": "Kalos",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Y",
+      "console": "3DS",
+      "category": "Kalos",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Rubí Omega",
+      "console": "3DS",
+      "category": "Hoenn",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Zafiro Alfa",
+      "console": "3DS",
+      "category": "Hoenn",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Sol",
+      "console": "3DS",
+      "category": "Alola",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Luna",
+      "console": "3DS",
+      "category": "Alola",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Ultrasol",
+      "console": "3DS",
+      "category": "Alola",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Ultraluna",
+      "console": "3DS",
+      "category": "Alola",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Espada",
+      "console": "Switch",
+      "category": "Galar",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Escudo",
+      "console": "Switch",
+      "category": "Galar",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Diamante Brillante",
+      "console": "Switch",
+      "category": "Sinnoh",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Perla Reluciente",
+      "console": "Switch",
+      "category": "Sinnoh",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Leyendas Pokémon: Arceus",
+      "console": "Switch",
+      "category": "Hisui",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Escarlata",
+      "console": "Switch",
+      "category": "Paldea",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Pokémon Púrpura",
+      "console": "Switch",
+      "category": "Paldea",
+      "romIncluded": false,
+      "playableInOkubi": false
+    },
+    {
+      "title": "Leyendas Pokémon: Z-A",
+      "console": "Switch",
+      "category": "Ciudad Luminalia",
+      "romIncluded": false,
+      "playableInOkubi": false
+    }
+  ],
+  "patches": [
+    {
+      "title": "Pokémon Unbound",
+      "console": "GBA",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    },
+    {
+      "title": "Pokémon Radical Red",
+      "console": "GBA",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    },
+    {
+      "title": "Pokémon Emerald Rogue",
+      "console": "GBA",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    },
+    {
+      "title": "Pokémon Crystal Clear",
+      "console": "GBC",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    },
+    {
+      "title": "Pokémon Prism",
+      "console": "GBC",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    },
+    {
+      "title": "Pokémon Gaia",
+      "console": "GBA",
+      "category": "ROM hack, requiere parche y juego base compatible",
+      "patchOnly": true,
+      "romIncluded": false
+    }
+  ],
+  "free_demos": [
+    {
+      "title": "Monpact (demo)",
+      "console": "GBC",
+      "category": "monster taming RPG",
+      "author": "RetroKuro",
+      "officialDownloadPage": "https://retrokuro.itch.io/monpact",
+      "directROM": false
+    },
+    {
+      "title": "PachiPals Demo",
+      "console": "GBC",
+      "category": "monster catching pinball RPG",
+      "author": "Rebusmind / Incube8 Games",
+      "officialDownloadPage": "https://rebusmind.itch.io/pachipals-demo-gbc",
+      "directROM": false
+    },
+    {
+      "title": "D-MONS",
+      "console": "GB",
+      "category": "creature collection RPG",
+      "author": "Lazy Dev Games",
+      "officialDownloadPage": "https://lazydevs.itch.io/d-mons",
+      "directROM": false,
+      "cost": "name-your-price"
+    },
+    {
+      "title": "CritterNet",
+      "console": "GB",
+      "category": "virtual pet simulator",
+      "author": "TheAlexcar",
+      "officialDownloadPage": "https://thealexcar.itch.io/critternet",
+      "directROM": false,
+      "cost": "free"
+    },
+    {
+      "title": "Pummel Pets",
+      "console": "GBC",
+      "category": "monster taming roguelike",
+      "author": "GibbonGL",
+      "officialDownloadPage": "https://gibbongl.itch.io/pummel-pets-game-boy",
+      "directROM": false,
+      "cost": "author-set contribution"
+    }
+  ],
+  "android_official": [
+    {
+      "title": "Pokémon Champions",
+      "category": "Combates por turnos",
+      "playStore": "https://play.google.com/store/apps/details?id=jp.pokemon.pokemonchampions"
+    },
+    {
+      "title": "Pokémon GO",
+      "category": "Captura y exploración",
+      "playStore": "https://play.google.com/store/apps/details?id=com.nianticlabs.pokemongo"
+    },
+    {
+      "title": "Pokémon Masters EX",
+      "category": "Aventuras y combates",
+      "playStore": "https://play.google.com/store/apps/details?id=com.dena.a12026418"
+    },
+    {
+      "title": "Pokémon UNITE",
+      "category": "Combates 5 contra 5",
+      "playStore": "https://play.google.com/store/apps/details?id=jp.pokemon.pokemonunite"
+    },
+    {
+      "title": "Pokémon Café ReMix",
+      "category": "Puzles y colección",
+      "playStore": "https://play.google.com/store/apps/details?id=jp.pokemon.pokemoncafemix"
+    },
+    {
+      "title": "Pokémon Quest",
+      "category": "RPG de aventuras",
+      "playStore": "https://play.google.com/store/apps/details?id=jp.pokemon.pokemonquest"
+    }
+  ],
+  "patch_sources": [
+    {
+      "title": "Pokémon Unbound",
+      "console": "GBA",
+      "creatorPage": "https://pokeromcodex.notion.site/Unbound-081f9972dc5b4ee8b77ae7d2c343ca54",
+      "downloadKind": "patch only"
+    },
+    {
+      "title": "Pokémon Radical Red",
+      "console": "GBA",
+      "creatorPage": "https://patch.radicalred.net/",
+      "downloadKind": "patcher"
+    },
+    {
+      "title": "Pokémon Emerald Rogue",
+      "console": "GBA",
+      "creatorPage": "https://github.com/Pokabbie/pokeemerald-rogue/releases",
+      "downloadKind": "patch/releases"
+    },
+    {
+      "title": "Pokémon Crystal Clear",
+      "console": "GBC",
+      "creatorPage": "https://shockslayer.com/crystal-clear/",
+      "downloadKind": "patch via author community"
+    },
+    {
+      "title": "Pokémon Prism",
+      "console": "GBC",
+      "creatorPage": "https://rainbowdevs.com/title/prism/",
+      "downloadKind": "patch only"
+    },
+    {
+      "title": "Pokémon Gaia",
+      "console": "GBA",
+      "creatorPage": "https://sphericalice.com/",
+      "downloadKind": "patch only"
+    },
+    {
+      "title": "Pokémon Brown",
+      "console": "GB",
+      "creatorPage": "https://rainbowdevs.com/title/brown/",
+      "downloadKind": "patch only"
+    }
+  ]
+}

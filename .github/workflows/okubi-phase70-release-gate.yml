@@ -1,0 +1,37 @@
+name: OKUBI Phase 70 - Safe Release Readiness Gate
+
+on:
+  push:
+    branches: [feat/okubi-phase70-release-gate]
+  pull_request:
+    branches: [migration/okubi-android-preserved]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-release-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Read source without privileged write access
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exercise safety checks on synthetic fixtures
+        run: python -m unittest discover -s tools/tests -p 'test_okubi_phase70_release_gate.py' -v
+      - name: Check tracked files, APK identity, isolated QA and Windows integrity
+        run: python tools/okubi_phase70_release_gate.py --root . --report build/phase70/release-gate.json
+      - name: Publish non-sensitive gate report (manual checks remain pending)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE70-RELEASE-GATE
+          path: build/phase70/release-gate.json
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Special access: never granted automatically, user must approve in system Settings. -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" />
+
+    <!-- Only discover apps that expose a launcher icon. No broad package permission. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_okubi"
+        android:label="${okubiAppLabel}"
+        android:roundIcon="@drawable/ic_okubi"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NexoPlay">
+        <activity
+            android:name="bo.nexoplay.app.MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name="bo.nexoplay.app.GameDetailActivity" android:exported="false" android:screenOrientation="portrait" />
+    </application>
+</manifest>

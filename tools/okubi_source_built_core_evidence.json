@@ -1,0 +1,48 @@
+{
+  "schema": 2,
+  "audit_date_utc": "2026-11-16",
+  "source_build_run": "https://github.com/Cobybm/okubi-windows/actions/runs/43615378972",
+  "source_build_artifact": "OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE",
+  "source_built": true,
+  "releases_authorized": false,
+  "public_release_authorized": false,
+  "statement": "Exact source-built Windows x64 Libretro DLLs, corresponding sources, build scripts, and license hashes verified against immutable source archive. QA only; physical testing and owner signing remain required.",
+  "cores": [
+    {
+      "name": "sameboy_libretro.dll",
+      "project": "sameboy",
+      "dll_sha256": "6e07a708ada31b1082f6da0d4247fab2d1d8348ba15d8f233cd108061f31413e",
+      "exact_source_commit": "aa158a889a48b538a0302873704a34577c8eb67d",
+      "source_repository": "https://github.com/libretro/SameBoy",
+      "license_sha256": "00b4b03270ea21b70b4b51fbc93c6eb43876e46ceb742e74918e459ea2481f21",
+      "source_archive": "OKUBI Desktop/app/cores/source-packages/sameboy-corresponding-source.tar.gz",
+      "source_archive_sha256": "19c7282854c70d45dbc097ddfb372bff14ee52a44b33250f24f663b6e676ce2e",
+      "build_script": "OKUBI Desktop/app/cores/source-packages/phase81_build_windows_sameboy.sh",
+      "build_script_sha256": "655312cc6d46e673449cfc253392b1be069bb97f485f4677c3d4b7f26080f787"
+    },
+    {
+      "name": "mgba_libretro.dll",
+      "project": "mgba",
+      "dll_sha256": "970014648d77dd0a1b80ab0b796335b644d702cbc749a3a0e686dad1b020b19e",
+      "exact_source_commit": "7a12d6d4b9acb14c0ae62c9166b6a2f3d08007f6",
+      "source_repository": "https://github.com/libretro/mgba",
+      "license_sha256": "fab3dd6bdab226f1c08630b1dd917e11fcb4ec5e1e020e2c16f83a0a13863e85",
+      "source_archive": "OKUBI Desktop/app/cores/source-packages/mgba-corresponding-source.tar.gz",
+      "source_archive_sha256": "9a7cffa6982fa248000f1411e9d35f1bbe4afce462970f13fe9da1cd0efaabca",
+      "build_script": "OKUBI Desktop/app/cores/source-packages/phase81_build_windows_mgba.sh",
+      "build_script_sha256": "4d64340191bd5d6a9703152ab197b314af69bf27e5813ce8ae8eec3174bced96"
+    },
+    {
+      "name": "mednafen_supafaust_libretro.dll",
+      "project": "supafaust",
+      "dll_sha256": "36b4f3520d270effd0688b905547bb6e763b2b1735b2d06bd53dccdcd408be8f",
+      "exact_source_commit": "642d1d1b6684aa7e306a02a89885f3f5456a5157",
+      "source_repository": "https://github.com/libretro/supafaust",
+      "license_sha256": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+      "source_archive": "OKUBI Desktop/app/cores/source-packages/supafaust-corresponding-source.tar.gz",
+      "source_archive_sha256": "d62902ae9b65602229713b23b57218204b0e67f23b4153be806ef8b10c3db702",
+      "build_script": "OKUBI Desktop/app/cores/source-packages/phase81_build_windows_supafaust.sh",
+      "build_script_sha256": "9004dbd589de94f29453a8e9c39ccb06f317c7337be9fb38d1bd3a3a8d96dbe6"
+    }
+  ]
+}
