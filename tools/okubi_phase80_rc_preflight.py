@@ -126,6 +126,84 @@ def digest_member(z: zipfile.ZipFile, info: zipfile.ZipInfo) -> str:
     return hash_value.hexdigest()
 
 
+
+def verify_source_built_provenance(z: zipfile.ZipFile,
+                                   entries: dict[str, zipfile.ZipInfo],
+                                   evidence: dict) -> dict:
+    """Fail closed on corresponding Windows source, build recipes and licenses.
+
+    Historical third-party nightlies retain their independent SHA evidence;
+    source-built bundles use a separately audited, exact-byte allowlist.
+    Neither path can authorize a public release on its own.
+    """
+    if evidence.get("source_built") is not True:
+        return {}
+
+    manifest_name = ("OKUBI Desktop/app/cores/source-packages/"
+                     "SOURCE-TO-BINARY-MANIFEST.json")
+    try:
+        manifest = json.loads(z.read(required(entries, manifest_name)))
+    except (ValueError, UnicodeError) as exc:
+        raise CheckError("source_build_manifest_invalid") from exc
+    if (not isinstance(manifest, dict)
+            or manifest.get("public_release_authorized") is not False
+            or manifest.get("signed_release") is not False
+            or manifest.get("status") != "experimental_qa"):
+        raise CheckError("source_build_qa_only_manifest_missing")
+    provenance = manifest.get("provenance")
+    if not isinstance(provenance, dict) or set(provenance) != set(CORES):
+        raise CheckError("source_build_provenance_incomplete")
+
+    license_by_project = {
+        "sameboy": "SameBoy-MIT.txt",
+        "mgba": "mGBA-MPL-2.0.txt",
+        "supafaust": "Supafaust-GPL-2.0-plus.txt",
+    }
+    for expected in evidence["cores"]:
+        name = expected["name"]
+        record = provenance.get(name)
+        if not isinstance(record, dict):
+            raise CheckError("source_build_core_record_missing")
+        fields = ("dll_sha256", "exact_source_commit", "source_repository",
+                  "license_sha256", "source_archive",
+                  "source_archive_sha256", "build_script")
+        if any(record.get(field) != expected.get(field) for field in fields):
+            raise CheckError("source_build_provenance_mismatch")
+        if not re.fullmatch(r"[a-f0-9]{40}", record["exact_source_commit"]):
+            raise CheckError("source_build_commit_invalid")
+        if not record["source_repository"].startswith("https://github.com/libretro/"):
+            raise CheckError("source_build_repository_untrusted")
+
+        expected_script_hash = expected.get("build_script_sha256")
+        if not isinstance(expected_script_hash, str):
+            raise CheckError("source_build_script_hash_missing")
+
+        archive_root = "OKUBI Desktop/app/cores/source-packages/"
+        for name_in_zip, sha in (
+            (record["source_archive"], record["source_archive_sha256"]),
+            (record["build_script"], expected_script_hash),
+        ):
+            if (not isinstance(name_in_zip, str)
+                    or not name_in_zip.startswith(archive_root)
+                    or not re.fullmatch(r"[a-f0-9]{64}", sha)):
+                raise CheckError("source_build_path_or_hash_invalid")
+            if digest_member(z, required(entries, name_in_zip)) != sha:
+                raise CheckError("source_build_file_sha256_mismatch")
+
+        project = record.get("project")
+        if project not in license_by_project:
+            raise CheckError("source_build_license_identity_invalid")
+        license_name = ("OKUBI Desktop/app/cores/licenses/"
+                        + license_by_project[project])
+        if digest_member(z, required(entries, license_name)) != record["license_sha256"]:
+            raise CheckError("source_build_license_sha256_mismatch")
+
+    return {"source_archives_verified": len(CORES),
+            "build_scripts_verified": len(CORES),
+            "license_digests_verified": len(CORES),
+            "corresponding_source_manifest_verified": True}
+
+
 def windows_archive(archive: Path, evidence: dict) -> dict:
     cores = evidence.get("cores")
     if (not isinstance(cores, list) or len(cores) != len(CORES)
@@ -171,8 +249,9 @@ def windows_archive(archive: Path, evidence: dict) -> dict:
             verified[name] = actual
         for name in LICENSES:
             required(entries, app + "cores/licenses/" + name)
+        source_facts = verify_source_built_provenance(z, entries, evidence)
         return {"members_examined": len(entries), "cores_verified": len(verified),
-                "license_notices_present": len(LICENSES)}
+                "license_notices_present": len(LICENSES), **source_facts}
 
 
 def android_archive(archive: Path, badging: str, signer: str) -> dict:
