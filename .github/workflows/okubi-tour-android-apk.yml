@@ -8,7 +8,7 @@ on:
       - 'android-app/**'
       - 'retro-module/**'
       - 'tools/okubi_tour_android_preflight.py'
-      - '.github/workflows/okubi-final-phase2-android.yml'
+      - '.github/workflows/okubi-tour-android-apk.yml'
   workflow_dispatch:
 
 permissions:
