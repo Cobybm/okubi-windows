@@ -25,24 +25,37 @@ public final class DesktopHomebrewDownloads {
     public record Receipt(Path file, String sha256) { }
     private static final int MAX_ROM = 16 * 1024 * 1024;
     private static final byte[] NINTENDO_LOGO = HexFormat.of().parseHex("CEED6666CC0D000B03730083000C000D0008111F8889000EDCCC6EE6DDDDD999BBBB67636E0EECCCDDDC999FBBB9333E");
+    // Verified creator pages and official curated lists. Only the allowlisted
+    // 2048 GB endpoint performs an in-app direct ROM download; for all others
+    // the author controls the download, license and current availability.
     private static final List<Entry> ENTRIES = List.of(
-        new Entry("2048 GB · Sanqui", "Game Boy",
-            "https://github.com/Sanqui/2048-gb",
+        new Entry("2048 GB · descargar e importar", "GB / GBC",
+            "https://hh.gbdev.io/",
             "https://hh3.gbdev.io/api/entry/2048gb/2048.gb", "2048gb.gb"),
-        new Entry("Tobu Tobu Girl Deluxe", "Game Boy Color",
+        new Entry("Tobu Tobu Girl Deluxe · ROM gratis", "GB / GBC",
             "https://tangramgames.itch.io/tobu-tobu-girl-deluxe", null, null),
-        new Entry("Böbl", "NES",
-            "https://morphcatgames.itch.io/bobl", null, null),
-        new Entry("Opossum Country", "Game Boy Color",
+        new Entry("Opossum Country · terror retro", "GB / GBC",
             "https://benjelter.itch.io/opossum-country", null, null),
-        new Entry("Homebrew Hub · catálogo", "GB / GBC / GBA",
-            "https://hh.gbdev.io", null, null),
-        new Entry("Homebrew Nintendo · itch.io", "NES / SNES / N64",
-            "https://itch.io/games/free/tag-homebrew", null, null),
-        new Entry("Homebrew SEGA / Arcade / PC", "SEGA / Arcade / PC",
-            "https://itch.io/games/top-rated/downloadable/free/tag-homebrew", null, null),
-        new Entry("God of War · catálogo oficial", "PlayStation / PC",
-            "https://www.playstation.com/es-bo/god-of-war/", null, null)
+        new Entry("Homebrew Hub · muchos juegos", "GB / GBC / GBA",
+            "https://hh.gbdev.io/", null, null),
+        new Entry("Goodboy Galaxy · DEMO en español", "GBA",
+            "https://goodboygalaxy.itch.io/goodboy-galaxy-demo", null, null),
+        new Entry("Böbl · aventura gratuita", "NES",
+            "https://morphcatgames.itch.io/bobl", null, null),
+        new Entry("Dottie Flowers · ROM gratis", "SNES",
+            "https://goldlocke.itch.io/dottie-flowers", null, null),
+        new Entry("SNES · juegos homebrew para descargar", "SNES",
+            "https://itch.io/games/free/tag-homebrew/tag-snes-rom", null, null),
+        new Entry("PSoXide Demo Disc · BIN/CUE libre", "PS1",
+            "https://bonnie-studios.itch.io/psoxide-demo-disc", null, null),
+        new Entry("PS1 · catálogo homebrew gratuito", "PS1",
+            "https://itch.io/games/free/tag-homebrew/tag-ps1", null, null),
+        new Entry("Sega Mega Drive · homebrew gratuito", "SEGA Genesis",
+            "https://itch.io/games/free/tag-homebrew/tag-sega-genesis", null, null),
+        new Entry("ScummVM · juegos freeware oficiales", "ScummVM / PC clásico",
+            "https://www.scummvm.org/es/games/", null, null),
+        new Entry("Catálogo general de homebrew gratis", "Varias consolas",
+            "https://itch.io/games/free/tag-homebrew", null, null)
     );
     private DesktopHomebrewDownloads() { }
     public static List<Entry> entries() { return ENTRIES; }
