@@ -41,6 +41,12 @@ android {
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
         debug {
+            // Separate QA identity keeps installed OKUBI, QA57 and Phase2 saves intact.
+            if (project.findProperty('okubiTourIsolated')?.toString() == 'true') {
+                applicationIdSuffix '.tour'
+                versionNameSuffix '-tour'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
+            } else
             // Final Phase 2 lives beside both the installed canonical app
             // and older QA57. A CI debug key cannot update their signatures.
             if (project.findProperty('okubiFinalPhase2Isolated')?.toString() == 'true') {
