@@ -188,9 +188,7 @@ jobs:
           $installer = 'build/phase86/out/OKUBI-Windows-Cierre-QA.exe'
           if (-not (Test-Path $installer)) { throw 'Verified installer missing' }
           $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($hash -notmatch '^[a-f0-9]{64}
-
-) { throw 'Invalid installer digest' }
+          if ($hash -notmatch '^[a-f0-9]{64}$') { throw 'Invalid installer digest' }
           "$hash *OKUBI-Windows-Cierre-QA.exe" | Set-Content -Path 'build/phase86/out/SHA256SUMS.txt' -Encoding ascii
           Write-Host "QA installer SHA-256: $hash"
       - name: Upload tested Windows setup and checksum (QA only)
