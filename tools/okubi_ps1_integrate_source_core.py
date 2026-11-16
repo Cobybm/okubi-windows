@@ -46,8 +46,9 @@ def verify_artifact(core: Path, recipe: Path) -> dict:
     license = regular(core / LICENSE, 500, 150_000)
     evidence = regular(core / "BUILD-PROVENANCE.txt", 50, 4096).read_text("utf-8")
     sums = regular(core / "PS1-CORE-SHA256SUMS.txt", 70, 512).read_text("ascii")
-    match = re.search(r"(?m)^([a-f0-9]{64})\\s+.*mednafen_psx_libretro\\.dll\\s*$", sums)
-    if not match or digest(dll) != match.group(1):
+    tokens = sums.split()
+    if len(tokens) < 2 or not re.fullmatch("[0-9a-f]{64}", tokens[0]) \\
+            or not tokens[1].endswith(DLL) or digest(dll) != tokens[0]:
         raise CheckError("ps1_artifact_hash_mismatch")
     if PINNED not in evidence or REPO not in evidence or "GPL-2.0" not in evidence:
         raise CheckError("ps1_corresponding_source_metadata_mismatch")
@@ -58,7 +59,7 @@ def verify_artifact(core: Path, recipe: Path) -> dict:
     if raw[:2] != b"MZ" or len(raw) < 64:
         raise CheckError("ps1_not_windows_pe")
     offset = struct.unpack_from("<I", raw, 0x3c)[0]
-    if offset + 6 >= len(raw) or raw[offset:offset + 4] != b"PE\\0\\0":
+    if offset + 6 >= len(raw) or raw[offset:offset + 4] != bytes((80, 69, 0, 0)):
         raise CheckError("ps1_invalid_pe_signature")
     machine = struct.unpack_from("<H", raw, offset + 4)[0]
     if machine != 0x8664:
