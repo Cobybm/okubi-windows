@@ -177,7 +177,7 @@ public final class DesktopPlaystationFormatAdvisor {
         while(matcher.find() && count++<64) {
             String filename=matcher.group(1)!=null?matcher.group(1):matcher.group(2);
             if(filename.contains("\\")||filename.contains("/")||filename.contains(":")
-                    || filename.indexOf('\\0')!=-1) {
+                    || filename.indexOf(0)!=-1) {
                 warnings.add("Pista externa/ruta no permitida en CUE: "+filename);
                 continue;
             }
