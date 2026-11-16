@@ -1,0 +1,24 @@
+name: OKUBI Controls Guide Test
+on:
+  push:
+    branches:
+      - feat/okubi-final-phase1-integration
+  pull_request:
+    paths:
+      - 'desktop/src/bo/okubi/desktop/controls/**'
+      - 'desktop/tests/bo/okubi/desktop/controls/**'
+      - '.github/workflows/okubi-control-guides.yml'
+jobs:
+  control-guides:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile and test guide preference registry
+        run: |
+          mkdir -p build/guide-test
+          javac -encoding UTF-8 -d build/guide-test desktop/src/bo/okubi/desktop/controls/ControlGuideRegistry.java desktop/tests/bo/okubi/desktop/controls/ControlGuideRegistryTest.java
+          java -ea -cp build/guide-test bo.okubi.desktop.controls.ControlGuideRegistryTest
