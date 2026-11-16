@@ -629,7 +629,7 @@ public final class OkubiGameBoyActivity extends Activity {
                 : RetroSpeedControl.NORMAL;
         if (cinemaSpeedLabel != null) cinemaSpeedLabel.setText(RetroSpeedControl.label(speedStep));
         if (previous != speedStep) setStatus("Velocidad " + RetroSpeedControl.label(speedStep)
-                + (RetroSpeedControl.normal(speedStep) ? " · sonido normal" : " · sonido pausado"));
+                + " · música y juego sincronizados");
     }
 
     private void syncPlaying() {
@@ -1303,6 +1303,26 @@ public final class OkubiGameBoyActivity extends Activity {
         return label;
     }
 
+    private void sendMediaCommand(int keyCode) {
+        // User-requested media buttons only. No notification-listener access,
+        // no reading other apps' metadata or private playback history.
+        AudioManager manager=(AudioManager)getSystemService(AUDIO_SERVICE);
+        if (manager==null) {
+            setStatus("Control multimedia no disponible");
+            return;
+        }
+        try {
+            long now=SystemClock.uptimeMillis();
+            manager.dispatchMediaKeyEvent(new KeyEvent(now,now,
+                    KeyEvent.ACTION_DOWN,keyCode,0));
+            manager.dispatchMediaKeyEvent(new KeyEvent(now,now,
+                    KeyEvent.ACTION_UP,keyCode,0));
+            setStatus("Comando enviado a la app de música (si es compatible)");
+        } catch (RuntimeException denied) {
+            setStatus("La app de música o Android no permiten este control");
+        }
+    }
+
     private void showAudioSettings() {
         beginDialog();
         LinearLayout container = new LinearLayout(this);
@@ -1329,6 +1349,36 @@ public final class OkubiGameBoyActivity extends Activity {
         safe.setText("Modo audio seguro (búfer estable)");
         safe.setChecked(safeAudio);
         container.addView(safe);
+        container.addView(dialogLabel("OKUBI 遊 · Música del teléfono"));
+        ImageView mediaLogo = new ImageView(this);
+        mediaLogo.setImageResource(bo.nexoplay.app.R.drawable.ic_okubi);
+        mediaLogo.setContentDescription("Logo OKUBI, mando y espada");
+        container.addView(mediaLogo, new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout media = new LinearLayout(this);
+        media.setGravity(Gravity.CENTER_VERTICAL);
+        for (int index=0; index<3; index++) {
+            final int key = index==0 ? KeyEvent.KEYCODE_MEDIA_PREVIOUS
+                    : index==1 ? KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    : KeyEvent.KEYCODE_MEDIA_NEXT;
+            Button button = new Button(this);
+            button.setText(index==0 ? "◀◀" : index==1 ? "▶ / ❚❚" : "▶▶");
+            button.setContentDescription(index==0 ? "Canción anterior"
+                    : index==1 ? "Reproducir o pausar música externa"
+                    : "Canción siguiente");
+            media.addView(button, new LinearLayout.LayoutParams(0, dp(50), 1f));
+            button.setOnClickListener(v -> sendMediaCommand(key));
+        }
+        container.addView(media);
+        Button systemVolume = new Button(this);
+        systemVolume.setText("Volumen multimedia del teléfono");
+        systemVolume.setOnClickListener(v -> {
+            AudioManager manager=(AudioManager)getSystemService(AUDIO_SERVICE);
+            if(manager!=null) manager.adjustStreamVolume(AudioManager.STREAM_MUSIC,
+                    AudioManager.ADJUST_SAME, AudioManager.FLAG_SHOW_UI);
+        });
+        container.addView(systemVolume);
+        container.addView(dialogLabel("El volumen y silencio de arriba afectan solo al juego. Las canciones externas dependen de la app de música activa; Android no permite aislar su volumen de otras apps sin permisos especiales."));
+        container.addView(dialogLabel("En aceleración ×1.25–×4 el audio del juego sigue sonando más rápido. Si un teléfono no acepta esa velocidad, usa ×1–×2."));
         container.addView(dialogLabel("Si escuchas un pitido, prueba primero Silenciar y después Reiniciar audio. No subas el volumen hasta comprobarlo."));
         new AlertDialog.Builder(this)
                 .setTitle("OKUBI · Sonido")
@@ -2055,6 +2105,9 @@ public final class OkubiGameBoyActivity extends Activity {
 
             int[] imagePixels = new int[frameWidth * frameHeight];
             short[] samples = new short[8192];
+            short[] acceleratedSamples = new short[8192];
+            RetroSpeedControl.AudioAccelerator music =
+                    new RetroSpeedControl.AudioAccelerator();
             Bitmap frame = Bitmap.createBitmap(frameWidth, frameHeight, Bitmap.Config.ARGB_8888);
             previewSourceFrame = frame;
             previewFrameReady = false;
@@ -2165,19 +2218,18 @@ public final class OkubiGameBoyActivity extends Activity {
                         }
                     }
                 }
-                // Reset pacing and audio on a speed transition. AudioTrack at
-                // non-1x would throttle the core or play at the wrong pitch.
+                // The PCM music MUST speed up with the Libretro game: do not
+                // pause or discard the soundtrack when the speed step changes.
                 int requestedSpeed = RetroSpeedControl.normalize(speedStep);
                 if (requestedSpeed != appliedSpeed) {
                     appliedSpeed = requestedSpeed;
                     frameNs = RetroSpeedControl.intervalNanos(normalFrameNs, appliedSpeed);
                     deadline = SystemClock.elapsedRealtimeNanos();
                     renderPolicy.reset();
-                    releaseAudioTrack(audio);
-                    audio = null;
-                    audioPaused = false;
-                    lastGain = -1f;
-                    audioRetry.reset();
+                    music.setStep(appliedSpeed);
+                    // Keep device at its supported native sample rate.
+                    // The PCM converter accelerates soundtrack without an
+                    // unsupported 96/144/192 kHz AudioTrack hardware mode.
                 }
                 if (audioResetRequested) {
                     audioResetRequested = false;
@@ -2198,8 +2250,7 @@ public final class OkubiGameBoyActivity extends Activity {
                     renderPolicy.reset();
                     continue;
                 }
-                if (RetroSpeedControl.normal(appliedSpeed)
-                        && audio == null && audioRetry.mayAttempt(SystemClock.elapsedRealtime())) {
+                if (audio == null && audioRetry.mayAttempt(SystemClock.elapsedRealtime())) {
                     audio = createAudioTrack(sampleRate, safeAudio);
                     if (audio == null) audioRetry.failed(SystemClock.elapsedRealtime());
                     else audioRetry.reset();
@@ -2238,8 +2289,10 @@ public final class OkubiGameBoyActivity extends Activity {
                 }
                 if (audio != null && audioCount > 0) {
                     try {
-                        int written = audio.write(samples, 0, audioCount,
-                                safeAudio ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
+                        int count = music.transform(samples,audioCount,acceleratedSamples);
+                        int written = audio.write(acceleratedSamples, 0, count,
+                                (safeAudio && RetroSpeedControl.normal(appliedSpeed))
+                                        ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
                         if (written < 0) {
                             audioResetRequested = true;
                             setStatus("Audio reiniciándose por error de salida");

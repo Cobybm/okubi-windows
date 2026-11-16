@@ -164,6 +164,7 @@ public final class OkubiDesktop {
 
     private void show() {
         window = new JFrame("OKUBI Desktop 1.0.13 · SMART SESSION");
+        window.setIconImage(DesktopOkubiLogo.icon(64));
         // Never terminate the JVM while a game worker still owns SRAM/RTC.
         window.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         window.addWindowListener(new java.awt.event.WindowAdapter() {

@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#pragma comment(lib, "user32.lib")  /* SendInput: user-clicked media keys */
 #include <Xinput.h>
 #include "../../retro-module/native/libretro.h"
 
@@ -519,4 +520,33 @@ Java_bo_okubi_desktop_WindowsRetroNative_nativeGamepadMask(
     if (b & XINPUT_GAMEPAD_START) mask |= 1 << 12;
     if (b & XINPUT_GAMEPAD_BACK) mask |= 1 << 13;
     return (jint)mask;
+}
+
+
+/*
+ * Explicit user-clicked system media transport controls. SendInput synthesizes
+ * ordinary multimedia keypresses, not background playback monitoring.
+ * Windows chooses the current media session. No private song metadata read.
+ * This function does not touch the Libretro core or game saves.
+ */
+JNIEXPORT jboolean JNICALL
+Java_bo_okubi_desktop_WindowsRetroNative_nativeMediaKey(
+        JNIEnv *env, jclass clazz, jint command) {
+    (void)env; (void)clazz;
+    WORD virtual_key;
+    switch (command) {
+        case 0: virtual_key = VK_MEDIA_PREV_TRACK; break;
+        case 1: virtual_key = VK_MEDIA_PLAY_PAUSE; break;
+        case 2: virtual_key = VK_MEDIA_NEXT_TRACK; break;
+        case 3: virtual_key = VK_VOLUME_MUTE; break;
+        default: return JNI_FALSE;
+    }
+    INPUT events[2];
+    memset(events, 0, sizeof(events));
+    for (int i = 0; i < 2; ++i) {
+        events[i].type = INPUT_KEYBOARD;
+        events[i].ki.wVk = virtual_key;
+        events[i].ki.dwFlags = i ? KEYEVENTF_KEYUP : 0;
+    }
+    return SendInput(2, events, sizeof(INPUT)) == 2 ? JNI_TRUE : JNI_FALSE;
 }
