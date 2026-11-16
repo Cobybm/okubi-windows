@@ -239,10 +239,10 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         tools.setBorder(BorderFactory.createEmptyBorder(1, 0, 1, 0));
         tools.add(button("Añadir juego", this::addFile));
         tools.add(button("Importar carpeta", this::addFolder));
-        tools.add(button("Elegir emulador .exe", this::chooseEmulator));
+        tools.add(button("Configurar PS2 / PS3", this::chooseEmulator));
         tools.add(button("¿QUÉ FORMATO?", this::inspectPlayStationFormat));
         tools.add(button("▶ PS1 · JUGAR", this::quickPlayPs1));
-        tools.add(button("Página oficial", this::officialPage));
+        tools.add(button("AYUDA / FORMATOS", this::officialPage));
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
         tools.add(play);
@@ -371,7 +371,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
                                     + "sustituir temporalmente otros ajustes específicos del título."
                                 : "SMART GRAPHICS 2.0 desactivado: OKUBI no cambia "
                                     + "ningún ajuste gráfico. Para usarlo, activa SMART CONFIG."
-                            : "PS1/PS3: sin cambios automáticos de configuración interna.");
+                            : "PS1: núcleo interno con configuración segura; PS3 externo experimental.");
         }
         details.setText(text.toString());
         details.setCaretPosition(0);
@@ -432,7 +432,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             if(!DesktopSmartPerformance.acceptedFile(
                     DesktopSmartPerformance.Console.PS1,
                     selected.getFileName().toString()))
-                throw new IOException("Archivo no compatible con DuckStation PS1.");
+                throw new IOException("Archivo no compatible con PlayStation integrado en OKUBI.");
             DesktopPlaystationFormatAdvisor.Advice advice =
                     DesktopPlaystationFormatAdvisor.inspect(selected);
             StringBuilder prompt = new StringBuilder(
@@ -599,6 +599,17 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
     private void officialPage() {
         var console = currentConsole();
         if (console == null) return;
+        if (console == DesktopSmartPerformance.Console.PS1) {
+            JOptionPane.showMessageDialog(this,
+                    "PS1 YA SE EJECUTA DENTRO DE OKUBI.\\n\\n"
+                    + "1. Añade tu CUE (con sus BIN al lado) o tu CHD.\\n"
+                    + "2. Selecciona el juego de tu biblioteca.\\n"
+                    + "3. Pulsa JUGAR. No necesitas DuckStation.\\n\\n"
+                    + "Si el juego no arranca con OpenBIOS, algunas copias "
+                    + "pueden necesitar una BIOS obtenida de tu propia PS1.",
+                    "OKUBI · Ayuda PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         try {
             if (!Desktop.isDesktopSupported()) throw new IOException("Sin navegador.");
             Desktop.getDesktop().browse(URI.create(console.officialUrl));
