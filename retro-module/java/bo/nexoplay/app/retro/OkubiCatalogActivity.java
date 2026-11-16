@@ -89,9 +89,14 @@ public class OkubiCatalogActivity extends Activity {
 
     private static class Game {
         final String name, system, genre, url;
-        final boolean direct;
+        final boolean direct, hubApproved;
+        final String privateFileName;
         Game(String n, String s, String g, String u, boolean d) {
+            this(n,s,g,u,d,null,false);
+        }
+        Game(String n, String s, String g, String u, boolean d, String f, boolean hub) {
             name=n; system=s; genre=g; url=u; direct=d;
+            privateFileName=f; hubApproved=hub;
         }
     }
     private static final Game[] GAMES = {
@@ -681,7 +686,9 @@ public class OkubiCatalogActivity extends Activity {
     }
     /** The app-owned Ascension path is private and cannot be modified by other apps. */
     private File directHomebrewFile(Game game) {
-        String fileName = "2048 GB".equals(game.name) ? "2048gb.gb" : "ascension.gb";
+        String fileName = game.hubApproved
+                ? game.privateFileName
+                : "2048 GB".equals(game.name) ? "2048gb.gb" : "ascension.gb";
         return new File(getFilesDir(), "okubi/homebrew/" + fileName);
     }
 
@@ -695,6 +702,14 @@ public class OkubiCatalogActivity extends Activity {
 
     /** Reject HTML/error pages and incomplete binary files before launching. */
     private static boolean hasGameBoyHeader(File file) {
+        if (file.getName().toLowerCase(java.util.Locale.ROOT).endsWith(".gba")) {
+            try (java.io.RandomAccessFile rom = new java.io.RandomAccessFile(file, "r")) {
+                if (rom.length() < 32768) return false;
+                rom.seek(0xB2);
+                return rom.readUnsignedByte() == 0x96;
+            } catch (IOException error) { return false; }
+        }
+
         // Official Nintendo cartridge header logo at 0x104; needed by SameBoy.
         final String logo = "CEED6666CC0D000B03730083000C000D0008111F8889000EDC"
                 + "CC6EE6DDDDD999BBBB67636E0EECCCDDDC999FBBB9333E";
@@ -718,8 +733,10 @@ public class OkubiCatalogActivity extends Activity {
                     Toast.LENGTH_LONG).show();
             return;
         }
-        if (!SameBoyNative.isAvailable()) {
-            Toast.makeText(this, "Descargado, pero el núcleo GB no está disponible",
+        boolean available = "GBA".equals(game.system) ? SameBoyNative.isGbaAvailable()
+                : SameBoyNative.isAvailable();
+        if (!available) {
+            Toast.makeText(this, "Descargado, pero el emulador requerido no está disponible",
                     Toast.LENGTH_LONG).show();
             return;
         }
@@ -727,7 +744,7 @@ public class OkubiCatalogActivity extends Activity {
         play.putExtra(OkubiGameBoyActivity.EXTRA_HOMEBREW_PATH,
                 directHomebrewFile(game).getAbsolutePath());
         play.putExtra(OkubiGameBoyActivity.EXTRA_NAME, game.name);
-        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, "GB");
+        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, game.system);
         startActivity(play);
     }
 
@@ -741,7 +758,8 @@ public class OkubiCatalogActivity extends Activity {
                 action.setEnabled(false);
                 status.setText("Descarga directa del autor en curso");
             } else if (verifiedDirectGame(game)) {
-                action.setText(SameBoyNative.isAvailable()
+                action.setText(("GBA".equals(game.system) ? SameBoyNative.isGbaAvailable()
+                            : SameBoyNative.isAvailable())
                         ? "▶ JUGAR EN OKUBI" : "✓ DESCARGADO");
                 action.setEnabled(true);
                 status.setText("✓ Archivo guardado dentro de OKUBI · no es una app Android");
@@ -824,11 +842,18 @@ public class OkubiCatalogActivity extends Activity {
 
     private void download(Game game) {
         Uri uri = Uri.parse(game.url);
+        boolean official = !game.hubApproved && (
+                ("raw.githubusercontent.com".equals(uri.getHost())
+                 && "/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath()))
+                || ("hh3.gbdev.io".equals(uri.getHost())
+                 && "/api/entry/2048gb/2048.gb".equals(uri.getPath())));
+        boolean approvedHub = game.hubApproved
+                && "hh3.gbdev.io".equals(uri.getHost())
+                && uri.getPath().matches("/api/entry/[a-zA-Z0-9_-]{2,80}/[A-Za-z0-9_.-]{1,80}\\.(gb|gbc|gba)")
+                && game.privateFileName != null
+                && game.privateFileName.matches("[A-Za-z0-9_.-]{1,160}\\.(gb|gbc|gba)");
         if (!game.direct || !"https".equals(uri.getScheme())
-                || !((("raw.githubusercontent.com".equals(uri.getHost())
-                        && "/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath()))
-                    || ("hh3.gbdev.io".equals(uri.getHost())
-                        && "/api/entry/2048gb/2048.gb".equals(uri.getPath()))))
+                || !(official || approvedHub)
                 || uri.getQuery() != null || uri.getFragment() != null) {
             Toast.makeText(this, "Solo se permiten ROMs homebrew autorizadas",
                     Toast.LENGTH_LONG).show();
@@ -912,7 +937,9 @@ public class OkubiCatalogActivity extends Activity {
                         if (closed || isFinishing()) return;
                         updateIndieAction(game);
                         refreshDownloadCenter();
-                        if (!SameBoyNative.isAvailable()) {
+                        if (!("GBA".equals(game.system)
+                                ? SameBoyNative.isGbaAvailable()
+                                : SameBoyNative.isAvailable())) {
                             Toast.makeText(this,
                                 "Juego descargado. El motor SameBoy aún no está disponible en este APK",
                                 Toast.LENGTH_LONG).show();
@@ -922,7 +949,7 @@ public class OkubiCatalogActivity extends Activity {
                         play.putExtra(OkubiGameBoyActivity.EXTRA_HOMEBREW_PATH,
                                 target.getAbsolutePath());
                         play.putExtra(OkubiGameBoyActivity.EXTRA_NAME, game.name);
-                        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, "GB");
+                        play.putExtra(OkubiGameBoyActivity.EXTRA_SYSTEM, game.system);
                         startActivity(play);
                     });
                 } catch (Exception error) {
