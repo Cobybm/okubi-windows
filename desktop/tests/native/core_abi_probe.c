@@ -6,8 +6,8 @@
 typedef unsigned (*retro_api_version_t)(void);
 
 int wmain(int argc, wchar_t **argv) {
-    if (argc != 4) {
-        fwprintf(stderr, L"Usage: core_probe sameboy.dll mgba.dll supafaust.dll\n");
+    if (argc != 4 && argc != 5) {
+        fwprintf(stderr, L"Usage: core_probe sameboy.dll mgba.dll supafaust.dll [beetle_psx.dll]\\n");
         return 2;
     }
     for (int i = 1; i < argc; ++i) {
