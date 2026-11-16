@@ -2105,6 +2105,9 @@ public final class OkubiGameBoyActivity extends Activity {
 
             int[] imagePixels = new int[frameWidth * frameHeight];
             short[] samples = new short[8192];
+            short[] acceleratedSamples = new short[8192];
+            RetroSpeedControl.AudioAccelerator music =
+                    new RetroSpeedControl.AudioAccelerator();
             Bitmap frame = Bitmap.createBitmap(frameWidth, frameHeight, Bitmap.Config.ARGB_8888);
             previewSourceFrame = frame;
             previewFrameReady = false;
@@ -2223,15 +2226,10 @@ public final class OkubiGameBoyActivity extends Activity {
                     frameNs = RetroSpeedControl.intervalNanos(normalFrameNs, appliedSpeed);
                     deadline = SystemClock.elapsedRealtimeNanos();
                     renderPolicy.reset();
-                    if (audio != null) {
-                        try {
-                            int rate = RetroSpeedControl.playbackSampleRate(sampleRate, appliedSpeed);
-                            if (audio.setPlaybackRate(rate) < 0)
-                                audioResetRequested = true;
-                        } catch (IllegalStateException | IllegalArgumentException unavailable) {
-                            audioResetRequested = true;
-                        }
-                    }
+                    music.setStep(appliedSpeed);
+                    // Keep device at its supported native sample rate.
+                    // The PCM converter accelerates soundtrack without an
+                    // unsupported 96/144/192 kHz AudioTrack hardware mode.
                 }
                 if (audioResetRequested) {
                     audioResetRequested = false;
@@ -2255,18 +2253,7 @@ public final class OkubiGameBoyActivity extends Activity {
                 if (audio == null && audioRetry.mayAttempt(SystemClock.elapsedRealtime())) {
                     audio = createAudioTrack(sampleRate, safeAudio);
                     if (audio == null) audioRetry.failed(SystemClock.elapsedRealtime());
-                    else {
-                        audioRetry.reset();
-                        // Higher PCM playback rate means accelerated sound and
-                        // a higher musical pitch, not music paused at fast-forward.
-                        try {
-                            int rate = RetroSpeedControl.playbackSampleRate(sampleRate, appliedSpeed);
-                            if (audio.setPlaybackRate(rate) < 0)
-                                audioResetRequested = true;
-                        } catch (IllegalStateException | IllegalArgumentException unavailable) {
-                            audioResetRequested = true;
-                        }
-                    }
+                    else audioRetry.reset();
                     lastGain = -1f;
                 }
                 if (audio != null && audioPaused) {
@@ -2302,7 +2289,8 @@ public final class OkubiGameBoyActivity extends Activity {
                 }
                 if (audio != null && audioCount > 0) {
                     try {
-                        int written = audio.write(samples, 0, audioCount,
+                        int count = music.transform(samples,audioCount,acceleratedSamples);
+                        int written = audio.write(acceleratedSamples, 0, count,
                                 (safeAudio && RetroSpeedControl.normal(appliedSpeed))
                                         ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
                         if (written < 0) {
