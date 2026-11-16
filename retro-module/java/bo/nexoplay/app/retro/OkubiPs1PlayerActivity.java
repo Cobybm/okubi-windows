@@ -392,7 +392,7 @@ public final class OkubiPs1PlayerActivity extends Activity {
                     .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO).build();
             AudioTrack track=new AudioTrack(attrs,format,
                     Math.max(min*3,16384),AudioTrack.MODE_STREAM,
-                    AudioTrack.AUDIO_SESSION_ID_GENERATE);
+                    0);
             if(track.getState()!=AudioTrack.STATE_INITIALIZED){track.release();return null;}
             track.play();return track;
         }catch(RuntimeException unavailable){return null;}
