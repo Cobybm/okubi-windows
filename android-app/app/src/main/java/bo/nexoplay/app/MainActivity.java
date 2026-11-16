@@ -84,6 +84,9 @@ public final class MainActivity extends Activity {
             "Toca este botón para buscar de nuevo los juegos instalados en tu Android y agregarlos a la biblioteca."),
         new TourStep(Screen.DISCOVER,"discover_homebrew","Explorar juegos gratuitos",
             "Aquí encontrarás homebrew y juegos que sus autores ofrecen legalmente. Podrás descargar los compatibles."),
+        new TourStep(Screen.DISCOVER,"discover_psp","Juegos de PSP",
+            "Selecciona tu copia ISO, CSO, CHD o EBOOT.PBP y OKUBI abrirá "
+            + "PPSSPP si está instalado. Tus partidas permanecen en el emulador."),
         new TourStep(Screen.DISCOVER,"nav_retro","Tus consolas",
             "En RETRO están los emuladores y las opciones de importar, abrir o configurar tus juegos clásicos."),
         new TourStep(Screen.RETRO,"retro_catalog","Descargas retro",
@@ -106,6 +109,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_UNIFIED_EXPORT = 7290;
     private static final int REQUEST_UNIFIED_IMPORT = 7291;
     private static final int REQUEST_PLAY_FORMAT_INSPECT = 7292;
+    private static final int REQUEST_PSP_EXTERNAL_LAUNCH = 7293;
     // One task maximum in flight; never accumulate many archive copies in RAM.
     private final ThreadPoolExecutor migrationQueue = new ThreadPoolExecutor(
             1,1,0L,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(1),
@@ -738,6 +742,16 @@ public final class MainActivity extends Activity {
         body.addView(inspectPlay,lp(-1,-2));
         inspectPlay.setContentDescription("Revisar un archivo PlayStation sin modificarlo");
         inspectPlay.setOnClickListener(v->choosePlayStationFile());
+        body.addView(gap(9));
+        TextView playPsp=CinemaUi.action(this,"▶ JUGAR PSP CON PPSSPP",true);
+        body.addView(playPsp,lp(-1,-2));
+        playPsp.setContentDescription("Jugar una copia PSP en la app oficial PPSSPP");
+        tourTargets.put("discover_psp",playPsp);
+        playPsp.setOnClickListener(v->selectPspGame());
+        body.addView(gap(5));
+        body.addView(text("Necesita PPSSPP instalado. Formatos: ISO, CSO, CHD o EBOOT.PBP. "
+                + "Se abrirá tu juego directamente sin modificar partidas.",12,
+                CinemaUi.MUTED,false));
         body.addView(gap(7));
         body.addView(text("ISO, BIN/CUE, CHD, CSO, ZSO, PBP, PKG, VPK y más. "
                 + "Reconocer un archivo NO garantiza que el emulador esté instalado "
@@ -1641,6 +1655,85 @@ public final class MainActivity extends Activity {
         catch(Exception error){Toast.makeText(this,
                 "No se pudo abrir el selector de destino",Toast.LENGTH_LONG).show();}
     }
+    private void selectPspGame() {
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("*/*");
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try { startActivityForResult(picker,REQUEST_PSP_EXTERNAL_LAUNCH); }
+        catch (Exception error) {
+            Toast.makeText(this,"No se pudo abrir tu selector PSP.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void handoffPspDocument(Uri document) {
+        if(document==null || !"content".equals(document.getScheme()))return;
+        String name=null;
+        try(android.database.Cursor cursor=getContentResolver().query(document,
+                new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+                null,null,null)) {
+            if(cursor!=null && cursor.moveToFirst())name=cursor.getString(0);
+        } catch(Exception ignored) {
+            // A provider may not expose metadata: never guess that a file is PSP.
+        }
+        if(!OkubiPspExternalLauncher.supported(name)) {
+            new AlertDialog.Builder(this)
+                .setTitle("OKUBI · Archivo PSP no compatible")
+                .setMessage("Selecciona una copia PSP ISO, CSO, CHD o EBOOT.PBP. "
+                        + "Los ZIP, RAR, PKG y archivos de otras consolas no se ejecutan "
+                        + "directamente con PPSSPP.")
+                .setPositiveButton("Entendido",null).show();
+            return;
+        }
+        String finalName=name;
+        String warning=name.equalsIgnoreCase("EBOOT.PBP")
+                ?"\n\nATENCIÓN: EBOOT.PBP puede ser PSP o PS1. Confirma que "
+                        +"es tu copia PSP."
+                :"";
+        new AlertDialog.Builder(this)
+            .setTitle("OKUBI 遊 · Jugar en PPSSPP")
+            .setMessage("Juego: "+finalName
+                    +"\n\nSe abrirá la aplicación oficial PPSSPP instalada. "
+                    +"Tus partidas y configuraciones de OKUBI no se modificarán."
+                    +warning)
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Abrir juego", (dialog,button)->launchPsp(document))
+            .show();
+    }
+
+    private void launchPsp(Uri document) {
+        for(String target:new String[]{
+                OkubiPspExternalLauncher.FREE,OkubiPspExternalLauncher.GOLD}) {
+            try {
+                startActivity(OkubiPspExternalLauncher.intent(document,target));
+                Toast.makeText(this,"Enviado a PPSSPP · verifica que el juego abra",
+                        Toast.LENGTH_SHORT).show();
+                return;
+            } catch(android.content.ActivityNotFoundException unavailable) {
+                // Try Gold if the free version is not installed.
+            } catch(SecurityException blocked) {
+                Toast.makeText(this,"PPSSPP no pudo recibir permiso de lectura.",
+                        Toast.LENGTH_LONG).show();
+                return;
+            }
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("PPSSPP no está instalado")
+            .setMessage("OKUBI necesita el emulador oficial PPSSPP para jugar a PSP. "
+                    +"Puedes instalar la versión gratuita. No incluimos ROMs ni BIOS.")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Página oficial",(dialog,button)->{
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(
+                            OkubiPspExternalLauncher.OFFICIAL_URL)));
+                } catch(Exception ignored) {
+                    Toast.makeText(this,OkubiPspExternalLauncher.OFFICIAL_URL,
+                            Toast.LENGTH_LONG).show();
+                }
+            }).show();
+    }
+
     private void choosePlayStationFile() {
         Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         picker.addCategory(Intent.CATEGORY_OPENABLE);
@@ -2101,6 +2194,11 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==REQUEST_PSP_EXTERNAL_LAUNCH) {
+            if(resultCode==RESULT_OK && data!=null)
+                handoffPspDocument(data.getData());
+            return;
+        }
         if(requestCode==REQUEST_PLAY_FORMAT_INSPECT) {
             if(resultCode==RESULT_OK && data!=null)
                 inspectPlayStationFile(data.getData());

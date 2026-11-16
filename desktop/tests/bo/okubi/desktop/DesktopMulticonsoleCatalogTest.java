@@ -39,11 +39,14 @@ public final class DesktopMulticonsoleCatalogTest {
         Path configured = root.resolve("settings/multiconsole-v1.properties");
         var catalog = new DesktopMulticonsoleCatalog(configured);
         check(catalog.games().isEmpty(), "Start with separate empty catalog.");
-        check(catalog.addFolder(base) == 202, "Scan 200 PS1 and two ambiguous ISO references.");
-        check(catalog.games().size() == 202, "Never duplicate library entries.");
+        check(catalog.addFolder(base) == 200,
+                "Folder scan skips ambiguous ISO/CHD until the console is confirmed.");
+        check(catalog.games().size() == 200, "Never duplicate library entries.");
         check(catalog.addFolder(base) == 0, "Idempotent folder scan.");
         check(catalog.addGame(ambiguous, DesktopSmartPerformance.Console.PS1),
-                "An ambiguous ISO can be reassigned as PS1.");
+                "An ambiguous ISO can be imported after explicit PS1 selection.");
+        check(catalog.addGame(ps2, DesktopSmartPerformance.Console.PS2),
+                "A PS2 ISO can be imported after explicit PS2 selection.");
         check(catalog.addGame(ps3, DesktopSmartPerformance.Console.PS3),
                 "EBOOT.BIN can be imported directly as PS3.");
         check(catalog.games().size() == 203, "All original entries still present.");

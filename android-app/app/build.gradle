@@ -41,8 +41,13 @@ android {
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
         debug {
-            // Separate QA identity keeps installed OKUBI, QA57 and Phase2 saves intact.
-            if (project.findProperty('okubiTourIsolated')?.toString() == 'true') {
+            // PSP QA has its own package, avoiding signature/data collisions
+            // with installed OKUBI, the tutorial build and older QA variants.
+            if (project.findProperty('okubiPspIsolated')?.toString() == 'true') {
+                applicationIdSuffix '.psp'
+                versionNameSuffix '-psp'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
+            } else if (project.findProperty('okubiTourIsolated')?.toString() == 'true') {
                 applicationIdSuffix '.tour'
                 versionNameSuffix '-tour'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
