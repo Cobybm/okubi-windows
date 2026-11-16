@@ -14,6 +14,11 @@ public final class DesktopPcmQueuePhase89Test {
         check(q.writable(6)==4,"partial device buffer accepted");
         q.consume(4);
         check(q.size()==8 && q.data()[q.offset()]==5,"retain unwritten PCM");
+        boolean partialRejected=false;
+        try{q.consume(2);}catch(IllegalArgumentException expected){partialRejected=true;}
+        check(partialRejected,"reject half of a stereo frame");
+        check(q.size()==8 && q.data()[q.offset()]==5,"invalid consume does not alter pending PCM");
+        check(q.writable(-4)==0,"negative availability cannot write audio");
         q.append(original,8);
         check(q.size()==16,"pending audio + new audio");
         q.append(original,8);
