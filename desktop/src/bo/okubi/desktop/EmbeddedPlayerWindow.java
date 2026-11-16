@@ -326,7 +326,7 @@ public final class EmbeddedPlayerWindow {
                                     .resolve("first-run-controls-v1.properties"));
             if (!guide.shouldShow(game.console.name(),
                     bo.okubi.desktop.controls.ControlGuideRegistry.Device.KEYBOARD)) return;
-            showControlsGuide();
+            showControlsGuide(true);
             guide.markShown(game.console.name(),
                     bo.okubi.desktop.controls.ControlGuideRegistry.Device.KEYBOARD);
         } catch (IOException unavailable) {
@@ -334,7 +334,9 @@ public final class EmbeddedPlayerWindow {
         }
     }
 
-    private void showControlsGuide() {
+    private void showControlsGuide() { showControlsGuide(false); }
+
+    private void showControlsGuide(boolean firstRun) {
         StringBuilder text = new StringBuilder();
         text.append("TECLADO (configuración REAL para este juego)\\n\\n");
         for (DesktopPlaySettings.Action action : DesktopPlaySettings.Action.values()) {
@@ -357,8 +359,22 @@ public final class EmbeddedPlayerWindow {
                 .append(playSettings.gamepadLayout(game.console).display);
         text.append("\\n\\nESC = ajustes y cambio de teclas, F5 = guardar, ");
         text.append("F9 = cargar. Puedes volver a ver esta guía desde Ajustes.");
-        javax.swing.JOptionPane.showMessageDialog(window, text.toString(),
-                "OKUBI 遊 · Guía de controles", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        javax.swing.JOptionPane message = new javax.swing.JOptionPane(
+                text.toString(), javax.swing.JOptionPane.INFORMATION_MESSAGE);
+        javax.swing.JDialog dialog = message.createDialog(window,
+                "OKUBI 遊 · Guía de controles");
+        javax.swing.Timer closeTimer = null;
+        if (firstRun) {
+            // Gamepad-only players must never be trapped in a modal keyboard dialog.
+            closeTimer = new javax.swing.Timer(8000, event -> dialog.dispose());
+            closeTimer.setRepeats(false);
+            closeTimer.start();
+        }
+        try { dialog.setVisible(true); }
+        finally {
+            if (closeTimer != null) closeTimer.stop();
+            picture.requestFocusInWindow();
+        }
     }
 
     public static boolean hasActiveSession() { return SESSION_BUSY.get(); }
@@ -371,12 +387,12 @@ public final class EmbeddedPlayerWindow {
             EmbeddedPlayerWindow session = new EmbeddedPlayerWindow(game, core,
                     afterLaunch, statistics);
             session.window.setVisible(true);
-            session.maybeShowFirstRunControls();
             session.picture.requestFocusInWindow();
             Thread worker = new Thread(session::emulate,
                     "OKUBI-Windows-Libretro-" + game.console.name());
             worker.setDaemon(true);
             worker.start();
+            javax.swing.SwingUtilities.invokeLater(session::maybeShowFirstRunControls);
         } catch (RuntimeException error) {
             SESSION_BUSY.set(false);
             throw error;
