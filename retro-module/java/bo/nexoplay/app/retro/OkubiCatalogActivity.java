@@ -29,6 +29,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -539,6 +540,103 @@ public class OkubiCatalogActivity extends Activity {
         }
     }
 
+    /** Live Homebrew Hub search: GB, GBC and GBA games with explicit OSS licenses only. */
+    private void showHomebrewHubSearch(LinearLayout root) {
+        root.addView(label("BUSCAR JUEGOS · DESCARGA DIRECTA", 19));
+        root.addView(label("Consulta Homebrew Hub desde OKUBI. Solo juegos originales "
+                + "con licencia libre y ROM compatible. No incluye juegos comerciales.", 12));
+        final String[] platform = {"GB"};
+        LinearLayout filters = new LinearLayout(this);
+        filters.setOrientation(LinearLayout.HORIZONTAL);
+        for (String system : new String[]{"GB","GBC","GBA"}) {
+            Button tab = new Button(this);
+            tab.setText(system);
+            tab.setAllCaps(false);
+            tab.setOnClickListener(v -> {
+                platform[0] = system;
+                Toast.makeText(this, "Buscando juegos para " + system,
+                        Toast.LENGTH_SHORT).show();
+            });
+            filters.addView(tab, new LinearLayout.LayoutParams(0, dp(48), 1));
+        }
+        root.addView(filters);
+        EditText title = new EditText(this);
+        title.setSingleLine(true);
+        title.setHint("Nombre del juego (vacío = novedades)");
+        title.setTextColor(Color.WHITE);
+        title.setHintTextColor(0xFFB3A5C4);
+        root.addView(title);
+        Button search = new Button(this);
+        search.setAllCaps(false);
+        search.setText("⌕ VER JUEGOS DISPONIBLES");
+        root.addView(search);
+        TextView message = label("Selecciona una consola y pulsa buscar.", 12);
+        root.addView(message);
+        LinearLayout matches = new LinearLayout(this);
+        matches.setOrientation(LinearLayout.VERTICAL);
+        root.addView(matches);
+        search.setOnClickListener(v -> {
+            String selected = platform[0];
+            String query = title.getText().toString();
+            if (query.length() > 40) {
+                title.setError("Máximo 40 caracteres"); return;
+            }
+            search.setEnabled(false);
+            message.setText("Buscando juegos libres de " + selected + "...");
+            try {
+                downloadQueue.execute(() -> {
+                    try {
+                        java.util.List<OkubiHomebrewHubClient.FreeGame> titles =
+                                OkubiHomebrewHubClient.search(selected, query);
+                        runOnUiThread(() -> {
+                            if (closed || isFinishing()) return;
+                            search.setEnabled(true);
+                            matches.removeAllViews();
+                            message.setText(titles.isEmpty() ? "Sin resultados con licencia libre."
+                                    : titles.size() + " juego(s) encontrados para " + selected);
+                            for (OkubiHomebrewHubClient.FreeGame item : titles) {
+                                Game game = new Game(item.title, item.system,
+                                        "Homebrew Hub · licencia " + item.license,
+                                        item.url, true, item.filename, true);
+                                LinearLayout card = new LinearLayout(this);
+                                card.setOrientation(LinearLayout.VERTICAL);
+                                card.setPadding(dp(12), dp(8), dp(12), dp(8));
+                                LinearLayout.LayoutParams cardParams =
+                                        new LinearLayout.LayoutParams(-1, -2);
+                                cardParams.topMargin = dp(8);
+                                matches.addView(card, cardParams);
+                                card.addView(label(game.name + " · " + game.system, 17));
+                                card.addView(label(game.genre, 12));
+                                TextView status = label("", 12);
+                                card.addView(status);
+                                indieStatuses.put(game, status);
+                                Button action = new Button(this);
+                                action.setAllCaps(false);
+                                card.addView(action);
+                                indieActions.put(game, action);
+                                action.setOnClickListener(tap -> {
+                                    if (verifiedDirectGame(game)) playDirectGame(game);
+                                    else if (!directDownloading) download(game);
+                                });
+                                updateIndieAction(game);
+                            }
+                        });
+                    } catch (Exception error) {
+                        runOnUiThread(() -> {
+                            if (closed || isFinishing()) return;
+                            search.setEnabled(true);
+                            message.setText("No se pudo cargar Homebrew Hub: "
+                                    + error.getClass().getSimpleName());
+                        });
+                    }
+                });
+            } catch (RejectedExecutionException error) {
+                search.setEnabled(true);
+                message.setText("Buscador no disponible.");
+            }
+        });
+    }
+
     private void showMulticonsoleSources(LinearLayout root) {
         root.addView(label("EXPLORAR TODAS LAS CONSOLAS", 19));
         root.addView(label("Solo fuentes gratuitas autorizadas o tiendas oficiales. "
@@ -636,6 +734,7 @@ public class OkubiCatalogActivity extends Activity {
         showDirectDownloads(root);
         showNintendoSources(root);
         showMulticonsoleSources(root);
+        showHomebrewHubSearch(root);
         root.addView(label("HOMEBREW  /  JUEGOS INDEPENDIENTES", 19));
         root.addView(label("Los juegos descargados dentro de OKUBI muestran JUGAR. " +
                 "Si descargaste desde el navegador, vincula una sola vez tu archivo " +
