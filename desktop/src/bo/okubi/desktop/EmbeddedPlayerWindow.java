@@ -68,6 +68,8 @@ public final class EmbeddedPlayerWindow {
     private final AtomicBoolean quickLoad = new AtomicBoolean();
     private final AtomicBoolean capture = new AtomicBoolean();
     private final AtomicBoolean muted = new AtomicBoolean();
+    private final AtomicInteger speedStep = new AtomicInteger();
+    private final java.util.List<CinemaButton> speedButtons = new java.util.ArrayList<>();
     private Rectangle previousSize;
 
     private EmbeddedPlayerWindow(DesktopLibrary.Game game, Path core, Runnable afterLaunch,
@@ -104,6 +106,7 @@ public final class EmbeddedPlayerWindow {
         JPanel actions = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
         actions.add(new CinemaButton("F5 Guardar", false, () -> quickSave.set(true)));
+        addSpeedButton(actions);
         actions.add(new CinemaButton("F9 Cargar", false, this::confirmLoad));
         actions.add(new CinemaButton("☰ MENÚ / ESC", true, this::toggleControlCenter));
         actions.add(new CinemaButton("⛶", false, this::toggleMaximize));
@@ -124,6 +127,7 @@ public final class EmbeddedPlayerWindow {
         compactMenu.setPreferredSize(new Dimension(152, 27));
         CinemaButton compactClose = new CinemaButton("SALIR", false, window::dispose);
         compactClose.setPreferredSize(new Dimension(70, 27));
+        addSpeedButton(compactButtons);
         compactButtons.add(compactMenu);
         compactButtons.add(compactClose);
         compact.add(compactButtons, BorderLayout.EAST);
@@ -168,6 +172,12 @@ public final class EmbeddedPlayerWindow {
                         picture.putClientProperty("fullHeld", Boolean.TRUE);
                     }
                     event.consume();
+                } else if (event.getKeyCode() == KeyEvent.VK_F6) {
+                    if (!Boolean.TRUE.equals(picture.getClientProperty("speedHeld"))) {
+                        cycleSpeed();
+                        picture.putClientProperty("speedHeld", Boolean.TRUE);
+                    }
+                    event.consume();
                 } else if (event.getKeyCode() == KeyEvent.VK_F5) {
                     if (!Boolean.TRUE.equals(picture.getClientProperty("quickSaveHeld"))) {
                         quickSave.set(true);
@@ -207,6 +217,8 @@ public final class EmbeddedPlayerWindow {
                     picture.putClientProperty("fullHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F5)
                     picture.putClientProperty("quickSaveHeld", Boolean.FALSE);
+                else if (event.getKeyCode() == KeyEvent.VK_F6)
+                    picture.putClientProperty("speedHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F9)
                     picture.putClientProperty("quickLoadHeld", Boolean.FALSE);
                 else if (event.getKeyCode() == KeyEvent.VK_F12)
@@ -391,6 +403,22 @@ public final class EmbeddedPlayerWindow {
         hudFooter.setVisible(view.footer());
         root.revalidate();
         root.repaint();
+    }
+
+    private void addSpeedButton(JPanel bar) {
+        CinemaButton button = new CinemaButton("F6 " + DesktopSpeedControl.label(speedStep.get()),
+                false, this::cycleSpeed);
+        speedButtons.add(button);
+        bar.add(button);
+    }
+
+    private void cycleSpeed() {
+        int value=speedStep.updateAndGet(DesktopSpeedControl::next);
+        for (CinemaButton button:speedButtons)
+            button.setText("F6 " + DesktopSpeedControl.label(value));
+        info("Velocidad " + DesktopSpeedControl.label(value)
+                + " · música del juego acelerada, sin silencio");
+        picture.requestFocusInWindow();
     }
 
     private void toggleMute() {
@@ -809,9 +837,14 @@ public final class EmbeddedPlayerWindow {
             final byte[] pcm = new byte[audio.length * 2];
             double fps = WindowsRetroNative.fps();
             if (fps <= 30 || fps >= 121) fps = 60;
-            long interval = Math.max(8_000_000L, (long)(1_000_000_000.0 / fps));
+            final long normalInterval = Math.max(8_000_000L,
+                    (long)(1_000_000_000.0 / fps));
+            long interval=normalInterval;
             long next = System.nanoTime();
-            int frames = 0;
+            int lastSpeed=0;
+            long frames = 0;
+            DesktopSpeedControl.AudioAccelerator soundtrack =
+                    new DesktopSpeedControl.AudioAccelerator();
             info("OKUBI ULTRA · F5 guardar · F9 cargar · F12 captura · Xbox conectado automáticamente");
             SwingUtilities.invokeLater(afterLaunch);
             while (running.get()) {
@@ -859,20 +892,28 @@ public final class EmbeddedPlayerWindow {
                     next = System.nanoTime();
                     continue;
                 }
+                int requestedSpeed=DesktopSpeedControl.normalize(speedStep.get());
+                if(requestedSpeed!=lastSpeed) {
+                    lastSpeed=requestedSpeed;
+                    soundtrack.setStep(requestedSpeed);
+                    interval=DesktopSpeedControl.frameInterval(normalInterval,requestedSpeed);
+                    next=System.nanoTime();
+                }
+                // Always execute every Libretro frame and collect all audio.
                 int count = WindowsRetroNative.step(safeButtons(), pixels, audio);
                 if (count < 0) throw new IOException("El núcleo dejó de ejecutar fotogramas.");
-                BufferedImage image = new BufferedImage(width, height,
-                        BufferedImage.TYPE_INT_ARGB);
-                image.setRGB(0, 0, width, height, pixels, 0, width);
-                picture.setFrame(image);
+                if (DesktopSpeedControl.present(requestedSpeed, frames)) {
+                    BufferedImage image = new BufferedImage(width, height,
+                            BufferedImage.TYPE_INT_ARGB);
+                    image.setRGB(0, 0, width, height, pixels, 0, width);
+                    picture.setFrame(image);
+                }
                 if (sound != null && count > 0 && !muted.get()) {
-                    int samples = Math.min(count, audio.length);
-                    for (int i = 0; i < samples; i++) {
-                        pcm[i * 2] = (byte)(audio[i] & 255);
-                        pcm[i * 2 + 1] = (byte)((audio[i] >>> 8) & 255);
-                    }
-                    if (sound.available() >= samples * 2)
-                        sound.write(pcm, 0, samples * 2);
+                    // Never mute at >1x. Output fewer PCM frames at normal device
+                    // sample rate, so the ORIGINAL soundtrack plays faster/higher.
+                    int bytes=soundtrack.convert(audio,Math.min(count,audio.length),pcm);
+                    if (sound.available() >= bytes && bytes > 0)
+                        sound.write(pcm, 0, bytes);
                 }
                 if (++frames % Math.max(1, (int)(fps * 30)) == 0) {
                     try { saves.store(); }
