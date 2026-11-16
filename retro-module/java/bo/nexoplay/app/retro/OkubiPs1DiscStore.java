@@ -123,6 +123,7 @@ public final class OkubiPs1DiscStore {
             }
             files.add(found);
         }
+        files.sort((a,b)->a.name.compareToIgnoreCase(b.name));
         StatFs disk=new StatFs(context.getFilesDir().getAbsolutePath());
         if(total>0 && total + (64L*1024*1024)>disk.getAvailableBytes())
             throw new IOException("No hay espacio suficiente para importar PS1.");
@@ -146,7 +147,7 @@ public final class OkubiPs1DiscStore {
         Path temporary=root.resolve(".pending-"+UUID.randomUUID());
         Files.createDirectory(temporary);
         boolean published=false;
-        String selectedHash=null;
+        MessageDigest gameHash=sha256();
         long copied=0;
         try {
             int done=0;
@@ -171,14 +172,15 @@ public final class OkubiPs1DiscStore {
                 }
                 if(Files.size(dest)==0)
                     throw new IOException("Archivo vacío: "+file.name);
-                if(file.name.equals(gameName))
-                    selectedHash=hex(checksum.digest());
+                byte[] fileDigest=checksum.digest();
+                gameHash.update(file.name.getBytes(StandardCharsets.UTF_8));
+                gameHash.update((byte)0);
+                gameHash.update(fileDigest);
                 done++;
                 progress.onProgress(done,files.size(),copied);
             }
             validate(temporary.resolve(gameName),new HashSet<>(),0);
-            if(selectedHash==null)
-                throw new IOException("No se verificó la imagen principal.");
+            String selectedHash=hex(gameHash.digest());
             Path destination=root.resolve(UUID.randomUUID().toString());
             try {
                 Files.move(temporary,destination,StandardCopyOption.ATOMIC_MOVE);
