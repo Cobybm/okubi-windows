@@ -4,6 +4,11 @@ name: OKUBI FINAL Phase 2 Android - installable side-by-side APK
 on:
   push:
     branches: [feat/okubi-phase2-installable-final]
+    paths:
+      - 'android-app/**'
+      - 'retro-module/**'
+      - 'tools/okubi_phase2_android_preflight.py'
+      - '.github/workflows/okubi-final-phase2-android.yml'
   workflow_dispatch:
 
 permissions:
