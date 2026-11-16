@@ -105,6 +105,10 @@ public final class DesktopPspDialog extends JDialog {
                     .endsWith(".pbp")
                   ?"Atención: EBOOT.PBP también puede ser PS1. Confirma que "
                     +"es realmente un juego PSP antes de abrirlo.\n\n":"")
+                +"MANDO Y TECLADO:\\n"
+                +"PPSSPP detecta los mandos compatibles y permite ver/remapear "
+                +"todas las teclas en Ajustes → Controles → Asignación de controles.\\n"
+                +"OKUBI no inventa ni altera esa configuración.\\n\\n"
                 +"No modifica ajustes de PPSSPP ni sus guardados. "
                 +"El programa externo debe estar instalado y ser compatible "
                 +"con el juego y tu hardware.");
