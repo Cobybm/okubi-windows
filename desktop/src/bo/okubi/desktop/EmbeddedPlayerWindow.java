@@ -872,6 +872,17 @@ public final class EmbeddedPlayerWindow {
                     : game.console == DesktopLibrary.Console.GBA ? 160
                     : game.console == DesktopLibrary.Console.SNES ? 224 : 144;
             final int[] pixels = new int[width * height];
+            // Recycle three ARGB frames instead of allocating a new 1.2 MiB
+            // BufferedImage on every PS1 video frame (60+ allocations/s).
+            final BufferedImage[] framePool = new BufferedImage[3];
+            final int[][] frameStorage = new int[3][];
+            for (int i = 0; i < framePool.length; ++i) {
+                framePool[i] = new BufferedImage(width, height,
+                        BufferedImage.TYPE_INT_ARGB);
+                frameStorage[i] = ((java.awt.image.DataBufferInt)
+                        framePool[i].getRaster().getDataBuffer()).getData();
+            }
+            int outputFrame = 0;
             final short[] audio = new short[WindowsRetroNative.MAX_AUDIO_SAMPLES];
             final byte[] pcm = new byte[audio.length * 2];
             double fps = WindowsRetroNative.fps();
@@ -930,10 +941,9 @@ public final class EmbeddedPlayerWindow {
                 }
                 int count = WindowsRetroNative.step(safeButtons(), pixels, audio);
                 if (count < 0) throw new IOException("El núcleo dejó de ejecutar fotogramas.");
-                BufferedImage image = new BufferedImage(width, height,
-                        BufferedImage.TYPE_INT_ARGB);
-                image.setRGB(0, 0, width, height, pixels, 0, width);
-                picture.setFrame(image);
+                int ring = outputFrame++ % framePool.length;
+                System.arraycopy(pixels, 0, frameStorage[ring], 0, pixels.length);
+                picture.setFrame(framePool[ring]);
                 if (sound != null && count > 0 && !muted.get()) {
                     int samples = Math.min(count, audio.length);
                     for (int i = 0; i < samples; i++) {
