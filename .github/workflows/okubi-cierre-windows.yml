@@ -4,7 +4,7 @@ on:
   push:
     branches: [release/okubi-cierre-integrado]
   pull_request:
-    branches: [feat/okubi-phase93-android-universal-apk]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
