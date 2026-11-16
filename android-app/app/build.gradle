@@ -41,7 +41,13 @@ android {
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
         debug {
-            if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
+            // Final Phase 2 lives beside both the installed canonical app
+            // and older QA57. A CI debug key cannot update their signatures.
+            if (project.findProperty('okubiFinalPhase2Isolated')?.toString() == 'true') {
+                applicationIdSuffix '.phase2'
+                versionNameSuffix '-phase2'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
+            } else if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
                 applicationIdSuffix '.qa57'
                 versionNameSuffix '-qa57'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
