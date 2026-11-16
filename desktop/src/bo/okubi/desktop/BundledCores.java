@@ -28,6 +28,7 @@ public final class BundledCores {
         names.put(DesktopLibrary.Console.GBC, "sameboy_libretro.dll");
         names.put(DesktopLibrary.Console.GBA, "mgba_libretro.dll");
         names.put(DesktopLibrary.Console.SNES, "mednafen_supafaust_libretro.dll");
+        names.put(DesktopLibrary.Console.PS1, "mednafen_psx_libretro.dll");
         NAMES = Collections.unmodifiableMap(names);
     }
 

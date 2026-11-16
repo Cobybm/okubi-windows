@@ -37,6 +37,7 @@ public final class RetroArtwork extends JPanel {
             case GBC -> new Color(111, 164, 255);
             case GBA -> new Color(244, 65, 153);
             case SNES -> new Color(175, 126, 255);
+            case PS1 -> new Color(94, 225, 235);
         };
     }
 
@@ -46,6 +47,7 @@ public final class RetroArtwork extends JPanel {
             case GBC -> "GBC";
             case GBA -> "GBA";
             case SNES -> "SNES";
+            case PS1 -> "PS1";
         };
     }
 

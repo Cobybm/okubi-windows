@@ -18,6 +18,7 @@ public final class WindowsRetroNative {
     public static final int GB_PIXELS = 160 * 144;
     public static final int GBA_PIXELS = 240 * 160;
     public static final int SNES_PIXELS = 256 * 224;
+    public static final int PS1_PIXELS = 640 * 480;
     public static final int MAX_AUDIO_SAMPLES = 8192;
 
     private static final class DllLoader {
@@ -76,16 +77,25 @@ public final class WindowsRetroNative {
         if (!Files.isRegularFile(core)
                 || !core.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".dll"))
             throw new IOException("El núcleo Libretro x64 (.dll) no existe.");
+        boolean ps1 = console == DesktopLibrary.Console.PS1;
         if (!Files.isRegularFile(rom) || !Files.isReadable(rom)
-                || DesktopLibrary.Console.fromFile(rom) != console)
+                || (ps1 ? !DesktopPs1Disc.isSupported(rom)
+                        : DesktopLibrary.Console.fromFile(rom) != console))
             throw new IOException("El juego no está disponible o su consola no coincide.");
         long length = Files.size(rom);
-        int maxMB = console == DesktopLibrary.Console.GBA ? 32
-                : console == DesktopLibrary.Console.SNES ? 16 : 8;
-        if (length < 32 * 1024 || length > (long)maxMB * 1024 * 1024)
-            throw new IOException("La ROM tiene un tamaño no compatible (" + length + " bytes).");
+        if (ps1) {
+            if (length <= 0 || length > 4L * 1024 * 1024 * 1024)
+                throw new IOException("La imagen PS1 tiene un tamaño inválido.");
+            DesktopPs1Disc.validateCompanions(rom);
+        } else {
+            int maxMB = console == DesktopLibrary.Console.GBA ? 32
+                    : console == DesktopLibrary.Console.SNES ? 16 : 8;
+            if (length < 32 * 1024 || length > (long)maxMB * 1024 * 1024)
+                throw new IOException("La ROM tiene un tamaño no compatible (" + length + " bytes).");
+        }
         Files.createDirectories(saveDirectory);
-        byte[] content = Files.readAllBytes(rom);
+        // PS1 CUE/CHD/PBP/ISO are opened from disk, not read into Java RAM.
+        byte[] content = ps1 ? null : Files.readAllBytes(rom);
         ensureBridge();
         if (!nativeOpen(content, saveDirectory.toAbsolutePath().toString(),
                 console.name(), core.toString(), rom.toString()))

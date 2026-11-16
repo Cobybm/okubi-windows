@@ -31,6 +31,7 @@ public final class LibretroCoverCatalog {
             case GBC -> "Nintendo - Game Boy Color";
             case GBA -> "Nintendo - Game Boy Advance";
             case SNES -> "Nintendo - Super Nintendo Entertainment System";
+            case PS1 -> "Sony - PlayStation";
         };
     }
 

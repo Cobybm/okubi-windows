@@ -239,10 +239,10 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         tools.setBorder(BorderFactory.createEmptyBorder(1, 0, 1, 0));
         tools.add(button("Añadir juego", this::addFile));
         tools.add(button("Importar carpeta", this::addFolder));
-        tools.add(button("Elegir emulador .exe", this::chooseEmulator));
+        tools.add(button("Configurar PS2 / PS3", this::chooseEmulator));
         tools.add(button("¿QUÉ FORMATO?", this::inspectPlayStationFormat));
         tools.add(button("▶ PS1 · JUGAR", this::quickPlayPs1));
-        tools.add(button("Página oficial", this::officialPage));
+        tools.add(button("AYUDA / FORMATOS", this::officialPage));
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
         tools.add(play);
@@ -325,7 +325,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         settingMode = false;
         if (game == null) {
             details.setText("Importa una carpeta de juegos de tu propiedad.\n\n"
-                    + "PS1: .cue, .chd, .pbp, .m3u\n"
+                    + "PS1 INTEGRADO: .cue, .chd, .pbp, .m3u\n"
                     + "PS2: .iso, .cso, .chd\n"
                     + "PS3: EBOOT.BIN extraído de contenido legítimo.\n\n"
                     + "Los archivos .iso y .chd pueden pertenecer a varias consolas: "
@@ -339,8 +339,15 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         text.append("Archivo: ").append(game.file()).append("\n");
         text.append("Disponible: ").append(game.available() ? "SÍ" : "NO").append("\n");
         Path exe = catalog.emulator(game.console());
-        text.append("Emulador: ").append(exe == null ? "Falta elegir el ejecutable de "
-                + game.console().emulatorName : exe.getFileName()).append("\n\n");
+        if (game.console() == DesktopSmartPerformance.Console.PS1) {
+            text.append("Emulador: BEETLE PSX INTEGRADO EN OKUBI (sin EXE externo)\n");
+            text.append("Importa CUE con sus pistas BIN o una imagen CHD y pulsa JUGAR.\n\n");
+        } else {
+            text.append("Emulador: ").append(exe == null
+                    ? "Falta configurar " + game.console().emulatorName
+                    : exe.getFileName()).append("\n\n");
+        }
+
         if (hardware == null)
             text.append("Estado: pendiente de analizar hardware.");
         else {
@@ -371,7 +378,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
                                     + "sustituir temporalmente otros ajustes específicos del título."
                                 : "SMART GRAPHICS 2.0 desactivado: OKUBI no cambia "
                                     + "ningún ajuste gráfico. Para usarlo, activa SMART CONFIG."
-                            : "PS1/PS3: sin cambios automáticos de configuración interna.");
+                            : "PS1: núcleo interno con configuración segura; PS3 externo experimental.");
         }
         details.setText(text.toString());
         details.setCaretPosition(0);
@@ -432,7 +439,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             if(!DesktopSmartPerformance.acceptedFile(
                     DesktopSmartPerformance.Console.PS1,
                     selected.getFileName().toString()))
-                throw new IOException("Archivo no compatible con DuckStation PS1.");
+                throw new IOException("Archivo no compatible con PlayStation integrado en OKUBI.");
             DesktopPlaystationFormatAdvisor.Advice advice =
                     DesktopPlaystationFormatAdvisor.inspect(selected);
             StringBuilder prompt = new StringBuilder(
@@ -573,6 +580,13 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
     private void chooseEmulator() {
         var console = currentConsole();
         if (console == null) return;
+        if (console == DesktopSmartPerformance.Console.PS1) {
+            JOptionPane.showMessageDialog(this,
+                    "PlayStation 1 utiliza el núcleo integrado en OKUBI. "
+                    + "No hace falta descargar DuckStation ni seleccionar un EXE.",
+                    "OKUBI PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         JFileChooser choose = new JFileChooser();
         choose.setDialogTitle("Seleccionar " + console.emulatorName + " oficial (.exe)");
         choose.setFileFilter(new FileNameExtensionFilter("Ejecutable de Windows", "exe"));
@@ -592,6 +606,17 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
     private void officialPage() {
         var console = currentConsole();
         if (console == null) return;
+        if (console == DesktopSmartPerformance.Console.PS1) {
+            JOptionPane.showMessageDialog(this,
+                    "PS1 YA SE EJECUTA DENTRO DE OKUBI.\n\n"
+                    + "1. Añade tu CUE (con sus BIN al lado) o tu CHD.\n"
+                    + "2. Selecciona el juego de tu biblioteca.\n"
+                    + "3. Pulsa JUGAR. No necesitas DuckStation.\n\n"
+                    + "Si el juego no arranca con OpenBIOS, algunas copias "
+                    + "pueden necesitar una BIOS obtenida de tu propia PS1.",
+                    "OKUBI · Ayuda PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         try {
             if (!Desktop.isDesktopSupported()) throw new IOException("Sin navegador.");
             Desktop.getDesktop().browse(URI.create(console.officialUrl));
@@ -615,8 +640,52 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             refreshCatalog(null);
         } catch (IOException problem) { report(problem); }
     }
+    /** PS1 runs inside the existing Swing/Libretro player, never a separate EXE. */
+    private void playPs1Internally(DesktopMulticonsoleCatalog.Game selected) {
+        if (selected == null || !selected.available()) {
+            report(new IOException("No se encontró la imagen PS1."));
+            return;
+        }
+        if (EmbeddedPlayerWindow.hasActiveSession()) {
+            status.setText("Cierra el juego integrado anterior.");
+            return;
+        }
+        try {
+            Path core = BundledCores.resolve(DesktopLibrary.Console.PS1);
+            if (core == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Este paquete no contiene el núcleo interno de PS1.\n"
+                        + "No es necesario instalar DuckStation.\n"
+                        + "Instala una versión de OKUBI que incluya el núcleo "
+                        + "Beetle PSX (mednafen_psx_libretro.dll).",
+                        "OKUBI · Falta el núcleo PS1", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            DesktopLibrary library = new DesktopLibrary(DesktopLibrary.defaultSettingsFile());
+            library.addConfirmedGame(selected.file(), DesktopLibrary.Console.PS1);
+            DesktopLibrary.Game ps1 = library.games().stream()
+                    .filter(g -> g.console == DesktopLibrary.Console.PS1
+                            && g.rom.equals(selected.file().toAbsolutePath().normalize()))
+                    .findFirst().orElseThrow(() -> new IOException(
+                            "No fue posible reconocer la copia PS1 en tu biblioteca."));
+            // JDialog is application-modal; closing it permits the real internal
+            // JFrame to receive keyboard and XInput focus normally.
+            dispose();
+            EmbeddedPlayerWindow.launch(ps1, core, () -> {
+                try { library.played(ps1); }
+                catch (IOException ignored) { /* Never interrupt gameplay. */ }
+            }, new DesktopPlayStats(DesktopPlayStats.defaultFile()));
+        } catch (IOException error) {
+            report(error);
+        }
+    }
+
     private void launch() {
         var game = gameList.getSelectedValue();
+        if (game != null && game.console() == DesktopSmartPerformance.Console.PS1) {
+            playPs1Internally(game);
+            return;
+        }
         if (game == null || !game.available()) {
             report(new IOException("Juego no disponible."));
             return;

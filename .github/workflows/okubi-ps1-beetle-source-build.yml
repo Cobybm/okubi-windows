@@ -1,0 +1,59 @@
+name: OKUBI PS1 - Source-built Beetle PSX Windows x64
+on:
+  push:
+    branches: [feat/okubi-internal-ps1-core]
+    paths:
+      - '.github/workflows/okubi-ps1-beetle-source-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: windows-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MinGW64 build prerequisites
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            git
+            make
+            tar
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-gcc-libs
+            mingw-w64-x86_64-binutils
+      - name: Build PS1 Libretro from exact upstream GPLv2 source
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          mkdir -p build/ps1-core
+          git clone --filter=blob:none https://github.com/libretro/beetle-psx-libretro.git build/upstream-beetle
+          git -C build/upstream-beetle checkout --detach dd7e2aee57d1e590e45b7e642ba76bf1a4cdbc61
+          test "$(git -C build/upstream-beetle rev-parse HEAD)" = "dd7e2aee57d1e590e45b7e642ba76bf1a4cdbc61"
+          make -C build/upstream-beetle -j2 platform=win HAVE_HW=0
+          test -s build/upstream-beetle/mednafen_psx_libretro.dll
+          cp build/upstream-beetle/mednafen_psx_libretro.dll build/ps1-core/
+          cp build/upstream-beetle/COPYING build/ps1-core/Beetle-PSX-GPLv2.txt
+          git -C build/upstream-beetle archive --format=tar HEAD | gzip -9 > build/ps1-core/Beetle-PSX-corresponding-source.tar.gz
+          sha256sum build/ps1-core/mednafen_psx_libretro.dll > build/ps1-core/PS1-CORE-SHA256SUMS.txt
+          printf '%s\n' 'Repository: https://github.com/libretro/beetle-psx-libretro' 'Exact Git commit: dd7e2aee57d1e590e45b7e642ba76bf1a4cdbc61' 'License: GPL-2.0' 'Windows x64 libretro software core, no BIOS or ROMs' > build/ps1-core/BUILD-PROVENANCE.txt
+      - name: Inspect real PS1 core ABI on Windows
+        shell: pwsh
+        run: |
+          $dll = "build/ps1-core/mednafen_psx_libretro.dll"
+          if (!(Test-Path $dll)) { throw "PS1 core missing" }
+          $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $dll))
+          if ($bytes.Length -lt 100000 -or $bytes[0] -ne 77 -or $bytes[1] -ne 90) {
+            throw "Not a valid nonempty Windows PE library"
+          }
+          $sha = (Get-FileHash $dll -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "BEETLE PS1 SOURCE BUILD SHA256: $sha"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PS1-BEETLE-SOURCE-BUILT-WINDOWS-X64
+          path: build/ps1-core/
+          if-no-files-found: error
+          retention-days: 14

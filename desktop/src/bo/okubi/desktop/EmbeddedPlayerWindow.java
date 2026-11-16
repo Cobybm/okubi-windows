@@ -865,9 +865,11 @@ public final class EmbeddedPlayerWindow {
             }
             int rate = WindowsRetroNative.sampleRate();
             sound = createSound(rate);
-            final int width = game.console == DesktopLibrary.Console.GBA ? 240
+            final int width = game.console == DesktopLibrary.Console.PS1 ? 640
+                    : game.console == DesktopLibrary.Console.GBA ? 240
                     : game.console == DesktopLibrary.Console.SNES ? 256 : 160;
-            final int height = game.console == DesktopLibrary.Console.GBA ? 160
+            final int height = game.console == DesktopLibrary.Console.PS1 ? 480
+                    : game.console == DesktopLibrary.Console.GBA ? 160
                     : game.console == DesktopLibrary.Console.SNES ? 224 : 144;
             final int[] pixels = new int[width * height];
             final short[] audio = new short[WindowsRetroNative.MAX_AUDIO_SAMPLES];
@@ -877,7 +879,9 @@ public final class EmbeddedPlayerWindow {
             long interval = Math.max(8_000_000L, (long)(1_000_000_000.0 / fps));
             long next = System.nanoTime();
             int frames = 0;
-            info("OKUBI ULTRA · F5 guardar · F9 cargar · F12 captura · Xbox conectado automáticamente");
+            info(game.console == DesktopLibrary.Console.PS1
+                    ? "OKUBI PS1 INTEGRADO · Libretro · F5 guardar · F9 cargar · ESC controles"
+                    : "OKUBI ULTRA · F5 guardar · F9 cargar · F12 captura · Xbox conectado automáticamente");
             SwingUtilities.invokeLater(afterLaunch);
             while (running.get()) {
                 if (playSession != null) {
