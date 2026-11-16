@@ -118,6 +118,15 @@ public class OkubiCatalogActivity extends Activity {
         new Game("Homebrew Hub", "GB / GBC / GBA", "Explorar más creaciones",
             "https://hh.gbdev.io/", false)
     };
+    private static final String[][] MULTICONSOLE_SOURCES = {
+        {"Nintendo NES / SNES", "https://itch.io/games/free/tag-homebrew", "Juegos creados por la comunidad; la descarga depende del autor."},
+        {"Game Boy / Color / Advance", "https://hh.gbdev.io/", "Biblioteca homebrew con licencias por entrada."},
+        {"SEGA / Mega Drive / Dreamcast", "https://itch.io/games/free/tag-homebrew", "Buscar versiones originales y demos autorizadas."},
+        {"PlayStation / PSP / PS2 / PS3", "https://itch.io/games/free/tag-homebrew", "Proyectos homebrew y demos; verificar formato y compatibilidad."},
+        {"Saga God of War · Sony", "https://www.playstation.com/es-bo/god-of-war/", "Ficha comercial oficial, sin ROMs piratas ni BIOS."},
+        {"Arcade / Atari / PC clásico", "https://itch.io/games/top-rated/downloadable/free/tag-homebrew", "Títulos gratuitos; requieren motor compatible cuando corresponda."}
+    };
+
     // User-selected external sites: directory links only, never automatic ROM downloads.
     private static final String[][] NINTENDO_SOURCES = {
         {
@@ -525,6 +534,31 @@ public class OkubiCatalogActivity extends Activity {
         }
     }
 
+    private void showMulticonsoleSources(LinearLayout root) {
+        root.addView(label("EXPLORAR TODAS LAS CONSOLAS", 19));
+        root.addView(label("Solo fuentes gratuitas autorizadas o tiendas oficiales. "
+                + "Algunos sistemas todavía requieren un emulador compatible.", 12));
+        for (String[] source : MULTICONSOLE_SOURCES) {
+            LinearLayout panel = new LinearLayout(this);
+            panel.setOrientation(LinearLayout.VERTICAL);
+            panel.setPadding(dp(14), dp(10), dp(14), dp(10));
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(0xFF1E1529);
+            bg.setCornerRadius(dp(14));
+            panel.setBackground(bg);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+            params.topMargin = dp(8);
+            root.addView(panel, params);
+            panel.addView(label(source[0], 17));
+            panel.addView(label(source[2], 12));
+            Button action = new Button(this);
+            action.setAllCaps(false);
+            action.setText("Explorar fuente oficial ↗");
+            action.setOnClickListener(v -> openExternal(source[1]));
+            panel.addView(action);
+        }
+    }
+
     private void showNintendoSources(LinearLayout root) {
         root.addView(label("NINTENDO  /  FANGAMES Y ROM HACKS", 19));
         root.addView(label(
@@ -596,6 +630,7 @@ public class OkubiCatalogActivity extends Activity {
         showDownloadCenter(root);
         showDirectDownloads(root);
         showNintendoSources(root);
+        showMulticonsoleSources(root);
         root.addView(label("HOMEBREW  /  JUEGOS INDEPENDIENTES", 19));
         root.addView(label("Los juegos descargados dentro de OKUBI muestran JUGAR. " +
                 "Si descargaste desde el navegador, vincula una sola vez tu archivo " +
