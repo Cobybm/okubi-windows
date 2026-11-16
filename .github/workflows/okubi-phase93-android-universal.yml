@@ -136,3 +136,39 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+  android26-install-smoke:
+    name: Install and launch isolated QA93 on Android 8 API26
+    needs: android-qa93-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 32
+    steps:
+      - name: Download only this run's verified QA93 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE93-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          path: build/qa93-apk
+      - name: Verify checksum before any installation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/qa93-apk/OKUBI-Android-QA93-Universal.apk
+          (cd build/qa93-apk && sha256sum --check --strict SHA256SUMS.txt)
+      - name: Install and launch actual QA93 on Android API26 without any ROMs
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          force-avd-creation: true
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb wait-for-device
+            adb install build/qa93-apk/OKUBI-Android-QA93-Universal.apk
+            adb shell pm path bo.nexoplay.app.unified.qa93 | grep -F 'package:'
+            adb shell am start -W -n bo.nexoplay.app.unified.qa93/bo.nexoplay.app.MainActivity
+            sleep 5
+            adb shell pidof bo.nexoplay.app.unified.qa93 | grep -E '^[0-9]+'
+            echo 'PASS: QA93 installed and opened in Android API26 without replacing existing versions'
