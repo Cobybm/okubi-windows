@@ -3,6 +3,11 @@ name: OKUBI FINAL Phase 2 Windows - portable playable QA
 on:
   push:
     branches: [feat/okubi-phase2-installable-final]
+    paths:
+      - 'desktop/**'
+      - 'tools/okubi_phase2_install_source_cores.py'
+      - 'tools/okubi_phase2_windows_preflight.py'
+      - '.github/workflows/okubi-final-phase2-windows.yml'
   workflow_dispatch:
 
 concurrency:
@@ -376,11 +381,11 @@ jobs:
           python -m unittest discover -s tools/tests -p 'test_okubi_phase80_rc_preflight.py' -v
           if ($LASTEXITCODE -ne 0) { throw "Final ZIP/APK safety tests failed" }
 
-      - name: Phase80 inspect actual Windows ZIP plus per-core SHA-256 integrity
+      - name: Phase2 inspect actual Windows ZIP, sources, licenses and per-core SHA-256
         shell: pwsh
         working-directory: ${{ runner.temp }}/okubi-desktop-source
         run: |
-          python tools/okubi_phase80_rc_preflight.py --platform windows --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --report build/phase80/windows-qa-report.json
+          python tools/okubi_phase2_windows_preflight.py --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --source-scripts tools --report build/phase80/windows-qa-report.json
           if ($LASTEXITCODE -ne 0) { throw "Windows QA ZIP is unsafe or inconsistent" }
 
       - name: Upload standalone Windows application image
