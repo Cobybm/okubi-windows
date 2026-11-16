@@ -42,7 +42,14 @@ android {
         debug {
             // QA88 installs as a separate application, never attempts to
             // overwrite an older QA57 signed with another debug certificate.
-            if (project.findProperty('okubiQaPhase88')?.toString() == 'true') {
+            if (project.findProperty('okubiQaPhase89')?.toString() == 'true') {
+                // Debug signing changes between CI runs. Separate QA89
+                // from QA88 and all owner-signed installations to avoid
+                // "App not installed" / incompatible signature errors.
+                applicationIdSuffix '.qa89'
+                versionNameSuffix '-qa89-audio'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI QA89 遊']
+            } else if (project.findProperty('okubiQaPhase88')?.toString() == 'true') {
                 applicationIdSuffix '.qa88'
                 versionNameSuffix '-qa88-universal'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI QA88 遊']

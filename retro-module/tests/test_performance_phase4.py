@@ -38,7 +38,7 @@ class Phase4PerformanceContracts(unittest.TestCase):
         self.assertIn("SetIntArrayRegion(env, image",native)
         self.assertIn("(image && (*env)->GetArrayLength",native)
         # The same audio buffer writes regardless of image cadence.
-        self.assertIn("audio.write(acceleratedSamples, 0, count",player)
+        self.assertIn("audio.write(pendingMusic.data(),",player)
         self.assertIn("music.transform(samples,audioCount,acceleratedSamples)",player)
 
     def test_audio_failures_backoff_without_spin(self):
@@ -49,8 +49,11 @@ class Phase4PerformanceContracts(unittest.TestCase):
         self.assertIn("audioRetry.reset();",p)
         self.assertIn('getSharedPreferences("okubi_audio_v1"',p)
         self.assertIn("(safeAudio && RetroSpeedControl.normal(appliedSpeed))",p)
-        self.assertIn("AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING",p)
+        self.assertIn("AudioTrack.WRITE_BLOCKING",p)
+        self.assertIn("AudioTrack.WRITE_NON_BLOCKING",p)
         self.assertIn("music.transform(samples,audioCount,acceleratedSamples)",p)
+        self.assertIn("pendingMusic.consumed(written)",p)
+        self.assertIn("pendingMusic.append(acceleratedSamples,count)",p)
 
     def test_performance_menu_and_safe_user_preferences(self):
         p=self.player

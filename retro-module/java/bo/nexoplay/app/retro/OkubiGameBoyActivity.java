@@ -2106,6 +2106,9 @@ public final class OkubiGameBoyActivity extends Activity {
             int[] imagePixels = new int[frameWidth * frameHeight];
             short[] samples = new short[8192];
             short[] acceleratedSamples = new short[8192];
+            // No allocations during emulation. Keep at most ~340ms of 48kHz
+            // stereo PCM, preserving data Android did not yet accept.
+            RetroPcmQueue pendingMusic = new RetroPcmQueue(32768);
             RetroSpeedControl.AudioAccelerator music =
                     new RetroSpeedControl.AudioAccelerator();
             Bitmap frame = Bitmap.createBitmap(frameWidth, frameHeight, Bitmap.Config.ARGB_8888);
@@ -2227,6 +2230,7 @@ public final class OkubiGameBoyActivity extends Activity {
                     deadline = SystemClock.elapsedRealtimeNanos();
                     renderPolicy.reset();
                     music.setStep(appliedSpeed);
+                    pendingMusic.clear(); // old-speed samples must not play at new speed
                     // Keep device at its supported native sample rate.
                     // The PCM converter accelerates soundtrack without an
                     // unsupported 96/144/192 kHz AudioTrack hardware mode.
@@ -2235,6 +2239,7 @@ public final class OkubiGameBoyActivity extends Activity {
                     audioResetRequested = false;
                     releaseAudioTrack(audio);
                     audio = null;
+                    pendingMusic.clear();
                     audioPaused = false;
                     lastGain = -1f;
                     audioRetry.reset();
@@ -2243,6 +2248,7 @@ public final class OkubiGameBoyActivity extends Activity {
                     if (audio != null && !audioPaused) {
                         try { audio.pause(); audio.flush(); }
                         catch (IllegalStateException ignored) { audioResetRequested = true; }
+                        pendingMusic.clear();
                         audioPaused = true;
                     }
                     SystemClock.sleep(24);
@@ -2290,12 +2296,24 @@ public final class OkubiGameBoyActivity extends Activity {
                 if (audio != null && audioCount > 0) {
                     try {
                         int count = music.transform(samples,audioCount,acceleratedSamples);
-                        int written = audio.write(acceleratedSamples, 0, count,
-                                (safeAudio && RetroSpeedControl.normal(appliedSpeed))
-                                        ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
-                        if (written < 0) {
-                            audioResetRequested = true;
-                            setStatus("Audio reiniciándose por error de salida");
+                        pendingMusic.append(acceleratedSamples,count);
+                        // A nonblocking write can be short: never silently lose
+                        // the unwritten tail. The bounded FIFO retains it across
+                        // subsequent core frames without holding ROM/save locks.
+                        for (int tries=0; tries<2 && pendingMusic.size()>0; tries++) {
+                            int written = audio.write(pendingMusic.data(),
+                                    pendingMusic.offset(), pendingMusic.size(),
+                                    (safeAudio && RetroSpeedControl.normal(appliedSpeed))
+                                            ? AudioTrack.WRITE_BLOCKING
+                                            : AudioTrack.WRITE_NON_BLOCKING);
+                            if (written < 0) {
+                                audioResetRequested = true;
+                                pendingMusic.clear();
+                                setStatus("Audio reiniciándose por error de salida");
+                                break;
+                            }
+                            if (written == 0) break; // try again after next core frame
+                            pendingMusic.consumed(written);
                         }
                     } catch (IllegalStateException error) {
                         audioResetRequested = true;

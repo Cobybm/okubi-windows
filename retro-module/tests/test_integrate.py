@@ -22,7 +22,7 @@ class IntegrationTests(unittest.TestCase):
                          "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
                          "OkubiPersonalLibrary.java", "OkubiSaveArchive.java",
                          "RetroControllerAxes.java", "RetroRenderPolicy.java", "RetroFrameTiming.java", "RetroInputMask.java", "RetroSpeedControl.java", "RetroVisualFilters.java", "RetroScreenFit.java", "RetroCinemaStage.java", "RetroCinemaGeometry.java",
-                         "RetroAudioRetry.java", "RetroRomReader.java", "RetroAdaptiveLayout.java", "OkubiIndieLibrary.java", "OkubiDownloadProgress.java", "RetroSaveSlots.java", "RetroSlotRequests.java", "RetroSlotPreviews.java"):
+                         "RetroAudioRetry.java", "RetroPcmQueue.java", "RetroRomReader.java", "RetroAdaptiveLayout.java", "OkubiIndieLibrary.java", "OkubiDownloadProgress.java", "RetroSaveSlots.java", "RetroSlotRequests.java", "RetroSlotPreviews.java"):
             (java / filename).write_text("// test placeholder")
         (java.parent / "OkubiGameScanner.java").write_text("// placeholder scanner")
         native = base / "retro-module/native"
@@ -61,7 +61,7 @@ package="bo.nexoplay.app">
             self.assertEqual(5,len(activities))
             self.assertEqual(5,len({a.get(ns) for a in activities}))
             sources=list((output/"app/src/main/java/bo/nexoplay/app/retro").glob("*.java"))
-            self.assertEqual(38,len(sources))
+            self.assertEqual(39,len(sources))
             self.assertTrue(any(p.get(ns)=="android.permission.INTERNET"
                                 for p in tree.findall("uses-permission")))
             app=tree.find("application")

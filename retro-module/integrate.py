@@ -39,7 +39,7 @@ def integrate(repo: Path, output: Path):
                 "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
                 "OkubiPersonalLibrary.java", "OkubiSaveArchive.java",
                 "RetroControllerAxes.java", "RetroRenderPolicy.java", "RetroFrameTiming.java", "RetroInputMask.java", "RetroSpeedControl.java", "RetroVisualFilters.java", "RetroScreenFit.java",
-                "RetroAudioRetry.java", "RetroRomReader.java", "RetroAdaptiveLayout.java", "RetroCinemaStage.java", "RetroCinemaGeometry.java", "OkubiIndieLibrary.java", "OkubiDownloadProgress.java", "RetroSaveSlots.java", "RetroSlotRequests.java", "RetroSlotPreviews.java")
+                "RetroAudioRetry.java", "RetroPcmQueue.java", "RetroRomReader.java", "RetroAdaptiveLayout.java", "RetroCinemaStage.java", "RetroCinemaGeometry.java", "OkubiIndieLibrary.java", "OkubiDownloadProgress.java", "RetroSaveSlots.java", "RetroSlotRequests.java", "RetroSlotPreviews.java")
     for filename in expected:
         src = source / filename
         if not src.is_file():
