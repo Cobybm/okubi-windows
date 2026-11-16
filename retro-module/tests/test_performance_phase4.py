@@ -38,7 +38,8 @@ class Phase4PerformanceContracts(unittest.TestCase):
         self.assertIn("SetIntArrayRegion(env, image",native)
         self.assertIn("(image && (*env)->GetArrayLength",native)
         # The same audio buffer writes regardless of image cadence.
-        self.assertIn("audio.write(samples, 0, audioCount",player)
+        self.assertIn("audio.write(acceleratedSamples, 0, count",player)
+        self.assertIn("music.transform(samples,audioCount,acceleratedSamples)",player)
 
     def test_audio_failures_backoff_without_spin(self):
         p=self.player
