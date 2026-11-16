@@ -325,7 +325,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         settingMode = false;
         if (game == null) {
             details.setText("Importa una carpeta de juegos de tu propiedad.\n\n"
-                    + "PS1: .cue, .chd, .pbp, .m3u\n"
+                    + "PS1 INTEGRADO: .cue, .chd, .pbp, .m3u\n"
                     + "PS2: .iso, .cso, .chd\n"
                     + "PS3: EBOOT.BIN extraído de contenido legítimo.\n\n"
                     + "Los archivos .iso y .chd pueden pertenecer a varias consolas: "
@@ -339,8 +339,15 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         text.append("Archivo: ").append(game.file()).append("\n");
         text.append("Disponible: ").append(game.available() ? "SÍ" : "NO").append("\n");
         Path exe = catalog.emulator(game.console());
-        text.append("Emulador: ").append(exe == null ? "Falta elegir el ejecutable de "
-                + game.console().emulatorName : exe.getFileName()).append("\n\n");
+        if (game.console() == DesktopSmartPerformance.Console.PS1) {
+            text.append("Emulador: BEETLE PSX INTEGRADO EN OKUBI (sin EXE externo)\n");
+            text.append("Importa CUE con sus pistas BIN o una imagen CHD y pulsa JUGAR.\n\n");
+        } else {
+            text.append("Emulador: ").append(exe == null
+                    ? "Falta configurar " + game.console().emulatorName
+                    : exe.getFileName()).append("\n\n");
+        }
+
         if (hardware == null)
             text.append("Estado: pendiente de analizar hardware.");
         else {
@@ -601,10 +608,10 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         if (console == null) return;
         if (console == DesktopSmartPerformance.Console.PS1) {
             JOptionPane.showMessageDialog(this,
-                    "PS1 YA SE EJECUTA DENTRO DE OKUBI.\\n\\n"
-                    + "1. Añade tu CUE (con sus BIN al lado) o tu CHD.\\n"
-                    + "2. Selecciona el juego de tu biblioteca.\\n"
-                    + "3. Pulsa JUGAR. No necesitas DuckStation.\\n\\n"
+                    "PS1 YA SE EJECUTA DENTRO DE OKUBI.\n\n"
+                    + "1. Añade tu CUE (con sus BIN al lado) o tu CHD.\n"
+                    + "2. Selecciona el juego de tu biblioteca.\n"
+                    + "3. Pulsa JUGAR. No necesitas DuckStation.\n\n"
                     + "Si el juego no arranca con OpenBIOS, algunas copias "
                     + "pueden necesitar una BIOS obtenida de tu propia PS1.",
                     "OKUBI · Ayuda PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
