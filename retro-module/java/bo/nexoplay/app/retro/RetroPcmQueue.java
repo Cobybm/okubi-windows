@@ -63,10 +63,14 @@ public final class RetroPcmQueue {
         count += sourceCount;
     }
 
-    /** A partially accepted write is removed exactly, not rounded away. */
+    /**
+     * AudioTrack must consume *complete stereo frames*. Consuming an odd
+     * number of shorts would turn the next left sample into a right sample.
+     * Reject anomalous device responses without corrupting our pending FIFO.
+     */
     public void consumed(int writtenShorts) {
-        if (writtenShorts < 0 || writtenShorts > count)
-            throw new IllegalArgumentException("AudioTrack wrote invalid count");
+        if (writtenShorts < 0 || writtenShorts > count || (writtenShorts & 1) != 0)
+            throw new IllegalArgumentException("AudioTrack must consume complete stereo frames");
         start += writtenShorts;
         count -= writtenShorts;
         if (count == 0) start = 0;
