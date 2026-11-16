@@ -40,7 +40,13 @@ android {
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
         debug {
-            if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
+            // QA88 installs as a separate application, never attempts to
+            // overwrite an older QA57 signed with another debug certificate.
+            if (project.findProperty('okubiQaPhase88')?.toString() == 'true') {
+                applicationIdSuffix '.qa88'
+                versionNameSuffix '-qa88-universal'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI QA88 遊']
+            } else if (project.findProperty('okubiQaSideBySide')?.toString() == 'true') {
                 applicationIdSuffix '.qa57'
                 versionNameSuffix '-qa57'
                 manifestPlaceholders = [okubiAppLabel: 'OKUBI QA57 遊']
