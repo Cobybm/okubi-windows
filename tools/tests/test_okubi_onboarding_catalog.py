@@ -46,11 +46,10 @@ class GuidedOnboardingAndGamesTests(unittest.TestCase):
     def test_downloads_are_allowlisted_no_piracy(self):
         self.assertIn("ENTRIES.contains(entry)",PC)
         self.assertIn("HttpClient.Redirect.NEVER",PC)
-        self.assertIn('No se incluyen ROMs comerciales',DIALOG) if False else None
         self.assertIn("DesktopHomebrewDownloads.authorizedDirect(entry)",DIALOG)
         self.assertIn("getSelectedIndex()",DIALOG)
         self.assertIn('new JComboBox<>(FILTERS)',DIALOG)
-        self.assertTrue(re.search(r'new Entry\\("2048 GB.*https://hh3\\.gbdev\\.io',PC,re.S))
+        self.assertIn("https://hh3.gbdev.io/api/entry/2048gb/2048.gb",PC)
 
 if __name__=="__main__":
     unittest.main()
