@@ -855,7 +855,7 @@ public class OkubiCatalogActivity extends Activity {
                     File directory = target.getParentFile();
                     if (!directory.isDirectory() && !directory.mkdirs())
                         throw new IllegalStateException("No se pudo crear la biblioteca");
-                    if (!target.isFile() || target.length() < 32768) {
+                    if (!verifiedDirectGame(game)) {
                         HttpURLConnection connection = (HttpURLConnection)new URL(game.url).openConnection();
                         connection.setConnectTimeout(12000);
                         connection.setReadTimeout(12000);
@@ -896,7 +896,7 @@ public class OkubiCatalogActivity extends Activity {
                                 atomic.finishWrite(out);
                                 out = null;
                                 if (!hasGameBoyHeader(target)) {
-                                    if (!target.delete()) target.deleteOnExit();
+                                    target.delete();
                                     throw new IOException("La descarga no es una ROM Game Boy válida");
                                 }
                             } catch (Exception error) {
