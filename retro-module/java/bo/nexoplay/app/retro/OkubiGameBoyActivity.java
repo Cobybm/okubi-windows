@@ -2313,6 +2313,14 @@ public final class OkubiGameBoyActivity extends Activity {
                                 break;
                             }
                             if (written == 0) break; // try again after next core frame
+                            if ((written & 1) != 0 || written > pendingMusic.size()) {
+                                // A broken AudioTrack response cannot safely advance
+                                // an interleaved stereo FIFO; recover next frame.
+                                audioResetRequested = true;
+                                pendingMusic.clear();
+                                setStatus("Audio reiniciándose por datos desalineados");
+                                break;
+                            }
                             pendingMusic.consumed(written);
                         }
                     } catch (IllegalStateException error) {

@@ -14,6 +14,12 @@ public final class RetroPcmQueueTest {
         RetroPcmQueue queue=new RetroPcmQueue(12);
         queue.append(pair(1,2,3,4,5,6),6);
         check(queue.size()==6,"first PCM batch");
+        boolean oddRejected=false;
+        try { queue.consumed(1); }
+        catch(IllegalArgumentException expected){ oddRejected=true; }
+        check(oddRejected,"odd output length rejected to protect stereo channels");
+        check(queue.size()==6 && queue.offset()==0,
+                "invalid output does not mutate queued stereo audio");
         queue.consumed(2);
         check(queue.size()==4 && queue.data()[queue.offset()]==3,
                 "partial nonblocking write retains unwritten stereo frames");
