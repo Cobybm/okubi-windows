@@ -18,7 +18,7 @@ class IntegrationTests(unittest.TestCase):
         java.mkdir(parents=True)
         for filename in ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java", "OkubiHomebrewHubClient.java",
                          "OkubiPokemonActivity.java", "RetroTouchPad.java", "RetroDpadHitMap.java", "RetroFileInspector.java", "RetroExpansionFormats.java", "RetroSystems.java", "RetroExternalLauncher.java", "RetroDeviceProfile.java", "RetroAspectFrame.java",
-                         "SameBoyNative.java", "OkubiGameBoyActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
+                         "SameBoyNative.java", "OkubiGameBoyActivity.java", "OkubiPs1Native.java", "OkubiPs1DiscStore.java", "OkubiPs1ImportActivity.java", "OkubiPs1PlayerActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
                          "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
                          "OkubiPersonalLibrary.java", "OkubiSaveArchive.java",
                          "RetroControllerAxes.java", "RetroRenderPolicy.java", "RetroFrameTiming.java", "RetroInputMask.java", "RetroSpeedControl.java", "RetroVisualFilters.java", "RetroScreenFit.java", "RetroCinemaStage.java", "RetroCinemaGeometry.java",
@@ -27,7 +27,7 @@ class IntegrationTests(unittest.TestCase):
         (java.parent / "OkubiGameScanner.java").write_text("// placeholder scanner")
         native = base / "retro-module/native"
         native.mkdir(parents=True)
-        for filename in ("sameboy_bridge.c", "libretro.h", "CMakeLists.txt"):
+        for filename in ("sameboy_bridge.c", "okubi_ps1_bridge.c", "libretro.h", "CMakeLists.txt"):
             (native / filename).write_text("// build placeholder")
 
         xml = """<?xml version="1.0" encoding="utf-8"?>
@@ -58,10 +58,10 @@ package="bo.nexoplay.app">
             tree=ET.parse(manifest)
             ns="{http://schemas.android.com/apk/res/android}name"
             activities=tree.findall("./application/activity")
-            self.assertEqual(5,len(activities))
-            self.assertEqual(5,len({a.get(ns) for a in activities}))
+            self.assertEqual(7,len(activities))
+            self.assertEqual(7,len({a.get(ns) for a in activities}))
             sources=list((output/"app/src/main/java/bo/nexoplay/app/retro").glob("*.java"))
-            self.assertEqual(39,len(sources))
+            self.assertEqual(43,len(sources))
             self.assertTrue(any(p.get(ns)=="android.permission.INTERNET"
                                 for p in tree.findall("uses-permission")))
             app=tree.find("application")
@@ -84,7 +84,7 @@ package="bo.nexoplay.app">
             self.assertIn("Settings.ACTION_ZEN_MODE_PRIORITY_SETTINGS", source.read_text(encoding="utf-8"))
             mod.integrate(root,output)
             tree=ET.parse(manifest)
-            self.assertEqual(5,len(tree.findall("./application/activity")))
+            self.assertEqual(7,len(tree.findall("./application/activity")))
     def test_editable_android_project_has_priority(self):
         with TemporaryDirectory() as temp:
             root=Path(temp)
