@@ -33,7 +33,7 @@ def integrate(repo: Path, output: Path):
     source = repo / "retro-module/java/bo/nexoplay/app/retro"
     destination = output / "app/src/main/java/bo/nexoplay/app/retro"
     destination.mkdir(parents=True, exist_ok=True)
-    expected = ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java",
+    expected = ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java", "OkubiHomebrewHubClient.java",
                 "OkubiPokemonActivity.java", "RetroTouchPad.java", "RetroDpadHitMap.java", "RetroFileInspector.java", "RetroExpansionFormats.java", "RetroSystems.java", "RetroExternalLauncher.java", "RetroDeviceProfile.java", "RetroAspectFrame.java",
                 "SameBoyNative.java", "OkubiGameBoyActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
                 "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
