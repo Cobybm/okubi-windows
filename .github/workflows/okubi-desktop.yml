@@ -197,6 +197,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Phase68 burst search and category refresh failed" }
           & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopLibraryBatchTest
           if ($LASTEXITCODE -ne 0) { throw "Phase69 progressive library batch selection failed" }
+          & java -ea -Djava.awt.headless=true -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopMediaPanelLayoutTest
+          if ($LASTEXITCODE -ne 0) { throw "Music and audio popup button layout, text wrapping or controls regression failed" }
 
       # Do not fetch rolling Libretro nightly ZIPs. The latest CDN bytes
       # change without a reproducible source revision. Instead reuse the exact
