@@ -689,7 +689,26 @@ public class OkubiCatalogActivity extends Activity {
         if (!game.direct) return false;
         File file = directHomebrewFile(game);
         return file.isFile() && file.length() >= 32768
-                && file.length() <= 8L * 1024 * 1024;
+                && file.length() <= 8L * 1024 * 1024
+                && hasGameBoyHeader(file);
+    }
+
+    /** Reject HTML/error pages and incomplete binary files before launching. */
+    private static boolean hasGameBoyHeader(File file) {
+        // Official Nintendo cartridge header logo at 0x104; needed by SameBoy.
+        final String logo = "CEED6666CC0D000B03730083000C000D0008111F8889000EDC"
+                + "CC6EE6DDDDD999BBBB67636E0EECCCDDDC999FBBB9333E";
+        try (java.io.RandomAccessFile rom = new java.io.RandomAccessFile(file, "r")) {
+            if (rom.length() < 0x150) return false;
+            rom.seek(0x104);
+            for (int i = 0; i < 48; i++) {
+                int expected = Integer.parseInt(logo.substring(i * 2, i * 2 + 2), 16);
+                if (rom.readUnsignedByte() != expected) return false;
+            }
+            return true;
+        } catch (IOException | NumberFormatException error) {
+            return false;
+        }
     }
 
     private void playDirectGame(Game game) {
@@ -876,6 +895,10 @@ public class OkubiCatalogActivity extends Activity {
                                     throw new IllegalStateException("Descarga incompleta");
                                 atomic.finishWrite(out);
                                 out = null;
+                                if (!hasGameBoyHeader(target)) {
+                                    if (!target.delete()) target.deleteOnExit();
+                                    throw new IOException("La descarga no es una ROM Game Boy válida");
+                                }
                             } catch (Exception error) {
                                 if (out != null) atomic.failWrite(out);
                                 throw error;
