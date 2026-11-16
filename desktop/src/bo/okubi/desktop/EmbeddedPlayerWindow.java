@@ -429,47 +429,53 @@ public final class EmbeddedPlayerWindow {
     }
 
     private void showMediaPanel() {
-        javax.swing.JPanel panel = new javax.swing.JPanel(new BorderLayout(8,8));
-        panel.setBackground(new Color(25,18,38));
-        javax.swing.JLabel brand = new javax.swing.JLabel("OKUBI 遊  ·  MÚSICA Y AUDIO");
-        brand.setFont(new Font("Segoe UI",Font.BOLD,17));
-        brand.setForeground(PINK);
-        JPanel brandRow = new JPanel(new BorderLayout(10,0));
-        brandRow.setOpaque(false);
-        brandRow.add(new DesktopOkubiLogo(54),BorderLayout.WEST);
-        brandRow.add(brand,BorderLayout.CENTER);
-        panel.add(brandRow,BorderLayout.NORTH);
-        JPanel media = new JPanel(new java.awt.GridLayout(2,3,6,6));
-        media.setOpaque(false);
-        media.add(new CinemaButton("◀ ANTERIOR",false,()->sendSystemMedia(0)));
-        media.add(new CinemaButton("▶ PAUSA",false,()->sendSystemMedia(1)));
-        media.add(new CinemaButton("SIGUIENTE ▶",false,()->sendSystemMedia(2)));
-        media.add(new CinemaButton("SISTEMA MUTE",false,()->sendSystemMedia(3)));
-        media.add(new CinemaButton("SOLO JUEGO M",false,this::toggleMute));
-        media.add(new CinemaButton("VELOCIDAD F6",false,this::cycleSpeed));
-        panel.add(media,BorderLayout.CENTER);
-        JPanel lower = new JPanel(new BorderLayout(6,3));
-        lower.setOpaque(false);
-        javax.swing.JLabel gainLabel = new javax.swing.JLabel("Volumen SOLO del juego: "
-                + gameVolume.get() + "%");
-        gainLabel.setForeground(MUTED);
-        javax.swing.JSlider gain = new javax.swing.JSlider(0,100,gameVolume.get());
-        gain.setOpaque(false);
-        gain.addChangeListener(e->{
-            gameVolume.set(gain.getValue());
-            gainLabel.setText("Volumen SOLO del juego: "+gain.getValue()+"%");
-        });
-        lower.add(gainLabel,BorderLayout.NORTH);
-        lower.add(gain,BorderLayout.CENTER);
-        javax.swing.JLabel note = new javax.swing.JLabel(
-                "<html>Las teclas de música controlan el reproductor activo si Windows lo admite.<br>"
-                + "Mute del sistema afecta TODO el sonido del PC, no solo OKUBI.</html>");
-        note.setForeground(MUTED);
-        lower.add(note,BorderLayout.SOUTH);
-        panel.add(lower,BorderLayout.SOUTH);
-        javax.swing.JOptionPane.showMessageDialog(window,panel,
-                "OKUBI 遊 · Audio y música externa",javax.swing.JOptionPane.PLAIN_MESSAGE);
-        picture.requestFocusInWindow();
+        // JOptionPane constrained the former 2x3 grid to ~360px on Windows:
+        // action labels and the warning about system-wide mute were clipped.
+        // A proper modal, keyboard-accessible dark dialog respects the intended
+        // content width, avoids the native white JOptionPane footer and does
+        // not access ROMs, saves, media files or installed application profiles.
+        String title = new Font(Font.DIALOG, Font.BOLD, 15).canDisplay('遊')
+                ? "OKUBI 遊 · Audio y música externa"
+                : "OKUBI · Audio y música externa";
+        javax.swing.JDialog dialog = new javax.swing.JDialog(
+                window, title, java.awt.Dialog.ModalityType.APPLICATION_MODAL);
+        dialog.setDefaultCloseOperation(javax.swing.JDialog.DISPOSE_ON_CLOSE);
+        dialog.setIconImage(DesktopOkubiLogo.icon(64));
+
+        DesktopMediaPanel mediaPanel = new DesktopMediaPanel(
+                gameVolume, speedStep,
+                () -> sendSystemMedia(0),
+                () -> sendSystemMedia(1),
+                () -> sendSystemMedia(2),
+                () -> sendSystemMedia(3),
+                this::toggleMute,
+                this::cycleSpeed);
+        JPanel content = new JPanel(new BorderLayout(0, 0));
+        content.setBackground(new Color(25, 18, 38));
+        content.add(mediaPanel, BorderLayout.CENTER);
+
+        JPanel footer = new JPanel(new java.awt.FlowLayout(
+                java.awt.FlowLayout.RIGHT, 16, 10));
+        footer.setBackground(new Color(25, 18, 38));
+        CinemaButton close = new CinemaButton("CERRAR", true, dialog::dispose);
+        close.setName("okubi-media-close");
+        close.setPreferredSize(new Dimension(145, 40));
+        footer.add(close);
+        content.add(footer, BorderLayout.SOUTH);
+        dialog.setContentPane(content);
+        dialog.getRootPane().setDefaultButton(close);
+        dialog.getRootPane().registerKeyboardAction(event -> dialog.dispose(),
+                javax.swing.KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+        dialog.pack();
+        dialog.setMinimumSize(new Dimension(650, 410));
+        dialog.setLocationRelativeTo(window);
+        try {
+            dialog.setVisible(true);
+        } finally {
+            dialog.dispose();
+            picture.requestFocusInWindow();
+        }
     }
 
     private void addSpeedButton(JPanel bar) {
