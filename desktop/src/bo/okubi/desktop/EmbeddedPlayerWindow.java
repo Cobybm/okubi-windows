@@ -912,7 +912,8 @@ public final class EmbeddedPlayerWindow {
             long frames = 0;
             DesktopSpeedControl.AudioAccelerator soundtrack =
                     new DesktopSpeedControl.AudioAccelerator();
-            info("OKUBI ULTRA · F5 guardar · F9 cargar · F12 captura · Xbox conectado automáticamente");
+            DesktopPcmQueue pendingSound = new DesktopPcmQueue(32768);
+            info("OKUBI ULTRA · F6 velocidad con música · F8 panel musical · F5 guardar · F9 cargar");
             SwingUtilities.invokeLater(afterLaunch);
             while (running.get()) {
                 if (playSession != null) {
@@ -955,6 +956,7 @@ public final class EmbeddedPlayerWindow {
                     }
                 }
                 if (paused.get()) {
+                    pendingSound.clear(); // don't hear stale soundtrack after resume
                     LockSupport.parkNanos(25_000_000L);
                     next = System.nanoTime();
                     continue;
@@ -963,6 +965,7 @@ public final class EmbeddedPlayerWindow {
                 if(requestedSpeed!=lastSpeed) {
                     lastSpeed=requestedSpeed;
                     soundtrack.setStep(requestedSpeed);
+                    pendingSound.clear();
                     interval=DesktopSpeedControl.frameInterval(normalInterval,requestedSpeed);
                     next=System.nanoTime();
                 }
@@ -975,13 +978,23 @@ public final class EmbeddedPlayerWindow {
                     image.setRGB(0, 0, width, height, pixels, 0, width);
                     picture.setFrame(image);
                 }
-                if (sound != null && count > 0 && !muted.get()) {
-                    // Never mute at >1x. Output fewer PCM frames at normal device
-                    // sample rate, so the ORIGINAL soundtrack plays faster/higher.
-                    int bytes=soundtrack.convert(audio,Math.min(count,audio.length),
-                            pcm,gameVolume.get());
-                    if (sound.available() >= bytes && bytes > 0)
-                        sound.write(pcm, 0, bytes);
+                if (muted.get()) {
+                    pendingSound.clear(); // game mute never mutes music in other apps
+                } else if (sound != null) {
+                    if (count > 0) {
+                        // The original Libretro soundtrack follows game speed.
+                        // Audio unavailable in the Windows mixer no longer drops
+                        // an entire frame: keep unwritten bytes in a bounded FIFO.
+                        int bytes=soundtrack.convert(audio,Math.min(count,audio.length),
+                                pcm,gameVolume.get());
+                        pendingSound.append(pcm,bytes);
+                    }
+                    int canWrite=pendingSound.writable(sound.available());
+                    if (canWrite>0) {
+                        int written=sound.write(pendingSound.data(),
+                                pendingSound.offset(),canWrite);
+                        if (written>0)pendingSound.consume(written);
+                    }
                 }
                 if (++frames % Math.max(1, (int)(fps * 30)) == 0) {
                     try { saves.store(); }
