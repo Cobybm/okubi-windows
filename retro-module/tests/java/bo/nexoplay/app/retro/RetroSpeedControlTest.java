@@ -34,6 +34,29 @@ public final class RetroSpeedControlTest {
         check(RetroSpeedControl.presentFrame(5,3),"3x present video 1/3");
         check(!RetroSpeedControl.presentFrame(5,4),"3x skip video");
         check(RetroSpeedControl.normal(1),"only x1 normal");
+        RetroSpeedControl.AudioAccelerator audio =
+                new RetroSpeedControl.AudioAccelerator();
+        short[] nativeSamples=new short[200];
+        short[] accelerated=new short[200];
+        for(int i=0;i<200;i++)nativeSamples[i]=(short)(i%2==0?12000:-12000);
+        check(audio.transform(nativeSamples,200,accelerated)==200,
+                "normal native PCM intact");
+        audio.setStep(2);
+        check(audio.transform(nativeSamples,200,accelerated)==160,
+                "1.25x leaves audible faster PCM");
+        audio.setStep(4);
+        check(audio.transform(nativeSamples,200,accelerated)==100,
+                "2x game music sounds at 2x, not silent");
+        audio.setStep(5);
+        check(audio.transform(nativeSamples,200,accelerated)>0,
+                "3x music still audible");
+        audio.setStep(1);
+        check(audio.transform(nativeSamples,200,accelerated)==200,
+                "normal soundtrack restored immediately");
+        boolean rejected=false;
+        try{audio.transform(nativeSamples,199,accelerated);}
+        catch(IllegalArgumentException expected){rejected=true;}
+        check(rejected,"reject truncated stereo buffer");
         System.out.println("RetroSpeedControlTest: OK");
     }
 }
