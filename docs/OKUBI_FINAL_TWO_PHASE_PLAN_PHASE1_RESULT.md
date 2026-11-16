@@ -12,7 +12,7 @@ Se partió de `release/okubi-phase82-final-acceptance-gates`, que sí contiene l
 
 ## Incorporado en código ejecutable
 1. **Windows**: panel DESCUBRIR JUEGOS en la barra lateral y acceso Ctrl+D. Tarjetas de catálogo con enlaces originales. Descarga directa explícita de 2048 GB desde Homebrew Hub, almacenada bajo APPDATA/OKUBI/homebrew, verificación de cabecera de cartucho, límites, no redirecciones, comprobación SHA-256 e importación a la biblioteca existente en SwingWorker.
-2. **Windows**: guía de teclas reales al primer inicio por consola; refleja los cambios guardados en DesktopPlaySettings. En el CINEMA CONTROL CENTER se incorpora **VER CONTROLES** para consultarla de nuevo, con distribución XInput y atajos F5/F9/ESC.
+2. **Windows**: guía de teclas reales al primer inicio por consola (se cierra automáticamente a los 8 segundos para mandos sin teclado); refleja los cambios guardados en DesktopPlaySettings. En el CINEMA CONTROL CENTER se incorpora **VER CONTROLES** para consultarla de nuevo, con distribución XInput y atajos F5/F9/ESC.
 3. **Android**: guía del primer inicio para GB/GBC/GBA/SNES con teclas WASD, J/K, Q/E, U/I, Enter y Shift, y mandos físicos USB/Bluetooth ya soportados. Menú rápido mantiene acceso a controles. Guarda únicamente la preferencia de mostrar guía.
 4. **Android**: catálogo retro añade 2048 GB como segundo título con descarga directa seleccionada desde Homebrew Hub, cabecera GB verificada; archivos inválidos se rechazan y se pueden descargar de nuevo. Se añaden fuentes por consola y ficha oficial God of War sin proporcionar ISOs comerciales.
 5. **Identidad Android**: la etiqueta del launcher es OKUBI 遊 tanto para la variante normal como para QA side-by-side. Se mantiene `applicationId`, firma no se modifica; el APK QA no reemplaza la instalación normal.
@@ -20,7 +20,7 @@ Se partió de `release/okubi-phase82-final-acceptance-gates`, que sí contiene l
 
 ## No confundir biblioteca con compatibilidad
 - Solo GB/GBC/GBA/SNES tienen emuladores de núcleo integrados previamente. PlayStation PS1/PS2/PS3 usan emuladores externos oficialmente instalados cuando se configuran; otras consolas son catálogo y enlaces de descubrimiento, **no** una afirmación de emulación para todas.
-- Solo los juegos cuya fuente permite descarga automática, tienen URL directa fija y verificable y estén registrados en la lista segura activan el botón Descargar. Comercial God of War solo ficha, fuente oficial e importación de copia autorizada.
+- En Windows, solo los juegos cuya fuente permite descarga automática, tienen URL directa fija y verificable y estén registrados en la lista segura activan el botón Descargar. En Android, además, se permiten entradas públicas de Homebrew Hub cuya respuesta indique licencia abierta, plataforma soportada, título original (no hackrom) y archivo jugable; siempre con origen HTTPS limitado y validación de ROM. Comercial God of War solo ficha, fuente oficial e importación de copia autorizada.
 - La API externa puede cambiar, fallar o no estar disponible: no afirmar descarga online exitosa sin probarla con red real. No hay descarga directa para todas las sagas o plataformas.
 - Android y Windows NO alteran el audio del reproductor externo sin su permiso.
 
