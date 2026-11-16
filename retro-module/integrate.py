@@ -35,7 +35,7 @@ def integrate(repo: Path, output: Path):
     destination.mkdir(parents=True, exist_ok=True)
     expected = ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java", "OkubiHomebrewHubClient.java",
                 "OkubiPokemonActivity.java", "RetroTouchPad.java", "RetroDpadHitMap.java", "RetroFileInspector.java", "RetroExpansionFormats.java", "RetroSystems.java", "RetroExternalLauncher.java", "RetroDeviceProfile.java", "RetroAspectFrame.java",
-                "SameBoyNative.java", "OkubiGameBoyActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
+                "SameBoyNative.java", "OkubiGameBoyActivity.java", "OkubiPs1Native.java", "OkubiPs1DiscStore.java", "OkubiPs1ImportActivity.java", "OkubiPs1PlayerActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
                 "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
                 "OkubiPersonalLibrary.java", "OkubiSaveArchive.java",
                 "RetroControllerAxes.java", "RetroRenderPolicy.java", "RetroFrameTiming.java", "RetroInputMask.java", "RetroSpeedControl.java", "RetroVisualFilters.java", "RetroScreenFit.java",
@@ -56,7 +56,7 @@ def integrate(repo: Path, output: Path):
     native_src = repo / "retro-module/native"
     native_dest = output / "app/src/main/cpp"
     native_dest.mkdir(parents=True, exist_ok=True)
-    for filename in ("sameboy_bridge.c", "libretro.h", "CMakeLists.txt"):
+    for filename in ("sameboy_bridge.c", "okubi_ps1_bridge.c", "libretro.h", "CMakeLists.txt"):
         shutil.copy2(native_src / filename, native_dest / filename)
 
     gradle_file = output / "app/build.gradle"
@@ -115,7 +115,7 @@ def integrate(repo: Path, output: Path):
     if not any(el.get(permission) == "android.permission.INTERNET" for el in root.findall("uses-permission")):
         ET.Element("noop")  # do not change the app's target API or other permissions
         root.insert(0, ET.Element("uses-permission", {permission: "android.permission.INTERNET"}))
-    for short_name in ("OkubiRetroActivity", "OkubiCatalogActivity", "OkubiPokemonActivity", "OkubiGameBoyActivity"):
+    for short_name in ("OkubiRetroActivity", "OkubiCatalogActivity", "OkubiPokemonActivity", "OkubiGameBoyActivity", "OkubiPs1ImportActivity", "OkubiPs1PlayerActivity"):
         full_name = "bo.nexoplay.app.retro." + short_name
         matched = [el for el in app.findall("activity") if el.get(permission) == full_name]
         if matched:
@@ -130,7 +130,7 @@ def integrate(repo: Path, output: Path):
             # ADB smoke tests may launch this screen explicitly without adding a second app icon.
             activity.set("{%s}exported" % ANDROID_NS, "true")
             activity.set("{%s}label" % ANDROID_NS, "OKUBI Retro")
-        if short_name == "OkubiGameBoyActivity":
+        if short_name in ("OkubiGameBoyActivity", "OkubiPs1PlayerActivity"):
             # Resize/fold/split-screen/configuration changes must re-measure
             # the game SurfaceView and touch overlay without reopening ROMs.
             activity.set("{%s}configChanges" % ANDROID_NS,

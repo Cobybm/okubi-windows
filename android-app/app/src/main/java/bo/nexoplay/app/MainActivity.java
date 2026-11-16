@@ -85,9 +85,9 @@ public final class MainActivity extends Activity {
         new TourStep(Screen.DISCOVER,"discover_homebrew","Explorar juegos gratuitos",
             "Aquí encontrarás homebrew y juegos que sus autores ofrecen legalmente. Podrás descargar los compatibles."),
         new TourStep(Screen.DISCOVER,"discover_ps1","PlayStation 1",
-            "Selecciona tu copia PS1 en formato CHD, CUE, PBP o imagen compatible. "
-            + "OKUBI la abrirá en DuckStation si lo instalaste. "
-            + "Los discos con varias pistas deben compartir una carpeta accesible."),
+            "Elige tu juego PS1: CHD o PBP directamente; si tienes CUE, "
+            + "selecciona también sus BIN. OKUBI copia el disco con permiso "
+            + "y lo abre en su motor interno, sin otra aplicación."),
         new TourStep(Screen.DISCOVER,"discover_psp","Juegos de PSP",
             "Selecciona tu copia ISO, CSO, CHD o EBOOT.PBP y OKUBI abrirá "
             + "PPSSPP si está instalado. Tus partidas permanecen en el emulador."),
@@ -114,7 +114,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_UNIFIED_IMPORT = 7291;
     private static final int REQUEST_PLAY_FORMAT_INSPECT = 7292;
     private static final int REQUEST_PSP_EXTERNAL_LAUNCH = 7293;
-    private static final int REQUEST_PS1_EXTERNAL_LAUNCH = 7294;
+    private static final int REQUEST_PS1_INTERNAL_IMPORT = 7294;
     // One task maximum in flight; never accumulate many archive copies in RAM.
     private final ThreadPoolExecutor migrationQueue = new ThreadPoolExecutor(
             1,1,0L,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(1),
@@ -748,15 +748,14 @@ public final class MainActivity extends Activity {
         inspectPlay.setContentDescription("Revisar un archivo PlayStation sin modificarlo");
         inspectPlay.setOnClickListener(v->choosePlayStationFile());
         body.addView(gap(9));
-        TextView playPs1=CinemaUi.action(this,"▶ JUGAR PS1 CON DUCKSTATION",true);
+        TextView playPs1=CinemaUi.action(this,"▶ JUGAR PS1 DENTRO DE OKUBI",true);
         body.addView(playPs1,lp(-1,-2));
-        playPs1.setContentDescription("Jugar una copia PlayStation 1 con DuckStation");
+        playPs1.setContentDescription("Jugar PlayStation 1 dentro de OKUBI con el motor PCSX ReARMed");
         tourTargets.put("discover_ps1",playPs1);
         playPs1.setOnClickListener(v->selectPs1Game());
         body.addView(gap(5));
-        body.addView(text("PS1: CUE/BIN, CHD, PBP, ISO y otros formatos. "
-                + "Necesita DuckStation instalado; para discos con varias pistas "
-                + "conserva juntos todos sus archivos.",12,CinemaUi.MUTED,false));
+        body.addView(text("PS1 integrado: importa CHD o PBP. Para juegos CUE selecciona "
+                + "todos sus BIN a la vez. No necesitas DuckStation ni RetroArch.",12,CinemaUi.MUTED,false));
         body.addView(gap(9));
         TextView playPsp=CinemaUi.action(this,"▶ JUGAR PSP CON PPSSPP",true);
         body.addView(playPsp,lp(-1,-2));
@@ -1674,82 +1673,29 @@ public final class MainActivity extends Activity {
         Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
         picker.addCategory(Intent.CATEGORY_OPENABLE);
         picker.setType("*/*");
+        picker.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);
         picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        try { startActivityForResult(picker,REQUEST_PS1_EXTERNAL_LAUNCH); }
+        try { startActivityForResult(picker,REQUEST_PS1_INTERNAL_IMPORT); }
         catch(Exception error) {
             Toast.makeText(this,"No se pudo abrir el selector de juegos PS1.",
                     Toast.LENGTH_LONG).show();
         }
     }
 
-    private void handoffPs1Document(Uri document) {
-        if(document==null || !"content".equalsIgnoreCase(document.getScheme()))
-            return;
-        String filename=null;
-        try(android.database.Cursor cursor=getContentResolver().query(document,
-                new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
-                null,null,null)) {
-            if(cursor!=null && cursor.moveToFirst())filename=cursor.getString(0);
-        } catch(Exception ignored) {
-            // Lack of display name is not authorization to guess a console.
-        }
-        if(!OkubiPs1ExternalLauncher.supported(filename)) {
-            new AlertDialog.Builder(this)
-                .setTitle("OKUBI · Formato PS1 no reconocido")
-                .setMessage("Selecciona CHD, CUE, BIN, PBP, ISO o un descriptor "
-                        + "PS1 compatible. ZIP, RAR, EXE y PKG no se ejecutan "
-                        + "desde este botón.")
-                .setPositiveButton("Entendido",null).show();
+    private void launchInternalPs1Import(Intent selection) {
+        Intent importer=new Intent(this,bo.nexoplay.app.retro.OkubiPs1ImportActivity.class);
+        importer.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        if(selection.getClipData()!=null) {
+            importer.setClipData(selection.getClipData());
+        } else if(selection.getData()!=null) {
+            importer.setData(selection.getData());
+        } else {
+            Toast.makeText(this,"Selecciona tus archivos PS1.",Toast.LENGTH_LONG).show();
             return;
         }
-        StringBuilder message=new StringBuilder();
-        message.append("Archivo: ").append(filename)
-               .append("\n\nSe abrirá DuckStation, si está instalado.")
-               .append("\nSe conservarán tus ROMs, memorias y ajustes de OKUBI.");
-        if(OkubiPs1ExternalLauncher.consoleAmbiguous(filename))
-            message.append("\n\nATENCIÓN: este formato también puede ser de "
-                    + "otra consola. Confirma que es un juego PS1.");
-        if(OkubiPs1ExternalLauncher.needsOtherFiles(filename))
-            message.append("\n\nATENCIÓN: puede necesitar otras pistas "
-                    + "BIN/WAV o discos asociados. El selector de Android "
-                    + "autoriza solo este archivo; si faltan pistas, "
-                    + "importa la carpeta desde DuckStation o usa una "
-                    + "copia CHD compatible.");
-        new AlertDialog.Builder(this)
-                .setTitle("OKUBI 遊 · Abrir PlayStation 1")
-                .setMessage(message.toString())
-                .setNegativeButton("Cancelar",null)
-                .setPositiveButton("Abrir PS1",(dialog,which)->launchPs1(document))
-                .show();
-    }
-
-    private void launchPs1(Uri document) {
-        try {
-            startActivity(OkubiPs1ExternalLauncher.createIntent(document));
-            Toast.makeText(this,
-                    "Enviado a DuckStation · comprueba que el disco arranque.",
-                    Toast.LENGTH_SHORT).show();
-        } catch(android.content.ActivityNotFoundException notInstalled) {
-            new AlertDialog.Builder(this)
-                .setTitle("Necesitas DuckStation")
-                .setMessage("Instala y configura DuckStation oficial para "
-                        + "PlayStation 1. La BIOS, si se necesita, debe proceder "
-                        + "de tu propia consola. OKUBI no la distribuye.")
-                .setNegativeButton("Cancelar",null)
-                .setPositiveButton("Página oficial",(dialog,which)->{
-                    try {
-                        startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(
-                                OkubiPs1ExternalLauncher.OFFICIAL_DOWNLOAD)));
-                    } catch(Exception error) {
-                        Toast.makeText(this,
-                                OkubiPs1ExternalLauncher.OFFICIAL_DOWNLOAD,
-                                Toast.LENGTH_LONG).show();
-                    }
-                }).show();
-        } catch(SecurityException blocked) {
-            Toast.makeText(this,
-                    "DuckStation no recibió acceso al documento. "
-                    + "Abre la carpeta directamente en DuckStation.",
+        try {startActivity(importer);}
+        catch(Exception error) {
+            Toast.makeText(this,"No se pudo abrir el importador PS1 de OKUBI.",
                     Toast.LENGTH_LONG).show();
         }
     }
@@ -2293,9 +2239,9 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
-        if(requestCode==REQUEST_PS1_EXTERNAL_LAUNCH) {
+        if(requestCode==REQUEST_PS1_INTERNAL_IMPORT) {
             if(resultCode==RESULT_OK && data!=null)
-                handoffPs1Document(data.getData());
+                launchInternalPs1Import(data);
             return;
         }
         if(requestCode==REQUEST_PSP_EXTERNAL_LAUNCH) {
