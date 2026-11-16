@@ -204,7 +204,7 @@ public final class OkubiPs1DiscStore {
             if(!".cue".equals(ext) && !".m3u".equals(ext))return;
             if(Files.size(path)>256*1024)
                 throw new IOException("Descriptor PS1 demasiado grande.");
-            String data=Files.readString(path,
+            String data=new String(Files.readAllBytes(path),
                     ".cue".equals(ext)?StandardCharsets.ISO_8859_1:StandardCharsets.UTF_8);
             List<String> refs=new ArrayList<>();
             if(".cue".equals(ext)) {
