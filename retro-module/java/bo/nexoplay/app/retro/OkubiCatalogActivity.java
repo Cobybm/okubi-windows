@@ -30,6 +30,8 @@ import java.util.Map;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -540,6 +542,67 @@ public class OkubiCatalogActivity extends Activity {
         }
     }
 
+    /** Local labels only; the ROM binary remains in private app-owned storage. */
+    private void recordHubGame(Game game) {
+        if (!game.hubApproved || !verifiedDirectGame(game)) return;
+        try {
+            JSONArray old = new JSONArray(getPreferences(0).getString(
+                    "downloaded_hub_games_v1", "[]"));
+            JSONArray next = new JSONArray();
+            JSONObject current = new JSONObject();
+            current.put("title", game.name);
+            current.put("platform", game.system);
+            current.put("url", game.url);
+            current.put("file", game.privateFileName);
+            next.put(current);
+            for (int i=0; i<old.length() && next.length()<50; i++) {
+                JSONObject item = old.optJSONObject(i);
+                if (item != null && !game.url.equals(item.optString("url",""))) {
+                    next.put(item);
+                }
+            }
+            getPreferences(0).edit().putString(
+                    "downloaded_hub_games_v1", next.toString()).apply();
+        } catch (Exception ignored) {
+            // Corrupt/stale labels never block games or overwrite saved cartridges.
+        }
+    }
+
+    /** Show playable downloaded games after app restarts, without requiring another search. */
+    private void showDownloadedHubGames(LinearLayout root) {
+        JSONArray saved;
+        try { saved = new JSONArray(getPreferences(0).getString(
+                "downloaded_hub_games_v1", "[]")); }
+        catch (Exception ignored) { return; }
+        boolean titleShown = false;
+        for (int i=0; i<saved.length() && i<50; i++) {
+            JSONObject obj = saved.optJSONObject(i);
+            if (obj == null) continue;
+            String name=obj.optString("title","");
+            String system=obj.optString("platform","");
+            String url=obj.optString("url","");
+            String file=obj.optString("file","");
+            if (name.isEmpty() || name.length()>110
+                    || !(system.equals("GB") || system.equals("GBC") || system.equals("GBA"))
+                    || !file.matches("[A-Za-z0-9_.-]{1,160}\\.(gb|gbc|gba)")
+                    || !url.matches("https://hh3\\.gbdev\\.io/api/entry/"
+                            + "[A-Za-z0-9_-]{2,80}/[A-Za-z0-9_.-]{1,80}\\.(gb|gbc|gba)"))
+                continue;
+            Game game = new Game(name, system, "Descargado desde Homebrew Hub",
+                    url, true, file, true);
+            if (!verifiedDirectGame(game)) continue;
+            if (!titleShown) {
+                root.addView(label("MIS HOMEBREW DESCARGADOS", 19));
+                titleShown=true;
+            }
+            Button play = new Button(this);
+            play.setText("▶ JUGAR · "+game.name+" ("+game.system+")");
+            play.setAllCaps(false);
+            play.setOnClickListener(v -> playDirectGame(game));
+            root.addView(play);
+        }
+    }
+
     /** Live Homebrew Hub search: GB, GBC and GBA games with explicit OSS licenses only. */
     private void showHomebrewHubSearch(LinearLayout root) {
         root.addView(label("BUSCAR JUEGOS · DESCARGA DIRECTA", 19));
@@ -734,6 +797,7 @@ public class OkubiCatalogActivity extends Activity {
         showDirectDownloads(root);
         showNintendoSources(root);
         showMulticonsoleSources(root);
+        showDownloadedHubGames(root);
         showHomebrewHubSearch(root);
         root.addView(label("HOMEBREW  /  JUEGOS INDEPENDIENTES", 19));
         root.addView(label("Los juegos descargados dentro de OKUBI muestran JUGAR. " +
@@ -1036,6 +1100,7 @@ public class OkubiCatalogActivity extends Activity {
                         if (closed || isFinishing()) return;
                         updateIndieAction(game);
                         refreshDownloadCenter();
+                        recordHubGame(game);
                         if (!("GBA".equals(game.system)
                                 ? SameBoyNative.isGbaAvailable()
                                 : SameBoyNative.isAvailable())) {
