@@ -16,7 +16,7 @@ class IntegrationTests(unittest.TestCase):
         (base / "source").mkdir()
         java = base / "retro-module/java/bo/nexoplay/app/retro"
         java.mkdir(parents=True)
-        for filename in ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java",
+        for filename in ("RetroCore.java", "OkubiRetroActivity.java", "OkubiCatalogActivity.java", "OkubiHomebrewHubClient.java",
                          "OkubiPokemonActivity.java", "RetroTouchPad.java", "RetroDpadHitMap.java", "RetroFileInspector.java", "RetroExpansionFormats.java", "RetroSystems.java", "RetroExternalLauncher.java", "RetroDeviceProfile.java", "RetroAspectFrame.java",
                          "SameBoyNative.java", "OkubiGameBoyActivity.java", "RetroControlProfile.java", "RetroControlPresets.java",
                          "OkubiPokemonRepository.java", "OkubiRomFormats.java", "OkubiPatchEngine.java",
@@ -61,7 +61,7 @@ package="bo.nexoplay.app">
             self.assertEqual(5,len(activities))
             self.assertEqual(5,len({a.get(ns) for a in activities}))
             sources=list((output/"app/src/main/java/bo/nexoplay/app/retro").glob("*.java"))
-            self.assertEqual(38,len(sources))
+            self.assertEqual(39,len(sources))
             self.assertTrue(any(p.get(ns)=="android.permission.INTERNET"
                                 for p in tree.findall("uses-permission")))
             app=tree.find("application")
