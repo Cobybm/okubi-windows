@@ -63,27 +63,27 @@ public final class DesktopPlaystationFormatAdvisor {
         } else if (name.endsWith(".cue")) {
             label="CUE (descriptor de pistas)";
             systems=List.of("PS1", "PS2 CD");
-            engine="DuckStation / PCSX2";
+            engine="Beetle PSX integrado en OKUBI / PCSX2";
             ambiguous=true;
             note="No importes únicamente el CUE: sus archivos BIN o WAV deben permanecer junto a él.";
             inspectCue(safe,warnings);
         } else if (name.endsWith(".chd")) {
             label="CHD comprimido";
             systems=List.of("PS1","PS2","PSP");
-            engine="DuckStation / PCSX2 / PPSSPP";
+            engine="Beetle PSX integrado / PCSX2 / PPSSPP";
             ambiguous=true;
             note="Admitido por varios motores sin extraer, pero no todos los CHD tienen el mismo tipo de disco.";
         } else if (name.endsWith(".iso")) {
             label="ISO";
             systems=List.of("PS1","PS2","PSP","PS3 (según imagen y volcado)");
-            engine="DuckStation / PCSX2 / PPSSPP / RPCS3";
+            engine="Beetle PSX (ISO no garantizada) / PCSX2 / PPSSPP / RPCS3";
             ambiguous=true;
             note="Un ISO puede proceder de varias consolas; la extensión no demuestra su estructura "
                     +"ni si requiere descifrado o importación previa.";
         } else if (name.endsWith(".bin") || name.endsWith(".img")) {
             label="Imagen BIN/IMG";
             systems=List.of("PS1","PS2 CD");
-            engine="DuckStation / PCSX2";
+            engine="Beetle PSX integrado en OKUBI / PCSX2";
             ambiguous=true;
             note="En PS1, prefiere abrir el CUE del mismo nombre si el juego tiene varias pistas.";
             if(name.endsWith(".bin") && Files.exists(safe.resolveSibling(
@@ -93,13 +93,13 @@ public final class DesktopPlaystationFormatAdvisor {
                 || name.endsWith(".ecm")) {
             label="Imagen de disco PS1";
             systems=List.of("PS1");
-            engine="DuckStation";
-            note="DuckStation reconoce este descriptor/formato. Conserva las pistas asociadas.";
+            engine="Beetle PSX integrado (formatos compatibles)";
+            note="La compatibilidad de este formato depende del núcleo. Preferir CUE/CHD o PBP para Beetle PSX.";
         } else if (name.endsWith(".m3u")) {
             label="M3U (lista de discos)";
             systems=List.of("PS1");
-            engine="DuckStation";
-            note="Archivo de texto con rutas de varios discos; deben seguir accesibles.";
+            engine="Beetle PSX integrado (formatos compatibles)";
+            note="OKUBI valida la lista y las pistas CUE/BIN, sin copiar los discos.";
             inspectPlaylist(safe,warnings);
         } else if (name.endsWith(".cso")) {
             label="CSO comprimido";
@@ -121,7 +121,7 @@ public final class DesktopPlaystationFormatAdvisor {
         } else if (name.endsWith(".pbp")) {
             label="PBP";
             systems=List.of("PS1","PSP");
-            engine="DuckStation / PPSSPP";
+            engine="Beetle PSX integrado / PPSSPP";
             ambiguous=true;
             note="El PBP puede contener un EBOOT de PSP o un juego PS1 en formato PBP; "
                  +"elige la consola que corresponda.";
@@ -152,15 +152,15 @@ public final class DesktopPlaystationFormatAdvisor {
         } else if (name.endsWith(".sbi")) {
             label="SBI (datos de subcanal)";
             systems=List.of("PS1");
-            engine="DuckStation";
+            engine="Beetle PSX integrado (formatos compatibles)";
             direct=false;
             note="Es un archivo auxiliar para algunos juegos PAL, no un juego. "
                  +"Debe acompañar a la imagen de disco con el mismo nombre.";
         }
         if (direct && !name.equals("eboot.bin") && !systems.isEmpty()
                 && !List.of("PS1", "PS2").containsAll(systems)) {
-            warnings.add("La versión Windows actual solo abre directamente PS1, PS2 y EBOOT.BIN de PS3 "
-                    +"con emuladores externos configurados; PSP/Vita requieren integración posterior.");
+            warnings.add("PS1 ya puede ejecutarse dentro de OKUBI con Beetle PSX; PS2/PS3 "
+                    +"todavía utilizan emuladores externos. PSP requiere PPSSPP instalado por separado.");
         }
         return new Advice(label,systems,engine,direct,ambiguous,note,List.copyOf(warnings));
     }

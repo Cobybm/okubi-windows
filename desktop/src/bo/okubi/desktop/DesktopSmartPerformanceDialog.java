@@ -242,7 +242,7 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         tools.add(button("Configurar PS2 / PS3", this::chooseEmulator));
         tools.add(button("¿QUÉ FORMATO?", this::inspectPlayStationFormat));
         tools.add(button("▶ PS1 · JUGAR", this::quickPlayPs1));
-        tools.add(button("AYUDA / FORMATOS", this::officialPage));
+        tools.add(button("BIOS / AYUDA", this::officialPage));
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
         tools.add(play);
@@ -605,16 +605,53 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
     }
     private void officialPage() {
         var console = currentConsole();
-        if (console == null) return;
+        if (console == null) console = DesktopSmartPerformance.Console.PS1;
         if (console == DesktopSmartPerformance.Console.PS1) {
-            JOptionPane.showMessageDialog(this,
-                    "PS1 YA SE EJECUTA DENTRO DE OKUBI.\n\n"
-                    + "1. Añade tu CUE (con sus BIN al lado) o tu CHD.\n"
-                    + "2. Selecciona el juego de tu biblioteca.\n"
-                    + "3. Pulsa JUGAR. No necesitas DuckStation.\n\n"
-                    + "Si el juego no arranca con OpenBIOS, algunas copias "
-                    + "pueden necesitar una BIOS obtenida de tu propia PS1.",
-                    "OKUBI · Ayuda PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
+            Object[] actions = { "IMPORTAR MI BIOS", "ABRIR CARPETA", "CERRAR" };
+            int choice = JOptionPane.showOptionDialog(this,
+                    "PLAYSTATION 1 FUNCIONA DENTRO DE OKUBI.\n\n"
+                    + "Beetle PSX ya incorpora OpenBIOS; no necesitas instalar\n"
+                    + "DuckStation ni descargar una BIOS para comenzar.\n\n"
+                    + "Para tu copia Digimon World 3 usa preferentemente un\n"
+                    + "disco CUE con sus BIN o una imagen CHD completa.\n\n"
+                    + "Si un juego necesita mayor compatibilidad, puedes importar\n"
+                    + "una BIOS extraída legalmente de tu propia PlayStation:\n"
+                    + "SCPH5500.bin (Japón), SCPH5501.bin (EE. UU.) o\n"
+                    + "SCPH5502.bin (Europa). OKUBI comprueba su firma, no descarga\n"
+                    + "archivos y nunca sobrescribe una BIOS existente.",
+                    "OKUBI · PS1 integrado y BIOS opcional",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE,
+                    null, actions, actions[2]);
+            if (choice == 0) {
+                JFileChooser picker = new JFileChooser();
+                picker.setDialogTitle("Importar tu BIOS legítima de PlayStation 1");
+                picker.setFileFilter(new FileNameExtensionFilter(
+                        "BIOS original de PS1 (*.bin)", "bin"));
+                if (picker.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+                try {
+                    DesktopPs1Firmware.Result result =
+                            DesktopPs1Firmware.importOwnedBios(
+                                    picker.getSelectedFile().toPath(),
+                                    DesktopPs1Firmware.defaultDirectory());
+                    status.setText(result == DesktopPs1Firmware.Result.IMPORTED
+                            ? "BIOS original verificada e importada; vuelve a abrir tu juego."
+                            : "La BIOS original ya estaba configurada.");
+                    JOptionPane.showMessageDialog(this, status.getText(),
+                            "OKUBI · BIOS verificada", JOptionPane.INFORMATION_MESSAGE);
+                } catch (IOException error) { report(error); }
+            } else if (choice == 1) {
+                try {
+                    Path folder = DesktopPs1Firmware.defaultDirectory();
+                    java.nio.file.Files.createDirectories(folder);
+                    if (!Desktop.isDesktopSupported())
+                        throw new IOException("Abre esta carpeta en el Explorador: " + folder);
+                    Desktop.getDesktop().open(folder.toFile());
+                } catch (Exception error) {
+                    JOptionPane.showMessageDialog(this,
+                            DesktopPs1Firmware.defaultDirectory().toString(),
+                            "Carpeta BIOS PS1", JOptionPane.INFORMATION_MESSAGE);
+                }
+            }
             return;
         }
         try {

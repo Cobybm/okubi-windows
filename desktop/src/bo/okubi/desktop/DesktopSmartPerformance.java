@@ -8,7 +8,7 @@ import java.util.Locale;
  */
 public final class DesktopSmartPerformance {
     public enum Console {
-        PS1("PlayStation 1", "DuckStation", "https://github.com/stenzek/duckstation/releases/tag/latest"),
+        PS1("PlayStation 1", "Beetle PSX integrado", "https://docs.libretro.com/library/beetle_psx/"),
         PS2("PlayStation 2", "PCSX2", "https://pcsx2.net/downloads/"),
         PS3("PlayStation 3 (experimental)", "RPCS3", "https://rpcs3.net/download");
         public final String label, emulatorName, officialUrl;
@@ -56,8 +56,10 @@ public final class DesktopSmartPerformance {
                 rating = unknown ? Rating.UNKNOWN :
                         (threads >= 2 && ram >= 4 ? Rating.LIKELY
                                 : Rating.NOT_RECOMMENDED);
-                reason = "PS1 suele ser menos exigente. Se necesita DuckStation "
-                        + "y BIOS legítima. Compatibilidad del título sin verificar.";
+                reason = "PS1 usa Beetle PSX dentro de OKUBI con OpenBIOS incluida. "
+                        + "Para máxima compatibilidad se recomienda CUE con todas sus pistas "
+                        + "o CHD, sin necesidad de instalar otro emulador. "
+                        + "El rendimiento de cada juego aún necesita verificarse.";
             }
             case PS2 -> {
                 rating = ram > 0 && (ram < 8 || threads < 2)
