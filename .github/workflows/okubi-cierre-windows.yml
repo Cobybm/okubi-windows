@@ -83,6 +83,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Audio output queue test compile failed' }
           & java -ea -cp 'build/phase88/classes;build/phase88/tests' bo.okubi.desktop.DesktopPcmQueuePhase89Test
           if ($LASTEXITCODE -ne 0) { throw 'Unwritten audio queue regression failed' }
+          & javac -encoding UTF-8 -cp build/phase88/classes -d build/phase88/tests desktop/tests/bo/okubi/desktop/DesktopMediaPanelLayoutTest.java
+          if ($LASTEXITCODE -ne 0) { throw 'Music popup regression test compilation failed' }
+          & java -ea -Djava.awt.headless=true -cp 'build/phase88/classes;build/phase88/tests' bo.okubi.desktop.DesktopMediaPanelLayoutTest
+          if ($LASTEXITCODE -ne 0) { throw 'Windows music popup button clipping or volume safety regression failed' }
           $appDir = 'build/phase86/image/OKUBI Desktop/app'
           & jar --create --file "$appDir/okubi-desktop.jar" --main-class bo.okubi.desktop.OkubiDesktop -C build/phase88/classes .
           if ($LASTEXITCODE -ne 0) { throw 'Updated Java JAR unavailable' }
