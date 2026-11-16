@@ -47,8 +47,8 @@ public final class DesktopPcmQueue {
         length+=count;
     }
     public void consume(int amount) {
-        if(amount<0||amount>length)
-            throw new IllegalArgumentException("Impossible audio device write");
+        if(amount<0||amount>length||(amount&3)!=0)
+            throw new IllegalArgumentException("Audio device write must consume complete stereo frames");
         start+=amount;
         length-=amount;
         if(length==0)start=0;
