@@ -39,7 +39,15 @@ try {
         throw 'SHA256SUMS entry is missing or malformed'
     }
     $expectedSha = $Matches[1]
-    $actualSha = (Get-FileHash -LiteralPath $package.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+    $stream = [IO.File]::OpenRead($package.FullName)
+    $hasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = $hasher.ComputeHash($stream)
+        $actualSha = [BitConverter]::ToString($bytes).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $hasher.Dispose()
+        $stream.Dispose()
+    }
     if ($actualSha -cne $expectedSha) {
         throw 'QA ZIP SHA256 does not match the GitHub Actions checksum'
     }

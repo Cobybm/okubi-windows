@@ -1,0 +1,53 @@
+OKUBI - KIT DE PRUEBA FASE 84
+================================
+
+ESTA NO ES UNA VERSION ESTABLE PUBLICADA.
+La entrega incluye el ultimo Windows QA source-built y APK Android QA57.
+Tus ROMs, BIOS, partidas y contrasenas NO forman parte del paquete.
+
+IMPORTANTE ANTES DE EMPEZAR:
+NO ejecutes los archivos .cmd desde WinRAR ni desde un ZIP abierto.
+Usa "Extraer en..." en WinRAR para extraer TODO el ZIP exterior a una
+carpeta normal (por ejemplo Documentos\OKUBI-QA84). Luego abre esa carpeta
+en el Explorador de Windows. Deben estar juntos los tres archivos .cmd,
+la carpeta tools, la carpeta Windows y la carpeta Android.
+Si ves una ruta Temp\Rar$DIa... en CMD, aun estas ejecutando desde WinRAR.
+NO extraigas manualmente el ZIP interior de la carpeta Windows.
+
+PASO 1. Abre "01-VERIFICAR-TODO.cmd" con doble clic.
+Comprueba que los archivos de Windows y Android no han cambiado.
+
+PASO 2. Para probar Windows, abre "02-PROBAR-WINDOWS-AISLADO.cmd".
+Pide confirmacion y crea un PERFIL NUEVO de prueba. No instala OKUBI.
+Usa un juego propio de prueba. Comprueba biblioteca, sonido, botones,
+pantalla completa, guardar, cerrar y abrir. No restaures partidas antiguas.
+
+PASO 3. Opcional: abre "03-VERIFICAR-ANDROID.cmd".
+Solo revisa el APK. No lo instala en tu telefono.
+Si ya tienes una QA57 con partidas, puede tener certificado diferente:
+NO la desinstales ni borres datos para forzar la actualizacion.
+El paquete normal bo.nexoplay.app.unified debe permanecer intacto.
+
+LUGAR DE ARCHIVOS
+  Windows\OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip
+  Windows\SHA256SUMS.txt
+  Android\OKUBI-Android-Migration-QA57.apk
+  Android\SHA256SUMS.txt
+
+IMPORTANTE:
+- No instalar sobre el OKUBI anterior.
+- No copiar/pegar partidas reales como prueba inicial.
+- Los emuladores Windows GB/GBC/GBA/SNES fueron compilados de fuente.
+- Los checks automaticos no sustituyen pruebas fisicas.
+- Las firmas de Android fueron verificadas por CI, no por el verificador
+  local del KIT (para comprobarlas en PC usa Android SDK/apksigner).
+- No se han realizado pruebas fisicas por tu cuenta desde GitHub Actions.
+- El KIT no solicita permisos de administrador.
+- No distribuyas como OKUBI 1.0 estable ni fusiones a main aun.
+
+PARA INFORMAR RESULTADOS:
+  Windows: Inicio/Juegos/Descubre, imagen/audio, mando, guardados, reinicio.
+  Android: orientacion, cruceta multitactil, botones, saves.
+  Cross Save: solo con partida de ensayo y respaldo, nunca unica partida real.
+
+GitHub PR: https://github.com/Cobybm/okubi-windows/pull/27

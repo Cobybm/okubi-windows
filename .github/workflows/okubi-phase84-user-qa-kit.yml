@@ -1,0 +1,143 @@
+name: OKUBI Phase 84 - One Click Windows and Android QA Kit
+
+on:
+  push:
+    branches: [qa/okubi-phase84-oneclick-windows-android-kit]
+  pull_request:
+    branches: [qa/okubi-phase83-local-device-preflight]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: phase84-kit-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  package-user-qa-kit:
+    name: Build ready-to-test one-click kit from approved Windows/Android QA
+    runs-on: windows-latest
+    timeout-minutes: 22
+    steps:
+      - name: Checkout source without persisting credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Download approved Fase81B full source-built Windows QA
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/phase84/upstream/windows
+      - name: Download approved Fase80 parallel Android QA57
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-Android-Migration-QA57-Side-by-Side
+          run-id: 43612388104
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/phase84/upstream/android
+      - name: Assemble the easy-to-use QA kit without modifying binaries
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = 'build/phase84/OKUBI-QA84-TEST-KIT'
+          foreach ($folder in @($kit, (Join-Path $kit 'Windows'), (Join-Path $kit 'Android'), (Join-Path $kit 'tools'))) {
+            New-Item -ItemType Directory -Force $folder | Out-Null
+          }
+          $base = 'build/phase84/upstream'
+          $win = @(Get-ChildItem "$base/windows" -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')
+          $winSum = @(Get-ChildItem "$base/windows" -Recurse -File -Filter 'SHA256SUMS.txt')
+          $apk = @(Get-ChildItem "$base/android" -Recurse -File -Filter 'OKUBI-Android-Migration-QA57.apk')
+          $apkSum = @(Get-ChildItem "$base/android" -Recurse -File -Filter 'SHA256SUMS.txt')
+          if ($win.Count -ne 1 -or $winSum.Count -ne 1 -or $apk.Count -ne 1 -or $apkSum.Count -ne 1) {
+            throw 'Approved Windows and Android QA artifacts not found exactly once'
+          }
+          Copy-Item $win[0].FullName "$kit/Windows/" -Force
+          Copy-Item $winSum[0].FullName "$kit/Windows/SHA256SUMS.txt" -Force
+          Copy-Item $apk[0].FullName "$kit/Android/" -Force
+          Copy-Item $apkSum[0].FullName "$kit/Android/SHA256SUMS.txt" -Force
+          Copy-Item 'tools/phase84-kit/*.cmd' "$kit/" -Force
+          Copy-Item 'tools/phase84-kit/*.txt' "$kit/" -Force
+          Copy-Item 'tools/phase84-kit/OKUBI-VERIFICAR-KIT.ps1' "$kit/tools/" -Force
+          Copy-Item 'tools/okubi_phase83_windows_local_qa.ps1' "$kit/tools/" -Force
+          $files = @(Get-ChildItem -Path $kit -Recurse -File)
+          if ($files.Count -ne 10) {
+            throw "Unexpected QA kit contents: $($files.Count) files"
+          }
+          if (@(Get-ChildItem -Path $kit -Recurse -File | Where-Object {
+               $_.Name -match '(?i)\.(gba|gb|gbc|sfc|sav|rtc|srm|iso|chd|keystore|jks|p12)$'
+              }).Count -gt 0) { throw 'ROM, game save or signing key in kit' }
+          Write-Host 'QA kit prepared without altering original application artifacts.'
+      - name: Verify both real QA packages using bundled read-only verifier
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = (Resolve-Path 'build/phase84/OKUBI-QA84-TEST-KIT').Path
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$kit/tools/OKUBI-VERIFICAR-KIT.ps1" -Mode Both -KitRoot $kit
+          if ($LASTEXITCODE -ne 0) { throw 'One-click QA verifier rejected real files' }
+          & cmd.exe /D /C "$kit/01-VERIFICAR-TODO.cmd"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows CMD double-click verification failed' }
+          $report = Get-Content "$kit/INFORME-QA84.json" -Raw | ConvertFrom-Json
+          if ($report.windows_qa_zip_integrity -ne 'pass' -or
+              $report.android_qa_apk_integrity -ne 'pass' -or
+              $report.stable_release_authorized -ne $false -or
+              $report.real_device_testing_completed -ne $false) {
+            throw 'QA report falsely claims physical approval or misses integrity'
+          }
+          & cmd.exe /D /C "$kit/02-PROBAR-WINDOWS-AISLADO.cmd"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows QA command preflight failed' }
+          & cmd.exe /D /C "$kit/03-VERIFICAR-ANDROID.cmd"
+          if ($LASTEXITCODE -ne 0) { throw 'Android QA checksum entrypoint failed' }
+      - name: Simulate malicious checksum and verify fail-closed behavior
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = (Resolve-Path 'build/phase84/OKUBI-QA84-TEST-KIT').Path
+          $path = Join-Path $kit 'Android/SHA256SUMS.txt'
+          $original = [IO.File]::ReadAllText($path)
+          try {
+            [IO.File]::WriteAllText($path, ('0' * 64 + ' *OKUBI-Android-Migration-QA57.apk' + [Environment]::NewLine))
+            & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$kit/tools/OKUBI-VERIFICAR-KIT.ps1" -Mode Android -KitRoot $kit
+            $code = $LASTEXITCODE
+            if ($code -ne 1) { throw 'Tampered Android QA checksum unexpectedly accepted' }
+          } finally {
+            [IO.File]::WriteAllText($path, $original)
+            $global:LASTEXITCODE = 0
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$kit/tools/OKUBI-VERIFICAR-KIT.ps1" -Mode Both -KitRoot $kit
+          if ($LASTEXITCODE -ne 0) { throw 'Restored QA kit must pass all integrity checks' }
+          Remove-Item -LiteralPath "$kit/INFORME-QA84.json" -ErrorAction SilentlyContinue
+      - name: Refuse WinRAR-style partial extraction (standalone CMD without tools)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = (Resolve-Path 'build/phase84/OKUBI-QA84-TEST-KIT').Path
+          $partial = Join-Path $env:RUNNER_TEMP 'Rar$DIa-QA84-only-cmd'
+          New-Item -ItemType Directory -Force $partial | Out-Null
+          $env:CI = 'true'
+          foreach ($script in @('01-VERIFICAR-TODO.cmd','02-PROBAR-WINDOWS-AISLADO.cmd','03-VERIFICAR-ANDROID.cmd')) {
+            $cmd = Join-Path $partial $script
+            Copy-Item -LiteralPath (Join-Path $kit $script) -Destination $cmd -Force
+            & cmd.exe /D /C $cmd
+            $code = $LASTEXITCODE
+            if ($code -ne 2) {
+              throw "Partial archive launch not blocked with code 2 for $script"
+            }
+            if (Test-Path -LiteralPath (Join-Path $partial 'INFORME-QA84.json')) {
+              throw 'Partial extraction generated a success report unexpectedly'
+            }
+          }
+          Remove-Item Env:CI -ErrorAction SilentlyContinue
+          Write-Host 'PASS: all three CMD entrypoints refuse partial WinRAR extraction before starting or installing.'
+      - name: Upload verified one-click QA kit, never stable release
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE84-WINDOWS-ANDROID-ONE-CLICK-QA-NOT-STABLE
+          path: build/phase84/OKUBI-QA84-TEST-KIT/
+          retention-days: 7
+          if-no-files-found: error
