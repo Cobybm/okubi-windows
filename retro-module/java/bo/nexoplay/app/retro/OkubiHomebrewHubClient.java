@@ -39,7 +39,7 @@ public final class OkubiHomebrewHubClient {
         String term = text == null ? "" : text.trim();
         if (term.length() > 40) throw new IOException("Búsqueda demasiado larga.");
         String requestUrl = "https://hh3.gbdev.io/api/search?platform=" + platform
-                + "&typetag=game&results=10&q="
+                + "&typetag=game&tags=Open%20Source&results=10&q="
                 + URLEncoder.encode(term, "UTF-8");
         HttpURLConnection conn = (HttpURLConnection)new URL(requestUrl).openConnection();
         conn.setInstanceFollowRedirects(false);
