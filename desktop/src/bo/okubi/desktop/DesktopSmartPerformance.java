@@ -91,28 +91,40 @@ public final class DesktopSmartPerformance {
         return new Recommendation(console, rating, mode, scale, reason);
     }
 
-    /** Explicit file extensions only; .iso and .chd are ambiguous. */
+    /**
+     * Only unambiguous names can be auto-scanned into a console library.
+     * ISO/CHD/CSO/PBP/BIN require a user choice and content validation; a
+     * recognised file does not guarantee the emulator can play that game.
+     */
     public static Console suggestConsole(String filename) {
         if (filename == null) return null;
         String name = filename.toLowerCase(Locale.ROOT);
         if (name.equals("eboot.bin")) return Console.PS3;
-        if (name.endsWith(".cue") || name.endsWith(".pbp") || name.endsWith(".m3u"))
-            return Console.PS1;
-        if (name.endsWith(".iso") || name.endsWith(".cso")) return Console.PS2;
-        if (name.endsWith(".chd")) return Console.PS1;
+        if (name.endsWith(".cue") || name.endsWith(".ccd")
+                || name.endsWith(".mds") || name.endsWith(".ecm")
+                || name.endsWith(".m3u")) return Console.PS1;
+        if (name.endsWith(".zso") || name.endsWith(".gz")
+                || name.endsWith(".elf")) return Console.PS2;
         return null;
     }
 
+    /** Formats recognized by the external emulators' documented file chooser. */
     public static boolean acceptedFile(Console console, String filename) {
         if (console == null || filename == null) return false;
         String name = filename.toLowerCase(Locale.ROOT);
+        if (name.equals("eboot.bin")) return console == Console.PS3;
         return switch (console) {
             case PS1 -> name.endsWith(".cue") || name.endsWith(".chd")
                     || name.endsWith(".pbp") || name.endsWith(".m3u")
-                    || name.endsWith(".iso");
+                    || name.endsWith(".iso") || name.endsWith(".bin")
+                    || name.endsWith(".img") || name.endsWith(".ccd")
+                    || name.endsWith(".mds") || name.endsWith(".ecm");
             case PS2 -> name.endsWith(".iso") || name.endsWith(".chd")
-                    || name.endsWith(".cso");
-            case PS3 -> name.equals("eboot.bin");
+                    || name.endsWith(".cso") || name.endsWith(".zso")
+                    || name.endsWith(".bin") || name.endsWith(".cue")
+                    || name.endsWith(".mdf") || name.endsWith(".gz")
+                    || name.endsWith(".elf");
+            case PS3 -> false;
         };
     }
 }
