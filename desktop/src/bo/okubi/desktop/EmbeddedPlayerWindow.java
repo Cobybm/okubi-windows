@@ -317,44 +317,48 @@ public final class EmbeddedPlayerWindow {
         });
     }
 
-    /** Uses effective per-console key bindings, including user remaps. */
+    /** Uses the actual effective per-console bindings, including user remaps. */
     private void maybeShowFirstRunControls() {
         try {
-            Path stateFile = DesktopPlaySettings.defaultFile().getParent()
-                    .resolve("first-run-controls-v1.properties");
             bo.okubi.desktop.controls.ControlGuideRegistry guide =
-                    new bo.okubi.desktop.controls.ControlGuideRegistry(stateFile);
+                    new bo.okubi.desktop.controls.ControlGuideRegistry(
+                            DesktopPlaySettings.defaultFile().getParent()
+                                    .resolve("first-run-controls-v1.properties"));
             if (!guide.shouldShow(game.console.name(),
                     bo.okubi.desktop.controls.ControlGuideRegistry.Device.KEYBOARD)) return;
-            StringBuilder text = new StringBuilder();
-            text.append("TECLADO (configuración real de este juego)\\n\\n");
-            for (DesktopPlaySettings.Action action : DesktopPlaySettings.Action.values()) {
-                if (game.console != DesktopLibrary.Console.SNES
-                        && (action == DesktopPlaySettings.Action.X
-                        || action == DesktopPlaySettings.Action.Y)) continue;
-                if ((game.console == DesktopLibrary.Console.GB
-                        || game.console == DesktopLibrary.Console.GBC)
-                        && (action == DesktopPlaySettings.Action.L
-                        || action == DesktopPlaySettings.Action.R)) continue;
-                text.append(action.label).append(": ")
-                        .append(KeyEvent.getKeyText(playSettings.key(game.console, action)))
-                        .append("\\n");
-            }
-            text.append("\\nMANDO XINPUT: cruceta/stick, A/B, Start, Select");
-            if (game.console == DesktopLibrary.Console.SNES
-                    || game.console == DesktopLibrary.Console.GBA)
-                text.append(", LB y RB");
-            text.append("\\nPerfil: ")
-                    .append(playSettings.gamepadLayout(game.console).display);
-            text.append("\\n\\nESC = ajustes y cambio de teclas, F5 = guardar, ");
-            text.append("F9 = cargar. Esta guía se muestra una vez por consola.");
-            javax.swing.JOptionPane.showMessageDialog(window, text.toString(),
-                    "OKUBI 遊 · Guía de controles", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            showControlsGuide();
             guide.markShown(game.console.name(),
                     bo.okubi.desktop.controls.ControlGuideRegistry.Device.KEYBOARD);
         } catch (IOException unavailable) {
-            // Never prevent a valid gameplay session because guide preferences failed.
+            // Never prevent gameplay if guide preferences cannot be written.
         }
+    }
+
+    private void showControlsGuide() {
+        StringBuilder text = new StringBuilder();
+        text.append("TECLADO (configuración REAL para este juego)\\n\\n");
+        for (DesktopPlaySettings.Action action : DesktopPlaySettings.Action.values()) {
+            if (game.console != DesktopLibrary.Console.SNES
+                    && (action == DesktopPlaySettings.Action.X
+                    || action == DesktopPlaySettings.Action.Y)) continue;
+            if ((game.console == DesktopLibrary.Console.GB
+                    || game.console == DesktopLibrary.Console.GBC)
+                    && (action == DesktopPlaySettings.Action.L
+                    || action == DesktopPlaySettings.Action.R)) continue;
+            text.append(action.label).append(": ")
+                    .append(KeyEvent.getKeyText(playSettings.key(game.console, action)))
+                    .append("\\n");
+        }
+        text.append("\\nMANDO XINPUT: cruceta/stick, A/B, Start, Select");
+        if (game.console == DesktopLibrary.Console.SNES
+                || game.console == DesktopLibrary.Console.GBA)
+            text.append(", LB y RB");
+        text.append("\\nPerfil: ")
+                .append(playSettings.gamepadLayout(game.console).display);
+        text.append("\\n\\nESC = ajustes y cambio de teclas, F5 = guardar, ");
+        text.append("F9 = cargar. Puedes volver a ver esta guía desde Ajustes.");
+        javax.swing.JOptionPane.showMessageDialog(window, text.toString(),
+                "OKUBI 遊 · Guía de controles", javax.swing.JOptionPane.INFORMATION_MESSAGE);
     }
 
     public static boolean hasActiveSession() { return SESSION_BUSY.get(); }
@@ -552,8 +556,12 @@ public final class EmbeddedPlayerWindow {
         hudSelection.setAlignmentX(JPanel.LEFT_ALIGNMENT);
         heading.add(hudSelection);
         header.add(heading, BorderLayout.CENTER);
-        header.add(new CinemaButton("✕ VOLVER", true, this::toggleControlCenter),
-                BorderLayout.EAST);
+        JPanel controlActions = new JPanel(new java.awt.FlowLayout(
+                java.awt.FlowLayout.RIGHT, 6, 0));
+        controlActions.setOpaque(false);
+        controlActions.add(new CinemaButton("? VER CONTROLES", false, this::showControlsGuide));
+        controlActions.add(new CinemaButton("✕ VOLVER", true, this::toggleControlCenter));
+        header.add(controlActions, BorderLayout.EAST);
         body.add(header, BorderLayout.NORTH);
 
         JPanel options = new JPanel(new BorderLayout(16, 10));
