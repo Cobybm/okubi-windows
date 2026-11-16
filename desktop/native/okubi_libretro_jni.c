@@ -21,8 +21,10 @@
 #define GBA_HEIGHT 160
 #define SNES_WIDTH 256
 #define SNES_HEIGHT 224
-#define MAX_WIDTH 256
-#define MAX_HEIGHT 224
+#define PS1_WIDTH 640
+#define PS1_HEIGHT 480
+#define MAX_WIDTH 640
+#define MAX_HEIGHT 480
 #define MAX_AUDIO 8192
 
 static HMODULE lib_handle;
@@ -35,6 +37,7 @@ static unsigned frame_width, frame_height;
 static uint32_t frame_buffer[MAX_WIDTH * MAX_HEIGHT];
 static bool selected_gba = false;
 static bool selected_snes = false;
+static bool selected_ps1 = false;
 static unsigned expected_width = GB_WIDTH, expected_height = GB_HEIGHT;
 static int16_t audio_buffer[MAX_AUDIO];
 static unsigned audio_samples;
@@ -106,17 +109,19 @@ static void video(const void *data, unsigned width, unsigned height, size_t pitc
     if (!data) return; /* Libretro: NULL repeats the prior frame. */
     if (selected_snes) {
         if (width < 256u || width > 512u || height < 200u || height > 512u) return;
+    } else if (selected_ps1) {
+        if (width < 160u || width > 1024u || height < 120u || height > 768u) return;
     } else if (width != expected_width || height != expected_height) return;
     const unsigned bpp = pixel_format == RETRO_PIXEL_FORMAT_XRGB8888 ? 4u : 2u;
     if (pitch < (size_t)width * bpp || pitch > 8192u) return;
     frame_width = expected_width;
     frame_height = expected_height;
     for (unsigned y = 0; y < expected_height; ++y) {
-        unsigned sy = selected_snes ? (unsigned)(((uint64_t)y * height)
+        unsigned sy = (selected_snes || selected_ps1) ? (unsigned)(((uint64_t)y * height)
                 / expected_height) : y;
         const uint8_t *row = (const uint8_t *)data + pitch * sy;
         for (unsigned x = 0; x < expected_width; ++x) {
-            unsigned sx = selected_snes ? (unsigned)(((uint64_t)x * width)
+            unsigned sx = (selected_snes || selected_ps1) ? (unsigned)(((uint64_t)x * width)
                     / expected_width) : x;
             uint32_t color;
             if (pixel_format == RETRO_PIXEL_FORMAT_XRGB8888) {
@@ -207,6 +212,7 @@ static void close_core(void) {
     requested_model = "Auto";
     selected_gba = false;
     selected_snes = false;
+    selected_ps1 = false;
     expected_width = GB_WIDTH;
     expected_height = GB_HEIGHT;
 }
@@ -220,23 +226,26 @@ JNIEXPORT jboolean JNICALL
 Java_bo_okubi_desktop_WindowsRetroNative_nativeOpen(JNIEnv *env, jclass cls,
         jbyteArray rom, jstring folder, jstring system, jstring corePath, jstring sourcePath) {
     (void)cls;
-    if (!rom || !folder || !system || !corePath || !sourcePath || lib_handle) return JNI_FALSE;
+    if (!folder || !system || !corePath || !sourcePath || lib_handle) return JNI_FALSE;
     const char *model = (*env)->GetStringUTFChars(env, system, NULL);
     if (!model) return JNI_FALSE;
     selected_gba = strcmp(model, "GBA") == 0;
     selected_snes = strcmp(model, "SNES") == 0;
+    selected_ps1 = strcmp(model, "PS1") == 0;
     bool selected_gb = strcmp(model, "GB") == 0 || strcmp(model, "GBC") == 0;
     requested_model = strcmp(model, "GBC") == 0 ? "Game Boy Color"
         : selected_gb ? "Game Boy" : "Auto";
-    expected_width = selected_snes ? SNES_WIDTH :
+    expected_width = selected_ps1 ? PS1_WIDTH : selected_snes ? SNES_WIDTH :
             selected_gba ? GBA_WIDTH : GB_WIDTH;
-    expected_height = selected_snes ? SNES_HEIGHT :
+    expected_height = selected_ps1 ? PS1_HEIGHT : selected_snes ? SNES_HEIGHT :
             selected_gba ? GBA_HEIGHT : GB_HEIGHT;
     (*env)->ReleaseStringUTFChars(env, system, model);
-    if (!selected_gb && !selected_gba && !selected_snes) return JNI_FALSE;
-    jsize bytes = (*env)->GetArrayLength(env, rom);
-    if (bytes < 32768 || bytes > (selected_gba ? 32 :
-            selected_snes ? 16 : 8) * 1024 * 1024) return JNI_FALSE;
+    if (!selected_gb && !selected_gba && !selected_snes && !selected_ps1)
+        return JNI_FALSE;
+    if (!selected_ps1 && !rom) return JNI_FALSE;
+    jsize bytes = selected_ps1 ? 0 : (*env)->GetArrayLength(env, rom);
+    if (!selected_ps1 && (bytes < 32768 || bytes > (selected_gba ? 32 :
+            selected_snes ? 16 : 8) * 1024 * 1024)) return JNI_FALSE;
     const char *path = (*env)->GetStringUTFChars(env, folder, NULL);
     if (!path) return JNI_FALSE;
     size_t size = strlen(path);
@@ -247,10 +256,16 @@ Java_bo_okubi_desktop_WindowsRetroNative_nativeOpen(JNIEnv *env, jclass cls,
     memcpy(save_directory, path, size + 1);
     (*env)->ReleaseStringUTFChars(env, folder, path);
 
-    rom_bytes = malloc((size_t)bytes);
-    if (!rom_bytes) return JNI_FALSE;
-    (*env)->GetByteArrayRegion(env, rom, 0, bytes, rom_bytes);
-    if ((*env)->ExceptionCheck(env)) { free(rom_bytes); rom_bytes = NULL; return JNI_FALSE; }
+    // PS1 images can exceed 700 MB; never load them into JNI RAM.
+    // The disc core opens the CUE/CHD directly using game.path.
+    if (!selected_ps1) {
+        rom_bytes = malloc((size_t)bytes);
+        if (!rom_bytes) return JNI_FALSE;
+        (*env)->GetByteArrayRegion(env, rom, 0, bytes, rom_bytes);
+        if ((*env)->ExceptionCheck(env)) {
+            free(rom_bytes); rom_bytes = NULL; return JNI_FALSE;
+        }
+    }
     rom_size = (unsigned)bytes;
 
     // Load an explicitly user-selected Windows x64 Libretro core.
@@ -311,6 +326,10 @@ Java_bo_okubi_desktop_WindowsRetroNative_nativeOpen(JNIEnv *env, jclass cls,
             ? (av.geometry.base_width < 200u || av.geometry.base_width > 512u
                     || av.geometry.base_height < 200u
                     || av.geometry.base_height > 512u)
+            : selected_ps1
+            ? (av.geometry.base_width < 160u || av.geometry.base_width > 1024u
+                    || av.geometry.base_height < 120u
+                    || av.geometry.base_height > 768u)
             : (av.geometry.base_width != expected_width
                     || av.geometry.base_height != expected_height)) {
         close_core();
