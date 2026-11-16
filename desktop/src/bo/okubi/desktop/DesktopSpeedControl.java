@@ -37,7 +37,11 @@ public final class DesktopSpeedControl {
             if(nextStep!=step){step=nextStep;phase=0.0;}
         }
         public int convert(short[] stereo,int inputShorts,byte[] output) {
+            return convert(stereo,inputShorts,output,100);
+        }
+        public int convert(short[] stereo,int inputShorts,byte[] output,int volumePercent) {
             if(stereo==null||output==null)throw new IllegalArgumentException("PCM buffers");
+            int volume=Math.max(0,Math.min(100,volumePercent));
             if(inputShorts<0||inputShorts>stereo.length||inputShorts%2!=0)
                 throw new IllegalArgumentException("Interleaved stereo length");
             final int stereoFrames=inputShorts/2;
@@ -46,7 +50,8 @@ public final class DesktopSpeedControl {
             while(phase<stereoFrames){
                 int frame=(int)phase;
                 if(pos+4>output.length)throw new IllegalArgumentException("PCM capacity");
-                int left=stereo[frame*2],right=stereo[frame*2+1];
+                int left=(stereo[frame*2]*volume)/100;
+                int right=(stereo[frame*2+1]*volume)/100;
                 output[pos++]=(byte)left;output[pos++]=(byte)(left>>>8);
                 output[pos++]=(byte)right;output[pos++]=(byte)(right>>>8);
                 phase+=advance;
