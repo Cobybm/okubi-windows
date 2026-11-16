@@ -123,3 +123,42 @@ jobs:
           path: build/okubi-android-artifact/*
           if-no-files-found: error
           retention-days: 14
+
+  install-smoke:
+    name: Install QA89 on Android API ${{ matrix.api }}
+    needs: android-qa89-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    steps:
+      - name: Download only verified installable QA89 APK
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE89-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          path: build/qa89-apk
+      - name: Verify standalone APK before emulator installation
+        run: |
+          set -euo pipefail
+          test -s build/qa89-apk/OKUBI-Android-QA89-Universal.apk
+          (cd build/qa89-apk && sha256sum -c SHA256SUMS.txt)
+      - name: Install QA89 and launch its real home Activity without ROMs
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          force-avd-creation: true
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb wait-for-device
+            adb install build/qa89-apk/OKUBI-Android-QA89-Universal.apk
+            adb shell pm path bo.nexoplay.app.unified.qa89
+            adb shell am start -W -n bo.nexoplay.app.unified.qa89/bo.nexoplay.app.MainActivity
+            sleep 5
+            adb shell pidof bo.nexoplay.app.unified.qa89
+            echo 'PASS: QA89 installed and its own launcher started without deleting any other app'
