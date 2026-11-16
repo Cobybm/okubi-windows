@@ -112,6 +112,28 @@ jobs:
           & powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$kit/tools/OKUBI-VERIFICAR-KIT.ps1" -Mode Both -KitRoot $kit
           if ($LASTEXITCODE -ne 0) { throw 'Restored QA kit must pass all integrity checks' }
           Remove-Item -LiteralPath "$kit/INFORME-QA84.json" -ErrorAction SilentlyContinue
+      - name: Refuse WinRAR-style partial extraction (standalone CMD without tools)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $kit = (Resolve-Path 'build/phase84/OKUBI-QA84-TEST-KIT').Path
+          $partial = Join-Path $env:RUNNER_TEMP 'Rar$DIa-QA84-only-cmd'
+          New-Item -ItemType Directory -Force $partial | Out-Null
+          $env:CI = 'true'
+          foreach ($script in @('01-VERIFICAR-TODO.cmd','02-PROBAR-WINDOWS-AISLADO.cmd','03-VERIFICAR-ANDROID.cmd')) {
+            $cmd = Join-Path $partial $script
+            Copy-Item -LiteralPath (Join-Path $kit $script) -Destination $cmd -Force
+            & cmd.exe /D /C $cmd
+            $code = $LASTEXITCODE
+            if ($code -ne 2) {
+              throw "Partial archive launch not blocked with code 2 for $script"
+            }
+            if (Test-Path -LiteralPath (Join-Path $partial 'INFORME-QA84.json')) {
+              throw 'Partial extraction generated a success report unexpectedly'
+            }
+          }
+          Remove-Item Env:CI -ErrorAction SilentlyContinue
+          Write-Host 'PASS: all three CMD entrypoints refuse partial WinRAR extraction before starting or installing.'
       - name: Upload verified one-click QA kit, never stable release
         uses: actions/upload-artifact@v4
         with:
