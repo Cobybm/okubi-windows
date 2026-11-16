@@ -40,7 +40,7 @@ public final class OkubiHomebrewHubClient {
         if (term.length() > 40) throw new IOException("Búsqueda demasiado larga.");
         String requestUrl = "https://hh3.gbdev.io/api/search?platform=" + platform
                 + "&typetag=game&results=10&q="
-                + URLEncoder.encode(term, StandardCharsets.UTF_8);
+                + URLEncoder.encode(term, "UTF-8");
         HttpURLConnection conn = (HttpURLConnection)new URL(requestUrl).openConnection();
         conn.setInstanceFollowRedirects(false);
         conn.setConnectTimeout(9000);
@@ -85,7 +85,7 @@ public final class OkubiHomebrewHubClient {
                 String slug = entry.optString("slug","");
                 String title = entry.optString("title","");
                 String license = entry.optString("license","");
-                if (!slug.matches("[a-zA-Z0-9_-]{2,80}") || title.isBlank()
+                if (!slug.matches("[a-zA-Z0-9_-]{2,80}") || title.trim().isEmpty()
                         || title.length() > 110 || !openLicense(license)) continue;
                 JSONArray files = entry.optJSONArray("files");
                 if (files == null) continue;
