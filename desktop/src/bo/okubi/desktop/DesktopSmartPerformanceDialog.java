@@ -233,14 +233,15 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
 
         JPanel footer = new JPanel(new BorderLayout(8, 8));
         footer.setBackground(BG);
-        // Two rows prevent button clipping at 800 px or Windows 125/150% DPI.
-        JPanel tools = new JPanel(new GridLayout(2, 4, 7, 7));
+        // Three columns keep long console labels readable at 800 px and high DPI.
+        JPanel tools = new JPanel(new GridLayout(3, 3, 7, 7));
         tools.setBackground(BG);
         tools.setBorder(BorderFactory.createEmptyBorder(1, 0, 1, 0));
         tools.add(button("Añadir juego", this::addFile));
         tools.add(button("Importar carpeta", this::addFolder));
         tools.add(button("Elegir emulador .exe", this::chooseEmulator));
         tools.add(button("¿QUÉ FORMATO?", this::inspectPlayStationFormat));
+        tools.add(button("▶ PS1 · JUGAR", this::quickPlayPs1));
         tools.add(button("Página oficial", this::officialPage));
         tools.add(button("Quitar de lista", this::removeSelection));
         play = button("JUGAR", this::launch);
@@ -416,6 +417,42 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
         } catch (IOException error) {
             report(error);
         }
+    }
+
+    /** Shortcut uses the existing SMART PC PS1 engine, not a second emulator. */
+    private void quickPlayPs1() {
+        JFileChooser choose=new JFileChooser();
+        choose.setDialogTitle("OKUBI · Abrir tu copia PlayStation 1");
+        choose.setFileFilter(new FileNameExtensionFilter(
+                "PS1: CUE CHD ISO PBP BIN IMG CCD MDS M3U ECM",
+                "cue","chd","iso","pbp","bin","img","ccd","mds","m3u","ecm"));
+        if(choose.showOpenDialog(this)!=JFileChooser.APPROVE_OPTION)return;
+        Path selected=choose.getSelectedFile().toPath();
+        try {
+            if(!DesktopSmartPerformance.acceptedFile(
+                    DesktopSmartPerformance.Console.PS1,
+                    selected.getFileName().toString()))
+                throw new IOException("Archivo no compatible con DuckStation PS1.");
+            DesktopPlaystationFormatAdvisor.Advice advice =
+                    DesktopPlaystationFormatAdvisor.inspect(selected);
+            StringBuilder prompt = new StringBuilder(
+                    advice.summary()+"\n\n¿Confirmas que este archivo es tu juego PS1?");
+            if(advice.ambiguous())
+                prompt.append("\nEl mismo formato también puede pertenecer a otra consola.");
+            if(!advice.warnings().isEmpty())
+                prompt.append("\nComprueba sus pistas de disco antes de continuar.");
+            int yes=JOptionPane.showConfirmDialog(this,prompt.toString(),
+                    "OKUBI · Abrir juego PS1",JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+            if(yes!=JOptionPane.YES_OPTION)return;
+            catalog.addGame(selected,DesktopSmartPerformance.Console.PS1);
+            refreshCatalog(selected.toAbsolutePath().normalize());
+            if(gameList.getSelectedValue()==null) {
+                status.setText("El juego se importó, selecciónalo para comenzar.");
+                return;
+            }
+            launch();
+        } catch(IOException error) { report(error); }
     }
 
     private void addFile() {

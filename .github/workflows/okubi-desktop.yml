@@ -1,15 +1,10 @@
-name: OKUBI Desktop Windows — Phase 69 Integration QA
+name: OKUBI Windows - Legacy Manual Audited Build
 
+# Legacy workflow is manual-only. Its former nightly/latest binary hashes
+# became stale. It now reuses source-built audited cores and the same QA gates
+# as the canonical OKUBI Windows PS1/PSP workflow.
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'desktop/**'
-      - '.github/workflows/okubi-desktop.yml'
-  pull_request:
-    paths:
-      - 'desktop/**'
-      - '.github/workflows/okubi-desktop.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
@@ -17,12 +12,13 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   desktop-windows:
     name: Build executable and run desktop safety tests (Windows x64)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 55
     steps:
       # Historical source repo ended with a period. Windows APIs
       # may reject checkout paths ending in a period. Clone into a stable
@@ -61,6 +57,34 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Python for verified corresponding-source cores
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download audited source-built SameBoy x64 core
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-sameboy-SOURCE-AND-WINDOWS-DLL-QA
+          path: ${{ runner.temp }}/okubi-desktop-source/build/phase81/sameboy-artifact
+          run-id: 43614000789
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Download audited source-built mGBA x64 core
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-mgba-SOURCE-AND-WINDOWS-DLL-QA
+          path: ${{ runner.temp }}/okubi-desktop-source/build/phase81/mgba-artifact
+          run-id: 43614000789
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+      - name: Download audited source-built Supafaust x64 core
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81-SUPAFAUST-SOURCE-AND-WINDOWS-DLL-QA
+          path: ${{ runner.temp }}/okubi-desktop-source/build/phase81/supafaust-artifact
+          run-id: 43614000765
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
       - name: Enable MSVC x64 C compiler
         uses: ilammy/msvc-dev-cmd@v1
         with:
@@ -202,7 +226,10 @@ jobs:
         shell: pwsh
         working-directory: ${{ runner.temp }}/okubi-desktop-source
         run: |
-          & ./desktop/build-bundled-cores.ps1 -OutputDirectory "build/desktop/input/cores"
+          # Phase2: NEVER trust rolling nightly binaries. Use exact
+          # verified source-built CI DLLs + corresponding source packages.
+          & python tools/okubi_phase2_install_source_cores.py --source-builds build/phase81 --source-scripts tools --output build/desktop/input/cores
+          if ($LASTEXITCODE -ne 0) { throw "Corresponding-source verification failed" }
           # The script has ErrorActionPreference=Stop and throws on failures.
           # $LASTEXITCODE is undefined for a PowerShell script with no native commands,
           # so do not misinterpret $null as a failed process.
@@ -350,20 +377,42 @@ jobs:
           python -m unittest discover -s tools/tests -p 'test_okubi_phase80_rc_preflight.py' -v
           if ($LASTEXITCODE -ne 0) { throw "Final ZIP/APK safety tests failed" }
 
-      - name: Phase80 inspect actual Windows ZIP plus per-core SHA-256 integrity
+      - name: Phase2 inspect actual Windows ZIP, sources, licenses and per-core SHA-256
         shell: pwsh
         working-directory: ${{ runner.temp }}/okubi-desktop-source
         run: |
-          python tools/okubi_phase80_rc_preflight.py --platform windows --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --report build/phase80/windows-qa-report.json
+          python tools/okubi_phase2_windows_preflight.py --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --source-scripts tools --report build/phase80/windows-qa-report.json
           if ($LASTEXITCODE -ne 0) { throw "Windows QA ZIP is unsafe or inconsistent" }
+
+      - name: Verify independent PSP Windows launcher and local library tests
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          $sources = Get-ChildItem desktop/src -Recurse -Filter *.java | ForEach-Object FullName
+          $tests = Get-ChildItem desktop/tests -Recurse -Filter *.java | ForEach-Object FullName
+          New-Item -ItemType Directory -Force build/psp/classes | Out-Null
+          New-Item -ItemType Directory -Force build/psp/tests | Out-Null
+          & javac -encoding UTF-8 -d build/psp/classes @sources retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+          if ($LASTEXITCODE -ne 0) { throw "Source compile failed" }
+          & javac -encoding UTF-8 -cp build/psp/classes -d build/psp/tests @tests
+          if ($LASTEXITCODE -ne 0) { throw "PSP test compile failed" }
+          & java -ea -cp "build/psp/classes;build/psp/tests" bo.okubi.desktop.DesktopPspLauncherTest
+          if ($LASTEXITCODE -ne 0) { throw "PSP launcher tests failed" }
+
+      - name: PS1 quick-launch regression contracts
+        shell: pwsh
+        working-directory: ${{ runner.temp }}/okubi-desktop-source
+        run: |
+          python -m unittest discover -s tools/tests -p 'test_okubi_ps1_launch_contract.py' -v
+          if ($LASTEXITCODE -ne 0) { throw "PS1 direct launcher contract failed" }
 
       - name: Upload standalone Windows application image
         uses: actions/upload-artifact@v4
         with:
-          name: OKUBI-Desktop-Windows-Phase69-QA-1.0.13
+          name: OKUBI-WINDOWS-LEGACY-MANUAL-SOURCE-AUDITED
           path: |
             ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64.zip
             ${{ runner.temp }}/okubi-desktop-source/build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt
             ${{ runner.temp }}/okubi-desktop-source/build/phase80/windows-qa-report.json
           if-no-files-found: error
-          retention-days: 5
+          retention-days: 14
