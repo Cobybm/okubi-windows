@@ -229,6 +229,10 @@ public final class OkubiDesktop {
                 event -> showUnifiedLibrary(),
                 javax.swing.KeyStroke.getKeyStroke("control U"),
                 javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
+        window.getRootPane().registerKeyboardAction(
+                event -> showDiscoverGames(),
+                javax.swing.KeyStroke.getKeyStroke("control D"),
+                javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW);
         bindConsoleKeys();
 
         JPanel root = panel(BG);
@@ -295,6 +299,9 @@ public final class OkubiDesktop {
         JPanel sidebar = panel(PANEL);
         sidebar.setBorder(BorderFactory.createEmptyBorder(18, 12, 16, 12));
         sidebar.setLayout(new BoxLayout(sidebar, BoxLayout.Y_AXIS));
+        // A dedicated Discover action without changing the six-button header contract.
+        sidebar.add(button("↓ DESCUBRIR JUEGOS", true, this::showDiscoverGames));
+        sidebar.add(Box.createVerticalStrut(12));
         // The four library filters already live in the horizontal tab bar.
         // Show them here only on displays too short to fit those tabs.
         sidebarCategories = panel(PANEL);
@@ -1260,6 +1267,23 @@ public final class OkubiDesktop {
         coverService.retryMissing(() -> {
             renderGames();
             setStatus("Buscando portadas online · las disponibles se guardarán para uso sin conexión");
+        });
+    }
+
+    private void showDiscoverGames() {
+        if (EmbeddedPlayerWindow.hasActiveSession()) {
+            setStatus("Cierra la partida antes de descargar o importar juegos.");
+            return;
+        }
+        DesktopHomebrewDialog.show(window, rom -> {
+            try {
+                boolean added = library.addGame(rom);
+                renderGames();
+                setStatus(added ? "Juego descargado e importado: " + rom.getFileName()
+                        : "Ya estaba en tu biblioteca: " + rom.getFileName());
+            } catch (IOException problem) {
+                showError("No se pudo importar: " + problem.getMessage());
+            }
         });
     }
 
