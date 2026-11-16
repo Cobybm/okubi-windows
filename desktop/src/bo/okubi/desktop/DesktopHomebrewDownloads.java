@@ -51,7 +51,9 @@ public final class DesktopHomebrewDownloads {
     }
     /** Reject arbitrary endpoints, redirects and user-controlled filename tricks. */
     public static boolean authorizedDirect(Entry entry) {
-        if (entry == null || !entry.direct() || entry.filename() == null) return false;
+        // Only metadata audited and shipped with OKUBI may trigger a direct download.
+        if (entry == null || !ENTRIES.contains(entry)
+                || !entry.direct() || entry.filename() == null) return false;
         if (!entry.filename().matches("[A-Za-z0-9_-]{1,70}\\.(gb|gbc|gba|nes|sfc)"))
             return false;
         try {
@@ -73,7 +75,7 @@ public final class DesktopHomebrewDownloads {
             throw new IOException("Ruta de descarga insegura.");
         if (Files.exists(file)) {
             if (!Files.isRegularFile(file)) throw new IOException("La ruta de destino está ocupada.");
-            if (Files.size(file) > MAX_ROM) throw new IOException("El archivo existente es demasiado grande.");
+            verifyCartridge(file, entry.filename());
             return new Receipt(file, digest(file));
         }
         HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(12))
@@ -105,24 +107,31 @@ public final class DesktopHomebrewDownloads {
                 }
                 if (total < 0x150) throw new IOException("Descarga vacía o incompleta.");
             }
-            // A genuine Game Boy cartridge image includes the 48-byte logo.
-            if (entry.filename().toLowerCase(Locale.ROOT).endsWith(".gb")
-                    || entry.filename().toLowerCase(Locale.ROOT).endsWith(".gbc")) {
-                try (InputStream in = Files.newInputStream(temp)) {
-                    byte[] header = in.readNBytes(0x134);
-                    if (header.length < 0x134) throw new IOException("Cabecera Game Boy incompleta.");
-                    for (int i = 0; i < NINTENDO_LOGO.length; i++) {
-                        if (header[0x104 + i] != NINTENDO_LOGO[i])
-                            throw new IOException("La descarga no parece una ROM de Game Boy válida.");
-                    }
-                }
-            }
+            verifyCartridge(temp, entry.filename());
             String hash = digest(temp);
             try { Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE); }
             catch (java.nio.file.AtomicMoveNotSupportedException ex) { Files.move(temp, file); }
             return new Receipt(file, hash);
         } finally { Files.deleteIfExists(temp); }
     }
+    /** Reject a modified cached download before importing it into a game session. */
+    private static void verifyCartridge(Path file, String filename) throws IOException {
+        long size = Files.size(file);
+        if (size < 32768 || size > MAX_ROM)
+            throw new IOException("Tamaño incompatible con una ROM válida.");
+        if (filename.toLowerCase(Locale.ROOT).endsWith(".gb")
+                || filename.toLowerCase(Locale.ROOT).endsWith(".gbc")) {
+            try (InputStream in = Files.newInputStream(file)) {
+                byte[] header = in.readNBytes(0x134);
+                if (header.length < 0x134) throw new IOException("Cabecera Game Boy incompleta.");
+                for (int i = 0; i < NINTENDO_LOGO.length; i++) {
+                    if (header[0x104 + i] != NINTENDO_LOGO[i])
+                        throw new IOException("La descarga no parece una ROM de Game Boy válida.");
+                }
+            }
+        }
+    }
+
     private static String digest(Path file) throws IOException {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
