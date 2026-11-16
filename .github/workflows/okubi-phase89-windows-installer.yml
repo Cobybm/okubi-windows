@@ -1,10 +1,10 @@
-name: OKUBI Phase89 - Windows Audio Stability Setup
+name: OKUBI Cierre Integrado - Windows Verificación Alternativa
 
 on:
   push:
-    branches: [feat/okubi-phase89-audio-installability]
+    branches: [release/okubi-cierre-integrado]
   pull_request:
-    branches: [feat/okubi-phase88-speed-audio-android-universal]
+    branches: [feat/okubi-phase93-android-universal-apk]
   workflow_dispatch:
 
 permissions:
@@ -12,12 +12,12 @@ permissions:
   actions: read
 
 concurrency:
-  group: okubi-phase89-installers-${{ github.head_ref || github.ref_name }}
+  group: okubi-cierre-win-alternate-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   windows-user-installer:
-    name: Installable Windows Setup EXE - isolated QA86
+    name: Windows x64 Cierre QA - source and sound validated
     runs-on: windows-latest
     timeout-minutes: 35
     steps:
@@ -124,16 +124,16 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $compiler = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
-          & $compiler "/DSourceRoot=$env:GITHUB_WORKSPACE" installer/phase89/OKUBI-QA89.iss
+          & $compiler "/DSourceRoot=$env:GITHUB_WORKSPACE" installer/cierre/OKUBI-Cierre-QA.iss
           if ($LASTEXITCODE -ne 0) { throw 'Windows installer compilation failed' }
-          if (-not (Test-Path 'build/phase86/out/OKUBI-Windows-Instalar-QA89.exe')) {
+          if (-not (Test-Path 'build/phase86/out/OKUBI-Windows-Cierre-QA.exe')) {
             throw 'Windows Setup EXE is missing'
           }
       - name: Smoke-test Windows setup installation and original EXE with no ROMs
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = (Resolve-Path build/phase86/out/OKUBI-Windows-Instalar-QA89.exe).Path
+          $installer = (Resolve-Path build/phase86/out/OKUBI-Windows-Cierre-QA.exe).Path
           $folder = Join-Path $env:RUNNER_TEMP ('OKUBI-QA86-install-' + [guid]::NewGuid().ToString('N'))
           $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',('/DIR=' + $folder))
           $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
@@ -180,12 +180,26 @@ jobs:
           if (-not (Test-Path $uninstaller)) { throw 'Uninstaller not installed' }
           $u = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
           if ($u.ExitCode -ne 0) { throw 'Installer cleanup failed' }
-          Write-Host 'PASS: QA88 installer with fast-forward, media/volume, preserved emulators and QA86 saves installed and tested.'
-      - name: Upload real Windows setup EXE only
+          Write-Host 'PASS: Consolidated Windows installer with fast-forward, media controls, PCM integrity, preserved cores and QA86 saves installed and tested.'
+      - name: Verify installer checksum for safe download
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = 'build/phase86/out/OKUBI-Windows-Cierre-QA.exe'
+          if (-not (Test-Path $installer)) { throw 'Verified installer missing' }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -notmatch '^[a-f0-9]{64}
+
+) { throw 'Invalid installer digest' }
+          "$hash *OKUBI-Windows-Cierre-QA.exe" | Set-Content -Path 'build/phase86/out/SHA256SUMS.txt' -Encoding ascii
+          Write-Host "QA installer SHA-256: $hash"
+      - name: Upload tested Windows setup and checksum (QA only)
         uses: actions/upload-artifact@v4
         with:
-          name: OKUBI-PHASE89-WINDOWS-INSTALLER-EXE-NOT-STABLE
-          path: build/phase86/out/OKUBI-Windows-Instalar-QA89.exe
+          name: OKUBI-CIERRE-WINDOWS-QA-INSTALLER-NOT-STABLE
+          path: |
+            build/phase86/out/OKUBI-Windows-Cierre-QA.exe
+            build/phase86/out/SHA256SUMS.txt
           retention-days: 14
           if-no-files-found: error
 
