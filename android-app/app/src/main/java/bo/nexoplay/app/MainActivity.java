@@ -105,6 +105,7 @@ public final class MainActivity extends Activity {
     private static final int REQUEST_RETRO_COVER = 7289;
     private static final int REQUEST_UNIFIED_EXPORT = 7290;
     private static final int REQUEST_UNIFIED_IMPORT = 7291;
+    private static final int REQUEST_PLAY_FORMAT_INSPECT = 7292;
     // One task maximum in flight; never accumulate many archive copies in RAM.
     private final ThreadPoolExecutor migrationQueue = new ThreadPoolExecutor(
             1,1,0L,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(1),
@@ -731,6 +732,16 @@ public final class MainActivity extends Activity {
         manager.setOnClickListener(v->startActivity(new Intent(this,
                 bo.nexoplay.app.retro.OkubiCatalogActivity.class)));
         body.addView(gap(10));
+        section("PlayStation · importación inteligente",
+                "Identifica el formato de tus propias copias de PS1, PS2, PSP, PS3 y PS Vita");
+        TextView inspectPlay=CinemaUi.action(this,"◈ ANALIZAR ARCHIVO PLAYSTATION",false);
+        body.addView(inspectPlay,lp(-1,-2));
+        inspectPlay.setContentDescription("Revisar un archivo PlayStation sin modificarlo");
+        inspectPlay.setOnClickListener(v->choosePlayStationFile());
+        body.addView(gap(7));
+        body.addView(text("ISO, BIN/CUE, CHD, CSO, ZSO, PBP, PKG, VPK y más. "
+                + "Reconocer un archivo NO garantiza que el emulador esté instalado "
+                + "o pueda ejecutar ese juego.",12,CinemaUi.MUTED,false));
         section("Retro","Juegos indie, fangames y fuentes de Nintendo");
         TextView nintendo=CinemaUi.action(this,"NINTENDO / DESCARGAS Y ROM HACKS  ↓",false);
         body.addView(nintendo,lp(-1,-2));
@@ -1630,6 +1641,39 @@ public final class MainActivity extends Activity {
         catch(Exception error){Toast.makeText(this,
                 "No se pudo abrir el selector de destino",Toast.LENGTH_LONG).show();}
     }
+    private void choosePlayStationFile() {
+        Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        picker.addCategory(Intent.CATEGORY_OPENABLE);
+        picker.setType("*/*");
+        picker.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        try { startActivityForResult(picker,REQUEST_PLAY_FORMAT_INSPECT); }
+        catch (Exception error) {
+            Toast.makeText(this,"No se pudo abrir el selector de archivos.",
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void inspectPlayStationFile(Uri selected) {
+        if(selected==null||!"content".equals(selected.getScheme()))return;
+        String filename=null;
+        try(android.database.Cursor c=getContentResolver().query(
+                selected,new String[]{android.provider.OpenableColumns.DISPLAY_NAME},
+                null,null,null)) {
+            if(c!=null && c.moveToFirst())filename=c.getString(0);
+        } catch(Exception ignored) {
+            // Not every document provider exposes OpenableColumns.
+        }
+        OkubiPlaystationFiles.Advice advice=OkubiPlaystationFiles.describe(filename);
+        new AlertDialog.Builder(this)
+                .setTitle("OKUBI 遊 · Análisis del archivo")
+                .setMessage((filename==null?"Archivo sin nombre":filename)
+                        +"\n\n"+advice.summary()
+                        +"\n\nLa búsqueda es informativa. OKUBI no modifica, "
+                        +"descomprime ni ejecuta el documento seleccionado.")
+                .setPositiveButton("Entendido",null)
+                .show();
+    }
+
     private void chooseUnifiedImport(){
         if(migrationBusy)return;
         Intent picker=new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -2057,6 +2101,11 @@ public final class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
         super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode==REQUEST_PLAY_FORMAT_INSPECT) {
+            if(resultCode==RESULT_OK && data!=null)
+                inspectPlayStationFile(data.getData());
+            return;
+        }
         if(requestCode==REQUEST_UNIFIED_EXPORT || requestCode==REQUEST_UNIFIED_IMPORT) {
             if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
             Uri selected=data.getData();
