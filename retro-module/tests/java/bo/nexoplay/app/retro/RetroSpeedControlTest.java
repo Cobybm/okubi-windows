@@ -1,35 +1,39 @@
 package bo.nexoplay.app.retro;
 
 public final class RetroSpeedControlTest {
-    private static void check(boolean condition, String message) {
-        if (!condition) throw new AssertionError(message);
+    private static void check(boolean ok,String message) {
+        if (!ok) throw new AssertionError(message);
     }
-    public static void main(String[] args) {
-        check(RetroSpeedControl.NORMAL == 1, "default x1");
-        check(RetroSpeedControl.label(0).equals("×0.5"), "half-speed label");
-        check(RetroSpeedControl.label(1).equals("×1"), "normal label");
-        check(RetroSpeedControl.label(2).equals("×2"), "double label");
-        check(RetroSpeedControl.label(3).equals("×4"), "quadruple label");
-        check(RetroSpeedControl.slower(0) == 0, "minimum limit");
-        check(RetroSpeedControl.faster(3) == 3, "maximum limit");
-        check(RetroSpeedControl.faster(1) == 2, "speed increases");
-        check(RetroSpeedControl.slower(1) == 0, "speed decreases");
-        long normal = 16_666_667L;
-        check(RetroSpeedControl.intervalNanos(normal,0) == normal * 2L,
-                "half speed slows actual core cadence");
-        check(RetroSpeedControl.intervalNanos(normal,1) == normal,
-                "normal cadence identical to baseline");
-        check(RetroSpeedControl.intervalNanos(normal,2) == Math.round(normal/2.0),
-                "double speed");
-        check(RetroSpeedControl.intervalNanos(normal,3) == Math.round(normal/4.0),
-                "four times speed");
-        check(RetroSpeedControl.presentFrame(1,3L), "normal draws all");
-        check(RetroSpeedControl.presentFrame(2,2L), "fast draws frame 2");
-        check(!RetroSpeedControl.presentFrame(2,3L), "fast skips frame 3 only visually");
-        check(RetroSpeedControl.presentFrame(3,4L), "x4 draw one in four");
-        check(!RetroSpeedControl.presentFrame(3,5L), "x4 suppress extra render");
-        check(RetroSpeedControl.normal(1), "audio normal only x1");
-        check(!RetroSpeedControl.normal(2), "audio muted on fast mode");
+    public static void main(String[] ignored) {
+        check(RetroSpeedControl.NORMAL==1,"default x1 unchanged");
+        String[] labels={"×0.5","×1","×1.25","×1.5","×2","×3","×4"};
+        for(int i=0;i<labels.length;i++)
+            check(RetroSpeedControl.label(i).equals(labels[i]),"speed label "+i);
+        check(RetroSpeedControl.faster(1)==2,"1x goes to 1.25x");
+        check(RetroSpeedControl.faster(6)==6,"max");
+        check(RetroSpeedControl.slower(0)==0,"min");
+        check(RetroSpeedControl.slower(2)==1,"back to normal");
+        long frame=16_666_667L;
+        check(RetroSpeedControl.intervalNanos(frame,0)==frame*2,"half speed");
+        check(RetroSpeedControl.intervalNanos(frame,1)==frame,"normal frame");
+        check(RetroSpeedControl.intervalNanos(frame,2)==Math.round(frame/1.25),"1.25");
+        check(RetroSpeedControl.intervalNanos(frame,3)==Math.round(frame/1.5),"1.5");
+        check(RetroSpeedControl.intervalNanos(frame,4)==Math.round(frame/2.0),"2");
+        check(RetroSpeedControl.intervalNanos(frame,5)==Math.round(frame/3.0),"3");
+        check(RetroSpeedControl.playbackSampleRate(48000,1)==48000,"normal PCM");
+        check(RetroSpeedControl.playbackSampleRate(48000,2)==60000,"fast PCM 1.25");
+        check(RetroSpeedControl.playbackSampleRate(48000,3)==72000,"fast PCM 1.5");
+        check(RetroSpeedControl.playbackSampleRate(48000,4)==96000,"fast PCM 2");
+        check(RetroSpeedControl.playbackSampleRate(48000,5)==144000,"fast PCM 3");
+        check(RetroSpeedControl.playbackSampleRate(48000,6)==192000,"max PCM");
+        check(RetroSpeedControl.presentFrame(1,3),"1x all visual frames");
+        check(RetroSpeedControl.presentFrame(2,3),"1.25 no video drop");
+        check(RetroSpeedControl.presentFrame(3,3),"1.5 no video drop");
+        check(RetroSpeedControl.presentFrame(4,2),"2x present frame 2");
+        check(!RetroSpeedControl.presentFrame(4,3),"2x skip only video frame 3");
+        check(RetroSpeedControl.presentFrame(5,3),"3x present video 1/3");
+        check(!RetroSpeedControl.presentFrame(5,4),"3x skip video");
+        check(RetroSpeedControl.normal(1),"only x1 normal");
         System.out.println("RetroSpeedControlTest: OK");
     }
 }
