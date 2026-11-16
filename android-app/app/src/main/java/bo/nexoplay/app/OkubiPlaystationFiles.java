@@ -34,10 +34,10 @@ public final class OkubiPlaystationFiles {
         }
         String n=filename.toLowerCase(Locale.ROOT);
         if(n.equals("eboot.bin"))
-            return new Advice("EBOOT.BIN","PS3 / PSP según contenido",
-                    "RPCS3 / PPSSPP",
-                    "PS3 suele usar PS3_GAME/USRDIR/EBOOT.BIN; PSP puede usar "
-                    +"PSP/GAME/.../EBOOT.PBP. No confundas los dos formatos.",true,false);
+            return new Advice("EBOOT.BIN","PS3",
+                    "RPCS3 (Windows)",
+                    "PS3 utiliza habitualmente PS3_GAME/USRDIR/EBOOT.BIN. "
+                    +"No equivale al archivo EBOOT.PBP de PSP.",false,false);
         if(n.endsWith(".cue"))
             return new Advice("CUE + pistas","PS1 / PS2 CD",
                     "DuckStation / ARMSX2 o Play!",
