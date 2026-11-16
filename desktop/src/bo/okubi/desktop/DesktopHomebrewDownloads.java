@@ -24,9 +24,7 @@ public final class DesktopHomebrewDownloads {
     }
     public record Receipt(Path file, String sha256) { }
     private static final int MAX_ROM = 16 * 1024 * 1024;
-    private static final byte[] NINTENDO_LOGO = HexFormat.of().parseHex(
-            "CEED6666CC0D000B03730083000C000D0008111F8889000DC"
-            + "CC6EE6DDDDD999BBBB67636E0EECCDDDC999FBBB9333E");
+    private static final byte[] NINTENDO_LOGO = HexFormat.of().parseHex("CEED6666CC0D000B03730083000C000D0008111F8889000EDCCC6EE6DDDDD999BBBB67636E0EECCCDDDC999FBBB9333E");
     private static final List<Entry> ENTRIES = List.of(
         new Entry("2048 GB · Sanqui", "Game Boy",
             "https://github.com/Sanqui/2048-gb",
