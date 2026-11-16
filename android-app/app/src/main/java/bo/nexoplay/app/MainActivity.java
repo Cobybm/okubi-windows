@@ -59,6 +59,43 @@ import java.util.Set;
 public final class MainActivity extends Activity {
     private enum Screen { HOME, LIBRARY, RETRO, DISCOVER, COLLECTIONS, COLLECTION_DETAIL, ACTIVITY, PROFILE, SETTINGS }
     private Screen screen=Screen.HOME;
+    private final Map<String, View> tourTargets=new LinkedHashMap<>();
+    private OkubiGuidedTour guidedOverlay;
+    private boolean guidedTourActive;
+    private int guidedStepIndex;
+    private static final String TOUR_COMPLETED = "okubi_spotlight_onboarding_v1_completed";
+    private static final class TourStep {
+        final Screen screen;
+        final String target, title, explanation;
+        TourStep(Screen screen, String target, String title, String explanation) {
+            this.screen=screen;this.target=target;this.title=title;this.explanation=explanation;
+        }
+    }
+    private static final TourStep[] TOUR_STEPS = {
+        new TourStep(Screen.HOME,"home_play","Empieza a jugar",
+            "Aquí se inicia tu juego destacado. Si aún no tienes juegos, este botón abre tu biblioteca para añadirlos."),
+        new TourStep(Screen.HOME,"nav_library","Tu biblioteca",
+            "En JUEGOS se reúnen tus aplicaciones de Android y tus juegos retro. Puedes buscar, ordenar y elegir qué jugar."),
+        new TourStep(Screen.LIBRARY,"library_retro","Importa tus juegos retro",
+            "Aquí puedes cargar tus propias copias de juegos desde el teléfono. OKUBI intentará reconocer la consola y el formato."),
+        new TourStep(Screen.LIBRARY,"nav_discover","Descubre juegos",
+            "Esta pestaña reúne la búsqueda de aplicaciones, el catálogo gratuito y las opciones de descarga."),
+        new TourStep(Screen.DISCOVER,"discover_scan","Detectar juegos",
+            "Toca este botón para buscar de nuevo los juegos instalados en tu Android y agregarlos a la biblioteca."),
+        new TourStep(Screen.DISCOVER,"discover_homebrew","Explorar juegos gratuitos",
+            "Aquí encontrarás homebrew y juegos que sus autores ofrecen legalmente. Podrás descargar los compatibles."),
+        new TourStep(Screen.DISCOVER,"nav_retro","Tus consolas",
+            "En RETRO están los emuladores y las opciones de importar, abrir o configurar tus juegos clásicos."),
+        new TourStep(Screen.RETRO,"retro_catalog","Descargas retro",
+            "Abre el catálogo de juegos gratuitos para consolas. OKUBI te indicará qué archivos y emuladores admite."),
+        new TourStep(Screen.RETRO,"nav_home","Volver al inicio",
+            "La barra inferior siempre te permite regresar a Inicio sin cerrar OKUBI."),
+        new TourStep(Screen.HOME,"home_settings","Configuración",
+            "En AJUSTES puedes personalizar la interfaz y proteger tus partidas con copias de seguridad."),
+        new TourStep(Screen.SETTINGS,"tour_replay","Vuelve a ver esta guía",
+            "Desde este botón podrás repetir el recorrido cuando quieras. La guía no volverá a interrumpirte después de terminar.")
+    };
+
     private GameStore store;
     private GameCollections collections;
     private GameCatalog catalog;
@@ -153,6 +190,7 @@ public final class MainActivity extends Activity {
         super.onSaveInstanceState(outState);
     }
     @Override public void onBackPressed(){
+        if(guidedTourActive) { finishGuidedTour();return; }
         if(screen==Screen.COLLECTION_DETAIL)showScreen(Screen.COLLECTIONS);
         else if(screen!=Screen.HOME)showScreen(Screen.HOME);
         else super.onBackPressed();
@@ -176,6 +214,7 @@ public final class MainActivity extends Activity {
     }
     private void showScreen(Screen next) {
         screen=next;
+        tourTargets.clear();
         coverTargets.clear();
         body.removeAllViews();
         makeHeader();
@@ -201,7 +240,74 @@ public final class MainActivity extends Activity {
             body.setAlpha(1f);
             body.setTranslationY(0f);
         }
+        if(next==Screen.HOME && !guidedTourActive) {
+            root.post(this::startFirstTimeTourIfNeeded);
+        }
     }
+    private void startFirstTimeTourIfNeeded() {
+        if(isFinishing() || guidedTourActive || screen!=Screen.HOME
+                || getPreferences(MODE_PRIVATE).getBoolean(TOUR_COMPLETED,false)) return;
+        beginGuidedTour(false);
+    }
+
+    private void beginGuidedTour(boolean manualReplay) {
+        if(isFinishing()) return;
+        if(!manualReplay && getPreferences(MODE_PRIVATE)
+                .getBoolean(TOUR_COMPLETED,false)) return;
+        closeGuidedOverlay();
+        guidedTourActive=true;
+        guidedStepIndex=0;
+        showGuidedStep();
+    }
+
+    private void closeGuidedOverlay() {
+        if(guidedOverlay!=null) {
+            guidedOverlay.close();
+            guidedOverlay=null;
+        }
+    }
+
+    private void finishGuidedTour() {
+        closeGuidedOverlay();
+        guidedTourActive=false;
+        getPreferences(MODE_PRIVATE).edit().putBoolean(TOUR_COMPLETED,true).apply();
+        if(screen!=Screen.HOME) showScreen(Screen.HOME);
+    }
+
+    private void advanceGuidedTour(int delta) {
+        if(!guidedTourActive) return;
+        if(guidedStepIndex+delta>=TOUR_STEPS.length) {
+            finishGuidedTour();
+            return;
+        }
+        guidedStepIndex=Math.max(0,guidedStepIndex+delta);
+        showGuidedStep();
+    }
+
+    private void showGuidedStep() {
+        if(!guidedTourActive || isFinishing()) return;
+        final int index=guidedStepIndex;
+        final TourStep item=TOUR_STEPS[index];
+        closeGuidedOverlay();
+        if(screen!=item.screen)showScreen(item.screen);
+        root.post(() -> {
+            if(!guidedTourActive || index!=guidedStepIndex
+                    || screen!=item.screen || isFinishing()) return;
+            final View target=tourTargets.get(item.target);
+            if(target==null) {
+                // Screen modifications must not trap the user in the walkthrough.
+                advanceGuidedTour(1);
+                return;
+            }
+            guidedOverlay=new OkubiGuidedTour(this,root);
+            guidedOverlay.showStep(target,item.title,item.explanation,
+                    index+1,TOUR_STEPS.length,
+                    ()->advanceGuidedTour(-1),
+                    ()->advanceGuidedTour(1),
+                    this::finishGuidedTour);
+        });
+    }
+
     private void makeHeader() {
         LinearLayout header=row();
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -358,6 +464,7 @@ public final class MainActivity extends Activity {
                 !hasHero?"＋  AGREGAR JUEGOS":"▶  JUGAR",true);
         LinearLayout.LayoutParams playLp=new LinearLayout.LayoutParams(0,-2,1f);
         action.addView(play,playLp);
+        tourTargets.put("home_play",play);
         play.setOnClickListener(v->{
             if(!hasHero)showScreen(Screen.LIBRARY);
             else if(featured!=null)launch(featured);
@@ -458,7 +565,9 @@ public final class MainActivity extends Activity {
         calls.addView(library,new LinearLayout.LayoutParams(0,-2,1f));library.setOnClickListener(v->showScreen(Screen.LIBRARY));
         TextView settings=CinemaUi.action(this,"AJUSTES",false);
         LinearLayout.LayoutParams settingsLp=lp(-2,-2);settingsLp.leftMargin=dp(9);
-        calls.addView(settings,settingsLp);settings.setOnClickListener(v->showScreen(Screen.SETTINGS));
+        calls.addView(settings,settingsLp);
+        tourTargets.put("home_settings",settings);
+        settings.setOnClickListener(v->showScreen(Screen.SETTINGS));
         body.addView(gap(12));
         TextView collectionsButton=CinemaUi.action(this,"MIS COLECCIONES  →",false);
         body.addView(collectionsButton,lp(-1,-2));
@@ -584,6 +693,7 @@ public final class MainActivity extends Activity {
         body.addView(gap(12));
         TextView demos=CinemaUi.action(this,"JUEGOS RETRO GRATUITOS Y LEGALES",false);
         body.addView(demos,lp(-1,-2));
+        tourTargets.put("retro_catalog",demos);
         demos.setOnClickListener(v->startActivity(new Intent(this,bo.nexoplay.app.retro.OkubiCatalogActivity.class)));
         section("Compatibilidad","Elige la consola adecuada para tu teléfono");
         body.addView(text("GB/GBC funcionan con SameBoy y GBA con mGBA. DS, N64 y otras consolas requieren un emulador compatible o están solo en catálogo.",12,CinemaUi.MUTED,false));
@@ -604,6 +714,7 @@ public final class MainActivity extends Activity {
         section("Android","Juegos instalados y biblioteca local");
         TextView scan=CinemaUi.action(this,"DETECTAR JUEGOS DE MI TELÉFONO",true);
         body.addView(scan,lp(-1,-2));
+        tourTargets.put("discover_scan",scan);
         scan.setOnClickListener(v->{
             catalog.forceReload();
             int added=OkubiGameScanner.sync(this,catalog,store);
@@ -628,6 +739,7 @@ public final class MainActivity extends Activity {
         body.addView(gap(12));
         TextView homebrew=CinemaUi.action(this,"EXPLORAR HOMEBREW  →",false);
         body.addView(homebrew,lp(-1,-2));
+        tourTargets.put("discover_homebrew",homebrew);
         homebrew.setOnClickListener(v->startActivity(new Intent(this,bo.nexoplay.app.retro.OkubiCatalogActivity.class)));
         body.addView(gap(12));
         TextView pokemon=CinemaUi.action(this,"COLECCIÓN POKÉMON  →",false);
@@ -647,6 +759,7 @@ public final class MainActivity extends Activity {
         TextView addRetro=CinemaUi.action(this,"＋ IMPORTAR RETRO",false);
         LinearLayout.LayoutParams retroAction=new LinearLayout.LayoutParams(0,-2,1f);
         retroAction.leftMargin=dp(8);addActions.addView(addRetro,retroAction);
+        tourTargets.put("library_retro",addRetro);
         addRetro.setOnClickListener(v->startActivity(new Intent(this,
                 bo.nexoplay.app.retro.OkubiPokemonActivity.class)));
         body.addView(gap(15));
@@ -1397,6 +1510,11 @@ public final class MainActivity extends Activity {
         String free="—";
         try{StatFs fs=new StatFs(Environment.getDataDirectory().getPath());free=String.format(Locale.getDefault(),"%.1f GB",fs.getAvailableBytes()/1073741824.0);}catch(Exception ignored){}
         metric(row,"ESPACIO",free);
+        section("Guía interactiva","Aprende las funciones de cada botón con la pantalla oscura y el control resaltado");
+        TextView replayTour=CinemaUi.action(this,"▶ VOLVER A VER EL TUTORIAL",false);
+        body.addView(replayTour,lp(-1,-2));
+        tourTargets.put("tour_replay",replayTour);
+        replayTour.setOnClickListener(v->beginGuidedTour(true));
         section("Apariencia CINEMA","Preferencias locales. No modifican otros juegos ni Android");
         TextView palette=CinemaUi.action(this,"PALETA · "+paletteName(),false);
         palette.setContentDescription("Cambiar paleta de OKUBI PLAY");
@@ -1682,6 +1800,7 @@ public final class MainActivity extends Activity {
         item.setPadding(dp(2),dp(3),dp(2),dp(3));
         if(active)item.setBackground(CinemaUi.shape(this,CinemaUi.ELEVATED,15));
         bar.addView(item,new LinearLayout.LayoutParams(0,-1,1f));
+        tourTargets.put("nav_"+target.name().toLowerCase(Locale.ROOT),item);
 
         View indicator=new View(this);
         indicator.setBackground(CinemaUi.shape(this,CinemaUi.GOLD,4));
@@ -2073,6 +2192,8 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy(){
+        closeGuidedOverlay();
+        guidedTourActive=false;
         coverTargets.clear();
         coverWorker.shutdownNow();
         migrationQueue.shutdownNow();
