@@ -11,8 +11,8 @@
 [Setup]
 AppId={{C8F57D2C-379D-42C9-A677-C0F4B0B9E86D}
 AppName=OKUBI QA86 - Windows
-AppVersion=1.0.13.86
-AppVerName=OKUBI QA86 - Windows (versión de prueba)
+AppVersion=1.0.13.87
+AppVerName=OKUBI Windows - QA87 (versión de prueba)
 AppPublisher=OKUBI
 AppComments=Versión de prueba separada; conserva otras instalaciones y sus partidas.
 DefaultDirName={localappdata}\Programs\OKUBI-QA86
@@ -25,7 +25,7 @@ ArchitecturesInstallIn64BitMode=x64
 UninstallDisplayName=OKUBI QA86 Windows (pruebas)
 UninstallDisplayIcon={app}\{#AppExe}
 OutputDir={#SourceRoot}\build\phase86\out
-OutputBaseFilename=OKUBI-Windows-Instalar-QA86
+OutputBaseFilename=OKUBI-Windows-Instalar-QA87
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -34,7 +34,7 @@ RestartApplications=no
 SetupLogging=no
 AllowNoIcons=yes
 UsePreviousAppDir=no
-VersionInfoDescription=OKUBI QA86 - instalador de prueba con guardados aislados
+VersionInfoDescription=OKUBI QA87 - instalador de prueba con continuidad de partidas QA86
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
