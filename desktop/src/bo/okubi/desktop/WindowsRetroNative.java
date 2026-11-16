@@ -123,5 +123,12 @@ public final class WindowsRetroNative {
     private static native byte[] nativeSaveState();
     private static native boolean nativeLoadState(byte[] bytes);
     private static native void nativeClose();
+    /** Explicit user-initiated Windows global media key: prev/play/next/system mute. */
+    public static boolean sendMediaCommand(int command) {
+        if(command<0 || command>3) return false;
+        ensureBridge();
+        return nativeMediaKey(command);
+    }
+    private static native boolean nativeMediaKey(int command);
     private static native int nativeGamepadMask();
 }
