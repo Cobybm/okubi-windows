@@ -61,14 +61,22 @@ def build(repo: Path, output: Path, ndk: Path, abi_filter: set[str] | None = Non
         arch = tools / "llvm-ar"
         if not all(path.is_file() for path in (cc, cxx, arch)):
             raise FileNotFoundError("Missing NDK compiler for " + abi)
+        # Clang -dumpmachine reports armv7a for armeabi-v7a, but the
+        # upstream Makefile expects ARCH=arm to link gte_arm/arm_utils.
+        # Without this override the .so has undefined symbols even though
+        # all C files appeared to compile successfully.
+        cpu_arch = {
+            "arm64-v8a": "arm64", "armeabi-v7a": "arm",
+            "x86": "i686", "x86_64": "x86_64",
+        }[abi]
         run("make", "-f", "Makefile.libretro", "clean",
-            "platform=unix", "DYNAREC=", cwd=source)
+            "platform=unix", f"ARCH={cpu_arch}", "DYNAREC=", cwd=source)
         env = os.environ.copy()
         env["CFLAGS"] = "-O2 -fPIC -DANDROID -D__ANDROID__"
         env["CXXFLAGS"] = "-O2 -fPIC -DANDROID -D__ANDROID__"
         run("make", "-j2", "-f", "Makefile.libretro",
             "platform=unix", f"CC={cc}", f"CXX={cxx}", f"AR={arch}",
-            "DYNAREC=", "HAVE_PHYSICAL_CDROM=0",
+            f"ARCH={cpu_arch}", "DYNAREC=", "HAVE_PHYSICAL_CDROM=0",
             "USE_LIBRETRO_VFS=0", "USE_ASYNC_CDROM=0",
             "USE_ASYNC_GPU=0", "USE_ASYNC_SPU=0", "NDRC_THREAD=0",
             cwd=source, env=env)
