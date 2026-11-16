@@ -97,6 +97,8 @@ public class OkubiCatalogActivity extends Activity {
     private static final Game[] GAMES = {
         new Game("Ascension", "GB", "Plataformas • ROM original del autor",
             "https://raw.githubusercontent.com/wolandark/Ascension/master/build/rom/game.gb", true),
+        new Game("2048 GB", "GB", "Puzle • software abierto zlib • Homebrew Hub",
+            "https://hh3.gbdev.io/api/entry/2048gb/2048.gb", true),
         new Game("Punch-land", "GB / GBC", "Acción y plataformas",
             "https://monarchwisteria.itch.io/punch-land", false),
         new Game("Lunar Lancer", "GB", "Disparos arcade",
@@ -131,10 +133,10 @@ public class OkubiCatalogActivity extends Activity {
             "https://pokemundo.com/category/hack-roms-pokemon-gba/"
         },
         {
-            "Full GBA ROMs",
-            "Índice externo · Pokémon GBA",
-            "Enlaces de terceros a juegos comerciales. OKUBI no verifica sus permisos ni descarga archivos de esta página.",
-            "https://fullgbaroms.blogspot.com/p/roms-de-pokemon-para-gba-gameboy-avance.html"
+            "Homebrew Hub",
+            "Juegos originales · GB / GBC / GBA",
+            "Catálogo comunitario con proyectos y permisos por juego.",
+            "https://hh.gbdev.io"
         }
     };
 
@@ -328,7 +330,7 @@ public class OkubiCatalogActivity extends Activity {
                 known.append(game.name);
             }
         }
-        centerSummary.setText("1 juego directo · "+VERIFIED_PATCHES.length+
+        centerSummary.setText("2 juegos directos · "+VERIFIED_PATCHES.length+
                 " parches disponibles · "+linked+" indies vinculados"+
                 (patchesActive>0?" · "+patchesActive+" descarga(s) activa(s)":""));
         centerExternalStatus.setText(linked==0
@@ -644,7 +646,8 @@ public class OkubiCatalogActivity extends Activity {
     }
     /** The app-owned Ascension path is private and cannot be modified by other apps. */
     private File directHomebrewFile(Game game) {
-        return new File(getFilesDir(), "okubi/homebrew/ascension.gb");
+        String fileName = "2048 GB".equals(game.name) ? "2048gb.gb" : "ascension.gb";
+        return new File(getFilesDir(), "okubi/homebrew/" + fileName);
     }
 
     private boolean verifiedDirectGame(Game game) {
@@ -768,8 +771,11 @@ public class OkubiCatalogActivity extends Activity {
     private void download(Game game) {
         Uri uri = Uri.parse(game.url);
         if (!game.direct || !"https".equals(uri.getScheme())
-                || !"raw.githubusercontent.com".equals(uri.getHost())
-                || !"/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath())) {
+                || !((("raw.githubusercontent.com".equals(uri.getHost())
+                        && "/wolandark/Ascension/master/build/rom/game.gb".equals(uri.getPath()))
+                    || ("hh3.gbdev.io".equals(uri.getHost())
+                        && "/api/entry/2048gb/2048.gb".equals(uri.getPath()))))
+                || uri.getQuery() != null || uri.getFragment() != null) {
             Toast.makeText(this, "Solo se permiten ROMs homebrew autorizadas",
                     Toast.LENGTH_LONG).show();
             return;
@@ -790,7 +796,7 @@ public class OkubiCatalogActivity extends Activity {
                 Toast.LENGTH_SHORT).show();
         try {
             downloadQueue.execute(() -> {
-                File target = new File(getFilesDir(), "okubi/homebrew/ascension.gb");
+                File target = directHomebrewFile(game);
                 try {
                     File directory = target.getParentFile();
                     if (!directory.isDirectory() && !directory.mkdirs())
