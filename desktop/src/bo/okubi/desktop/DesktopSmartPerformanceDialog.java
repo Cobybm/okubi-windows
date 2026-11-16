@@ -573,6 +573,13 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
     private void chooseEmulator() {
         var console = currentConsole();
         if (console == null) return;
+        if (console == DesktopSmartPerformance.Console.PS1) {
+            JOptionPane.showMessageDialog(this,
+                    "PlayStation 1 utiliza el núcleo integrado en OKUBI. "
+                    + "No hace falta descargar DuckStation ni seleccionar un EXE.",
+                    "OKUBI PS1 integrado", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
         JFileChooser choose = new JFileChooser();
         choose.setDialogTitle("Seleccionar " + console.emulatorName + " oficial (.exe)");
         choose.setFileFilter(new FileNameExtensionFilter("Ejecutable de Windows", "exe"));
@@ -615,8 +622,52 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             refreshCatalog(null);
         } catch (IOException problem) { report(problem); }
     }
+    /** PS1 runs inside the existing Swing/Libretro player, never a separate EXE. */
+    private void playPs1Internally(DesktopMulticonsoleCatalog.Game selected) {
+        if (selected == null || !selected.available()) {
+            report(new IOException("No se encontró la imagen PS1."));
+            return;
+        }
+        if (EmbeddedPlayerWindow.hasActiveSession()) {
+            status.setText("Cierra el juego integrado anterior.");
+            return;
+        }
+        try {
+            Path core = BundledCores.resolve(DesktopLibrary.Console.PS1);
+            if (core == null) {
+                JOptionPane.showMessageDialog(this,
+                        "Este paquete no contiene el núcleo interno de PS1.\n"
+                        + "No es necesario instalar DuckStation.\n"
+                        + "Instala una versión de OKUBI que incluya el núcleo "
+                        + "Beetle PSX (mednafen_psx_libretro.dll).",
+                        "OKUBI · Falta el núcleo PS1", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            DesktopLibrary library = new DesktopLibrary(DesktopLibrary.defaultSettingsFile());
+            library.addConfirmedGame(selected.file(), DesktopLibrary.Console.PS1);
+            DesktopLibrary.Game ps1 = library.games().stream()
+                    .filter(g -> g.console == DesktopLibrary.Console.PS1
+                            && g.rom.equals(selected.file().toAbsolutePath().normalize()))
+                    .findFirst().orElseThrow(() -> new IOException(
+                            "No fue posible reconocer la copia PS1 en tu biblioteca."));
+            // JDialog is application-modal; closing it permits the real internal
+            // JFrame to receive keyboard and XInput focus normally.
+            dispose();
+            EmbeddedPlayerWindow.launch(ps1, core, () -> {
+                try { library.played(ps1); }
+                catch (IOException ignored) { /* Never interrupt gameplay. */ }
+            }, new DesktopPlayStats(DesktopPlayStats.defaultFile()));
+        } catch (IOException error) {
+            report(error);
+        }
+    }
+
     private void launch() {
         var game = gameList.getSelectedValue();
+        if (game != null && game.console() == DesktopSmartPerformance.Console.PS1) {
+            playPs1Internally(game);
+            return;
+        }
         if (game == null || !game.available()) {
             report(new IOException("Juego no disponible."));
             return;
