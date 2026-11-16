@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import sys
 import tempfile
@@ -159,6 +160,93 @@ class Phase80ArtifactTests(unittest.TestCase):
                            b"@echo off\nrem no isolated appdata\n"})
         with self.assertRaisesRegex(qa.CheckError, "test_profile_not_isolated"):
             qa.inspect("windows", self.windows, self.sums, self.evidence)
+
+    def source_built_fixture(self):
+        """Synthetic exact-byte source/recipe/license manifests; no real cores."""
+        root = "OKUBI Desktop/app/cores/"
+        base = root + "source-packages/"
+        manifest = {"status": "experimental_qa",
+                    "public_release_authorized": False,
+                    "signed_release": False, "provenance": {}}
+        evidence = {"source_built": True, "releases_authorized": False,
+                    "cores": []}
+        extras = {}
+        for name, project, license_file in (
+            ("sameboy_libretro.dll", "sameboy", "SameBoy-MIT.txt"),
+            ("mgba_libretro.dll", "mgba", "mGBA-MPL-2.0.txt"),
+            ("mednafen_supafaust_libretro.dll", "supafaust",
+             "Supafaust-GPL-2.0-plus.txt"),
+        ):
+            source_path = base + project + "-corresponding-source.tar.gz"
+            script_path = base + "build_" + project + ".sh"
+            source = (project + " corresponding source").encode() * 20
+            script = ("#!/bin/sh\n# " + project + "\n").encode() * 4
+            extras[source_path] = source
+            extras[script_path] = script
+            record = {
+                "dll_sha256": digest(self.core_bytes[name]),
+                "exact_source_commit": "a" * 40,
+                "source_repository": "https://github.com/libretro/" + project,
+                "license_sha256": digest(b"synthetic license notice" * 2),
+                "source_archive": source_path,
+                "source_archive_sha256": digest(source),
+                "build_script": script_path,
+                "project": project,
+            }
+            manifest["provenance"][name] = record
+            evidence["cores"].append({
+                "name": name, **{key: record[key] for key in (
+                    "dll_sha256", "exact_source_commit", "source_repository",
+                    "license_sha256", "source_archive",
+                    "source_archive_sha256", "build_script"
+                )}, "build_script_sha256": digest(script),
+            })
+        extras[base + "SOURCE-TO-BINARY-MANIFEST.json"] = json.dumps(manifest).encode()
+        self.make_windows(extras)
+        return evidence, extras
+
+    def test_source_built_cores_sources_recipes_and_licenses_pass(self):
+        evidence, _ = self.source_built_fixture()
+        result = qa.inspect("windows", self.windows, self.sums, evidence)
+        self.assertEqual(result["facts"]["source_archives_verified"], 3)
+        self.assertEqual(result["facts"]["build_scripts_verified"], 3)
+        self.assertEqual(result["facts"]["license_digests_verified"], 3)
+        self.assertFalse(result["public_release_authorized"])
+
+    def test_source_archive_tampering_is_rejected_even_with_valid_zip_checksum(self):
+        evidence, extras = self.source_built_fixture()
+        name = "OKUBI Desktop/app/cores/source-packages/mgba-corresponding-source.tar.gz"
+        extras[name] = b"tampered original source" * 15
+        self.make_windows(extras)
+        with self.assertRaisesRegex(qa.CheckError, "source_build_file_sha256_mismatch"):
+            qa.inspect("windows", self.windows, self.sums, evidence)
+
+    def test_build_script_tampering_is_rejected(self):
+        evidence, extras = self.source_built_fixture()
+        name = "OKUBI Desktop/app/cores/source-packages/build_mgba.sh"
+        extras[name] = b"#!/bin/sh\nunsafe changes\n"
+        self.make_windows(extras)
+        with self.assertRaisesRegex(qa.CheckError, "source_build_file_sha256_mismatch"):
+            qa.inspect("windows", self.windows, self.sums, evidence)
+
+    def test_corrupted_source_manifest_is_rejected(self):
+        evidence, extras = self.source_built_fixture()
+        name = ("OKUBI Desktop/app/cores/source-packages/"
+                "SOURCE-TO-BINARY-MANIFEST.json")
+        content = json.loads(extras[name])
+        content["provenance"]["mgba_libretro.dll"]["dll_sha256"] = "b" * 64
+        extras[name] = json.dumps(content).encode()
+        self.make_windows(extras)
+        with self.assertRaisesRegex(qa.CheckError, "source_build_provenance_mismatch"):
+            qa.inspect("windows", self.windows, self.sums, evidence)
+
+    def test_corrupted_source_license_is_rejected(self):
+        evidence, extras = self.source_built_fixture()
+        extras["OKUBI Desktop/app/cores/licenses/SameBoy-MIT.txt"] = (
+            b"unverified replacement license" * 3)
+        self.make_windows(extras)
+        with self.assertRaisesRegex(qa.CheckError, "source_build_license_sha256_mismatch"):
+            qa.inspect("windows", self.windows, self.sums, evidence)
 
     def test_no_live_install_or_private_save_modification(self):
         source = Path(qa.__file__).read_text(encoding="utf-8")
