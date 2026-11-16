@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#pragma comment(lib, "user32.lib")  /* SendInput: user-clicked media keys */
 #include <Xinput.h>
 #include "../../retro-module/native/libretro.h"
 
