@@ -629,7 +629,7 @@ public final class OkubiGameBoyActivity extends Activity {
                 : RetroSpeedControl.NORMAL;
         if (cinemaSpeedLabel != null) cinemaSpeedLabel.setText(RetroSpeedControl.label(speedStep));
         if (previous != speedStep) setStatus("Velocidad " + RetroSpeedControl.label(speedStep)
-                + (RetroSpeedControl.normal(speedStep) ? " · sonido normal" : " · sonido pausado"));
+                + " · música y juego sincronizados");
     }
 
     private void syncPlaying() {
@@ -2165,19 +2165,23 @@ public final class OkubiGameBoyActivity extends Activity {
                         }
                     }
                 }
-                // Reset pacing and audio on a speed transition. AudioTrack at
-                // non-1x would throttle the core or play at the wrong pitch.
+                // The PCM music MUST speed up with the Libretro game: do not
+                // pause or discard the soundtrack when the speed step changes.
                 int requestedSpeed = RetroSpeedControl.normalize(speedStep);
                 if (requestedSpeed != appliedSpeed) {
                     appliedSpeed = requestedSpeed;
                     frameNs = RetroSpeedControl.intervalNanos(normalFrameNs, appliedSpeed);
                     deadline = SystemClock.elapsedRealtimeNanos();
                     renderPolicy.reset();
-                    releaseAudioTrack(audio);
-                    audio = null;
-                    audioPaused = false;
-                    lastGain = -1f;
-                    audioRetry.reset();
+                    if (audio != null) {
+                        try {
+                            int rate = RetroSpeedControl.playbackSampleRate(sampleRate, appliedSpeed);
+                            if (audio.setPlaybackRate(rate) < 0)
+                                audioResetRequested = true;
+                        } catch (IllegalStateException | IllegalArgumentException unavailable) {
+                            audioResetRequested = true;
+                        }
+                    }
                 }
                 if (audioResetRequested) {
                     audioResetRequested = false;
@@ -2198,11 +2202,21 @@ public final class OkubiGameBoyActivity extends Activity {
                     renderPolicy.reset();
                     continue;
                 }
-                if (RetroSpeedControl.normal(appliedSpeed)
-                        && audio == null && audioRetry.mayAttempt(SystemClock.elapsedRealtime())) {
+                if (audio == null && audioRetry.mayAttempt(SystemClock.elapsedRealtime())) {
                     audio = createAudioTrack(sampleRate, safeAudio);
                     if (audio == null) audioRetry.failed(SystemClock.elapsedRealtime());
-                    else audioRetry.reset();
+                    else {
+                        audioRetry.reset();
+                        // Higher PCM playback rate means accelerated sound and
+                        // a higher musical pitch, not music paused at fast-forward.
+                        try {
+                            int rate = RetroSpeedControl.playbackSampleRate(sampleRate, appliedSpeed);
+                            if (audio.setPlaybackRate(rate) < 0)
+                                audioResetRequested = true;
+                        } catch (IllegalStateException | IllegalArgumentException unavailable) {
+                            audioResetRequested = true;
+                        }
+                    }
                     lastGain = -1f;
                 }
                 if (audio != null && audioPaused) {
@@ -2239,7 +2253,8 @@ public final class OkubiGameBoyActivity extends Activity {
                 if (audio != null && audioCount > 0) {
                     try {
                         int written = audio.write(samples, 0, audioCount,
-                                safeAudio ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
+                                (safeAudio && RetroSpeedControl.normal(appliedSpeed))
+                                        ? AudioTrack.WRITE_BLOCKING : AudioTrack.WRITE_NON_BLOCKING);
                         if (written < 0) {
                             audioResetRequested = true;
                             setStatus("Audio reiniciándose por error de salida");
