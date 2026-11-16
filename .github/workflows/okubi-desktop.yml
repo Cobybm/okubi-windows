@@ -391,7 +391,7 @@ jobs:
         shell: pwsh
         working-directory: ${{ runner.temp }}/okubi-desktop-source
         run: |
-          python tools/okubi_phase80_rc_preflight.py --platform windows --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --report build/phase80/windows-qa-report.json
+          python tools/okubi_phase80_rc_preflight.py --platform windows --archive build/desktop/OKUBI-Desktop-Windows-x64.zip --checksum build/desktop/OKUBI-Desktop-Windows-x64-SHA256SUMS.txt --evidence tools/okubi_source_built_core_evidence.json --report build/phase80/windows-qa-report.json
           if ($LASTEXITCODE -ne 0) { throw "Windows QA ZIP is unsafe or inconsistent" }
 
       - name: Upload standalone Windows application image
