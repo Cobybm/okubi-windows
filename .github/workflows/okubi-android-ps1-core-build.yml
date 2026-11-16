@@ -1,0 +1,42 @@
+name: OKUBI Android - Internal PS1 PCSX ReARMed native ABI
+on:
+  push:
+    branches: [feat/okubi-android-ps1-native]
+    paths:
+      - 'retro-module/build_pcsx_rearmed.py'
+      - '.github/workflows/okubi-android-ps1-core-build.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    steps:
+      - uses: actions/checkout@v4
+      - uses: android-actions/setup-android@v4
+      - name: Install NDK 27
+        run: sdkmanager 'ndk;27.2.12479018'
+      - name: Build PCSX ReARMed GPLv2 Android ARM64 from exact source
+        run: |
+          python3 retro-module/build_pcsx_rearmed.py --repo . \
+            --output build/okubi-android \
+            --ndk "$ANDROID_HOME/ndk/27.2.12479018" \
+            --abi arm64-v8a
+      - name: Verify compiled shared library and complete corresponding source
+        run: |
+          set -euo pipefail
+          test -s build/okubi-android/app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so
+          test -s build/okubi-ps1-source-artifact/PCSX-ReARMed-source.tar.gz
+          file build/okubi-android/app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so \
+            | grep -E 'ELF 64-bit.*ARM aarch64'
+          sha256sum build/okubi-android/app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so \
+            > build/okubi-ps1-source-artifact/PCSX-ARM64-SHA256SUMS.txt
+          cp build/okubi-android/app/src/main/jniLibs/arm64-v8a/libpcsx_rearmed_libretro_android.so \
+            build/okubi-ps1-source-artifact/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PS1-PCSX-REARMED-ARM64-SOURCE-QA
+          path: build/okubi-ps1-source-artifact/
+          retention-days: 14
+          if-no-files-found: error
