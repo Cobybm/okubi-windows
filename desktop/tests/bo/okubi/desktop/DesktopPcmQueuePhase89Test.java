@@ -5,6 +5,20 @@ public final class DesktopPcmQueuePhase89Test {
         if(!cond)throw new AssertionError(message);
     }
     public static void main(String[] ignored){
+        check(DesktopPcmQueue.deviceBufferBytes(8000)==4096,
+                "low sample rates retain minimum aligned buffer");
+        check(DesktopPcmQueue.deviceBufferBytes(44100)==5512,
+                "44.1 kHz device buffer remains frame-aligned");
+        check(DesktopPcmQueue.deviceBufferBytes(48000)==6000,
+                "48 kHz device buffer stays original size");
+        check(DesktopPcmQueue.deviceBufferBytes(53000)==6628,
+                "unusual sample rates round up to stereo frame alignment");
+        check(DesktopPcmQueue.deviceBufferBytes(192000)==24000,
+                "high sample rates remain bounded and frame aligned");
+        boolean invalidRate=false;
+        try{DesktopPcmQueue.deviceBufferBytes(0);}
+        catch(IllegalArgumentException expected){invalidRate=true;}
+        check(invalidRate,"invalid sample rate rejected");
         DesktopPcmQueue q=new DesktopPcmQueue(16);
         byte[] original=new byte[16];
         for(int i=0;i<16;i++) original[i]=(byte)(i+1);
@@ -14,6 +28,11 @@ public final class DesktopPcmQueuePhase89Test {
         check(q.writable(6)==4,"partial device buffer accepted");
         q.consume(4);
         check(q.size()==8 && q.data()[q.offset()]==5,"retain unwritten PCM");
+        boolean partialRejected=false;
+        try{q.consume(2);}catch(IllegalArgumentException expected){partialRejected=true;}
+        check(partialRejected,"reject half of a stereo frame");
+        check(q.size()==8 && q.data()[q.offset()]==5,"invalid consume does not alter pending PCM");
+        check(q.writable(-4)==0,"negative availability cannot write audio");
         q.append(original,8);
         check(q.size()==16,"pending audio + new audio");
         q.append(original,8);

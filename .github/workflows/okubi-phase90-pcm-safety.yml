@@ -1,0 +1,64 @@
+name: OKUBI Phase90 - Windows PCM Frame Safety
+
+on:
+  push:
+    branches:
+      - fix/okubi-phase90-desktop-pcm-frame-invariants
+  pull_request:
+    branches:
+      - feat/okubi-phase89-audio-installability
+  workflow_dispatch:
+
+# This is a *separate* source-only regression check. It does not replace
+# signed/reproducible Libretro core verification or authorize a release.
+permissions:
+  contents: read
+
+concurrency:
+  group: okubi-phase90-pcm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-audio-tests:
+    name: Java 21 PCM and desktop compilation (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+
+    steps:
+      - name: Checkout without persistent credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Compile real desktop sources including sound device integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/phase90/classes
+          mapfile -d '' -t desktop_sources < <(find desktop/src -type f -name '*.java' -print0)
+          test "${#desktop_sources[@]}" -gt 0
+          javac -encoding UTF-8 -d build/phase90/classes \
+            "${desktop_sources[@]}" \
+            retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+
+      - name: Test PCM buffer boundaries, audio queue and pitch-following fast-forward
+        shell: bash
+        run: |
+          set -euo pipefail
+          javac -encoding UTF-8 -cp build/phase90/classes \
+            -d build/phase90/classes \
+            desktop/tests/bo/okubi/desktop/DesktopPcmQueuePhase89Test.java \
+            desktop/tests/bo/okubi/desktop/DesktopSpeedControlPhase88Test.java
+          java -ea -cp build/phase90/classes bo.okubi.desktop.DesktopPcmQueuePhase89Test
+          java -ea -cp build/phase90/classes bo.okubi.desktop.DesktopSpeedControlPhase88Test
+          echo "PASS: full desktop Java compilation and synthetic PCM tests; no ROMs, BIOS, DLLs, or network cores needed."

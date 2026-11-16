@@ -1052,7 +1052,7 @@ public final class EmbeddedPlayerWindow {
             AudioFormat format = new AudioFormat(rate, 16, 2, true, false);
             DataLine.Info device = new DataLine.Info(SourceDataLine.class, format);
             SourceDataLine audio = (SourceDataLine) AudioSystem.getLine(device);
-            audio.open(format, Math.max(4096, rate / 8));
+            audio.open(format, DesktopPcmQueue.deviceBufferBytes(rate));
             audio.start();
             return audio;
         } catch (Exception unavailable) {
