@@ -1,0 +1,85 @@
+name: OKUBI Cierre - Android 15 QA93 Smoke Test
+
+on:
+  push:
+    branches: [release/okubi-cierre-integrado]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Disposable emulator test; never accesses real devices, ROMs or saves.
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: okubi-cierre-api35-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install-and-launch-api35:
+    name: Android 15 API35 x86_64 - original QA93 APK
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Java 17 for Android tooling
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Download immutable QA93 APK already approved on API26
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE93-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          run-id: 43906585939
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/qa93-android15
+
+      - name: Verify exact QA93 binary SHA256 without rebuilding or signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd build/qa93-android15
+          test -s OKUBI-Android-QA93-Universal.apk
+          test -s SHA256SUMS.txt
+          shasum -a 256 -c SHA256SUMS.txt
+          digest="$(shasum -a 256 OKUBI-Android-QA93-Universal.apk | awk '{print $1}')"
+          test "$digest" = "4cf217d033d8b2fd09fbf8b20a62e8e63ec71897918efe30cc14a99b258189d6"
+          echo 'PASS: exact QA93 APK already tested on Android 8'
+
+      # Linux software emulation previously timed out. macOS Intel supports
+      # hardware-accelerated Android x86_64 emulation via Hypervisor.Framework.
+      - name: Install and launch QA93 on accelerated Android 15 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_5
+          cores: 2
+          ram-size: 2048M
+          force-avd-creation: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-snapshot -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          disable-animations: true
+          script: |
+            set -euo pipefail
+            adb wait-for-device
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 35
+            test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+            adb shell service check input | grep -F 'found'
+            adb shell service check package | grep -F 'found'
+            adb install build/qa93-android15/OKUBI-Android-QA93-Universal.apk
+            adb shell pm path bo.nexoplay.app.unified.qa93 | grep -F 'package:'
+            adb shell am start -W -n bo.nexoplay.app.unified.qa93/bo.nexoplay.app.MainActivity
+            sleep 10
+            adb shell pidof bo.nexoplay.app.unified.qa93 | grep -E '^[0-9]+'
+            adb shell dumpsys activity activities | grep -F 'bo.nexoplay.app.unified.qa93'
+            echo 'PASS: unmodified OKUBI QA93 installed and started on Android 15 API35'
