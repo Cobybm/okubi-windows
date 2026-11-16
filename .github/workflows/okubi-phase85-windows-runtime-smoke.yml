@@ -1,0 +1,72 @@
+name: OKUBI Phase 85 - Actual Windows EXE No-ROM Startup Self-Test
+
+on:
+  push:
+    branches:
+      - qa/okubi-phase85-native-windows-cli-smoke
+  pull_request:
+    branches:
+      - qa/okubi-phase84-oneclick-windows-android-kit
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: qa85-runtime-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  native-exe-test:
+    name: Run packaged Windows EXE from approved QA ZIP with no ROMs or saves
+    runs-on: windows-latest
+    timeout-minutes: 18
+    steps:
+      - name: Checkout only source and QA scripts
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Obtain approved source-built ZIP (original exact payload)
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: build/phase85/approved
+      - name: Run original archive integrity safety checks without launching
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem build/phase85/approved -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')
+          $sums = @(Get-ChildItem build/phase85/approved -Recurse -File -Filter 'SHA256SUMS.txt')
+          if ($files.Count -ne 1 -or $sums.Count -ne 1) {
+            throw 'Expected one Windows QA ZIP and SHA256 manifest'
+          }
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/okubi_phase83_windows_local_qa.ps1 -Archive $files[0].FullName -Checksum $sums[0].FullName
+          if ($LASTEXITCODE -ne 0) { throw 'QA Phase83 safety preflight failed' }
+      - name: Start the actual Windows packaged EXE in no-GUI release-verifier mode
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem build/phase85/approved -Recurse -File -Filter 'OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip')
+          $sums = @(Get-ChildItem build/phase85/approved -Recurse -File -Filter 'SHA256SUMS.txt')
+          $report = 'build/phase85/QA85-WINDOWS-RUNTIME-NO-ROM-REPORT.json'
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/okubi_phase85_windows_runtime_smoke.ps1 -Archive $files[0].FullName -Checksum $sums[0].FullName -TamperProof -Report $report
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows EXE or tamper rejection did not pass' }
+          $result = Get-Content $report -Raw | ConvertFrom-Json
+          if ($result.integrity_check -ne 'pass' -or
+              $result.windows_cli_verifier -ne 'pass' -or
+              $result.tampered_core_rejected -ne 'pass' -or
+              $result.public_release_authorized -ne $false -or
+              $result.physical_display_or_controller_tested -ne $false) {
+            throw 'Runtime QA did not pass or misrepresented physical testing'
+          }
+      - name: Upload only non-sensitive Windows runtime test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE85-WINDOWS-PACKAGED-RUNTIME-SMOKE-REPORT
+          path: build/phase85/QA85-WINDOWS-RUNTIME-NO-ROM-REPORT.json
+          retention-days: 14
+          if-no-files-found: error
