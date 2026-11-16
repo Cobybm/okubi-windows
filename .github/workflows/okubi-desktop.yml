@@ -198,26 +198,63 @@ jobs:
           & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.DesktopLibraryBatchTest
           if ($LASTEXITCODE -ne 0) { throw "Phase69 progressive library batch selection failed" }
 
-      - name: Fetch and verify all official Libretro emulators for Windows x64
+      # Do not fetch rolling Libretro nightly ZIPs. The latest CDN bytes
+      # change without a reproducible source revision. Instead reuse the exact
+      # source-built Windows artifact whose package and source provenance
+      # are independently verified by the working close-out installer.
+      - name: Retrieve pinned Windows source-built cores from audited artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: OKUBI-PHASE81B-WINDOWS-SOURCE-BUILT-QA-NOT-STABLE
+          run-id: 43615378972
+          github-token: ${{ github.token }}
+          repository: Cobybm/okubi-windows
+          path: ${{ runner.temp }}/okubi-desktop-source/build/desktop/pinned-artifact
+
+      - name: Verify immutable archive, provenance and full Libretro ABI
         shell: pwsh
         working-directory: ${{ runner.temp }}/okubi-desktop-source
         run: |
-          & ./desktop/build-bundled-cores.ps1 -OutputDirectory "build/desktop/input/cores"
-          # The script has ErrorActionPreference=Stop and throws on failures.
-          # $LASTEXITCODE is undefined for a PowerShell script with no native commands,
-          # so do not misinterpret $null as a failed process.
-          $coreDir = (Resolve-Path "build/desktop/input/cores").Path
-          & java -ea -cp "build/desktop/classes;build/desktop/tests" bo.okubi.desktop.BundledCoresTest $coreDir
-          if ($LASTEXITCODE -ne 0) { throw "Built-in core verification failed" }
+          $ErrorActionPreference = 'Stop'
+          $zip = 'build/desktop/pinned-artifact/OKUBI-Desktop-Windows-x64-PHASE81-SOURCE-QA.zip'
+          $hashes = 'build/desktop/pinned-artifact/SHA256SUMS.txt'
+          if (-not (Test-Path $zip) -or -not (Test-Path $hashes)) {
+            throw 'Missing source-built binary or immutable digest'
+          }
+          # The preflight checks SHA256, ZIP paths, mandatory Libretro binaries,
+          # source-to-binary provenance, licensing bundle, isolation and no ROMs.
+          & powershell.exe -NoProfile -ExecutionPolicy Bypass -File tools/okubi_phase83_windows_local_qa.ps1 -Archive (Resolve-Path $zip).Path -Checksum (Resolve-Path $hashes).Path
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned source-built core integrity failed' }
+
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $image = Join-Path $env:RUNNER_TEMP 'okubi-pinned-desktop'
+          [IO.Directory]::CreateDirectory($image) | Out-Null
+          [IO.Compression.ZipFile]::ExtractToDirectory((Resolve-Path $zip).Path, $image)
+          $sourceDir = Join-Path $image 'OKUBI Desktop/app/cores'
+          if (-not (Test-Path (Join-Path $sourceDir 'source-packages/SOURCE-TO-BINARY-MANIFEST.json'))) {
+            throw 'Corresponding Libretro source manifest missing'
+          }
+          New-Item -ItemType Directory -Force -Path 'build/desktop/input' | Out-Null
+          Copy-Item -LiteralPath $sourceDir -Destination 'build/desktop/input' -Recurse -Force
+          $coreDir = (Resolve-Path 'build/desktop/input/cores').Path
+          foreach ($license in @('SameBoy-MIT.txt','mGBA-MPL-2.0.txt',
+                                'Supafaust-GPL-2.0-plus.txt','THIRD-PARTY-SOURCES.txt')) {
+            if (-not (Test-Path (Join-Path $coreDir ('licenses/' + $license)))) {
+              throw "Core license missing: $license"
+            }
+          }
+          & java -ea -cp 'build/desktop/classes;build/desktop/tests' bo.okubi.desktop.BundledCoresTest $coreDir
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned core checksum and tampering tests failed' }
           & cl.exe /nologo /W3 /Fe:build/desktop/native/core_abi_probe.exe desktop/tests/native/core_abi_probe.c
-          if ($LASTEXITCODE -ne 0) { throw "Core ABI probe compilation failed" }
+          if ($LASTEXITCODE -ne 0) { throw 'Libretro ABI probe compilation failed' }
           $cores = @(
-            (Join-Path $coreDir "sameboy_libretro.dll"),
-            (Join-Path $coreDir "mgba_libretro.dll"),
-            (Join-Path $coreDir "mednafen_supafaust_libretro.dll")
+            (Join-Path $coreDir 'sameboy_libretro.dll'),
+            (Join-Path $coreDir 'mgba_libretro.dll'),
+            (Join-Path $coreDir 'mednafen_supafaust_libretro.dll')
           )
           & build/desktop/native/core_abi_probe.exe $cores
-          if ($LASTEXITCODE -ne 0) { throw "One or more bundled cores failed Libretro ABI validation" }
+          if ($LASTEXITCODE -ne 0) { throw 'Pinned source-built cores failed Libretro ABI check' }
+          Write-Output 'PASS: source-built Libretro cores, licensed source bundles, hashes and ABI verified'
 
       - name: Package executable with an isolated Java runtime
         shell: pwsh
