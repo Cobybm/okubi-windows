@@ -442,21 +442,28 @@ public final class DesktopSmartPerformanceDialog extends JDialog {
             DesktopSmartPerformance.Console choice =
                     DesktopSmartPerformance.suggestConsole(path.getFileName().toString());
             if ((ps1 && ps2) || choice == null) {
-                var options = ps1 && ps2
-                        ? new DesktopSmartPerformance.Console[]{
-                            DesktopSmartPerformance.Console.PS1,
-                            DesktopSmartPerformance.Console.PS2}
-                        : ps1 ? new DesktopSmartPerformance.Console[]{
-                            DesktopSmartPerformance.Console.PS1}
-                        : ps2 ? new DesktopSmartPerformance.Console[]{
-                            DesktopSmartPerformance.Console.PS2}
-                        : new DesktopSmartPerformance.Console[]{
-                            DesktopSmartPerformance.Console.PS3};
+                java.util.List<Object> candidates=new java.util.ArrayList<>();
+                if(ps1)candidates.add(DesktopSmartPerformance.Console.PS1);
+                if(ps2)candidates.add(DesktopSmartPerformance.Console.PS2);
+                if(ps3)candidates.add(DesktopSmartPerformance.Console.PS3);
+                if(advice.systems().contains("PSP"))candidates.add("PSP · usar PPSSPP");
+                if(advice.systems().stream().anyMatch(x->x.startsWith("PS3")) && !ps3)
+                    candidates.add("PS3 · importar con RPCS3");
+                Object[] options=candidates.toArray();
                 Object selected = JOptionPane.showInputDialog(this,
-                        advice.summary() + "\n\n¿De qué consola es tu archivo?",
+                        advice.summary()+"\n\nSelecciona la consola real de este archivo:",
                         "OKUBI · Confirmar emulador", JOptionPane.QUESTION_MESSAGE,
                         null, options, options[0]);
-                if (!(selected instanceof DesktopSmartPerformance.Console console)) return;
+                if(selected==null)return;
+                if (!(selected instanceof DesktopSmartPerformance.Console console)) {
+                    JOptionPane.showMessageDialog(this,
+                            "Por ahora OKUBI no inicia esta consola directamente.\n"
+                            +"Conserva el archivo y ábrelo en el emulador indicado:\n"
+                            +selected+"\n\n"+advice.emulators(),
+                            "OKUBI · Motor externo requerido",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    return;
+                }
                 choice = console;
             } else if (!advice.warnings().isEmpty()) {
                 int confirmed = JOptionPane.showConfirmDialog(this,
