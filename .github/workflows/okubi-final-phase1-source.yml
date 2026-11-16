@@ -3,10 +3,11 @@ on:
   push:
     branches:
       - feat/okubi-phase1-unified-full
-  pull_request:
-    branches:
-      - release/okubi-phase82-final-acceptance-gates
   workflow_dispatch:
+
+concurrency:
+  group: okubi-final-phase1-source
+  cancel-in-progress: true
 
 permissions:
   contents: read
