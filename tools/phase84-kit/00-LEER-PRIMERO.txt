@@ -5,6 +5,15 @@ ESTA NO ES UNA VERSION ESTABLE PUBLICADA.
 La entrega incluye el ultimo Windows QA source-built y APK Android QA57.
 Tus ROMs, BIOS, partidas y contrasenas NO forman parte del paquete.
 
+IMPORTANTE ANTES DE EMPEZAR:
+NO ejecutes los archivos .cmd desde WinRAR ni desde un ZIP abierto.
+Usa "Extraer en..." en WinRAR para extraer TODO el ZIP exterior a una
+carpeta normal (por ejemplo Documentos\OKUBI-QA84). Luego abre esa carpeta
+en el Explorador de Windows. Deben estar juntos los tres archivos .cmd,
+la carpeta tools, la carpeta Windows y la carpeta Android.
+Si ves una ruta Temp\Rar$DIa... en CMD, aun estas ejecutando desde WinRAR.
+NO extraigas manualmente el ZIP interior de la carpeta Windows.
+
 PASO 1. Abre "01-VERIFICAR-TODO.cmd" con doble clic.
 Comprueba que los archivos de Windows y Android no han cambiado.
 
