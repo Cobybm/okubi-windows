@@ -41,6 +41,12 @@ android {
         // it. The canonical applicationId above, signing configuration and
         // owner release variant remain completely unchanged.
         debug {
+            // New integrated PS1 QA identity never overwrites previous PS1 external QA or canonical APK.
+            if (project.findProperty('okubiPs1NativeIsolated')?.toString() == 'true') {
+                applicationIdSuffix '.ps1native'
+                versionNameSuffix '-ps1native'
+                manifestPlaceholders = [okubiAppLabel: 'OKUBI 遊']
+            } else
             // PS1 preview never replaces the user's canonical, PSP or previous QA APK.
             if (project.findProperty('okubiPs1Isolated')?.toString() == 'true') {
                 applicationIdSuffix '.ps1'
