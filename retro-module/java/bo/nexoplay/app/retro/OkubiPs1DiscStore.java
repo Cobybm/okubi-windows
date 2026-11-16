@@ -18,7 +18,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -129,8 +128,8 @@ public final class OkubiPs1DiscStore {
             throw new IOException("No hay espacio suficiente para importar PS1.");
         // Prefer a multi-disc descriptor, then CUE+tracks, then CHD/PBP.
         String gameName=null;
-        for(String type:List.of(".m3u",".cue",".chd",".pbp",".ccd",
-                ".toc",".iso",".img",".bin",".mdf")) {
+        for(String type:new String[]{".m3u",".cue",".chd",".pbp",".ccd",
+                ".toc",".iso",".img",".bin",".mdf"}) {
             for(Selected file:files) {
                 if(extension(file.name).equals(type)) {
                     gameName=file.name;break;
@@ -173,7 +172,7 @@ public final class OkubiPs1DiscStore {
                 if(Files.size(dest)==0)
                     throw new IOException("Archivo vacío: "+file.name);
                 if(file.name.equals(gameName))
-                    selectedHash=HexFormat.of().formatHex(checksum.digest());
+                    selectedHash=hex(checksum.digest());
                 done++;
                 progress.onProgress(done,files.size(),copied);
             }
@@ -234,6 +233,16 @@ public final class OkubiPs1DiscStore {
                     validate(member,stack,depth+1);
             }
         }finally{stack.remove(path);}
+    }
+
+    private static String hex(byte[] bytes) {
+        char[] digits="0123456789abcdef".toCharArray();
+        char[] output=new char[bytes.length*2];
+        for(int i=0;i<bytes.length;i++) {
+            output[i*2]=digits[(bytes[i]>>>4)&15];
+            output[i*2+1]=digits[bytes[i]&15];
+        }
+        return new String(output);
     }
 
     private static MessageDigest sha256() throws IOException {
