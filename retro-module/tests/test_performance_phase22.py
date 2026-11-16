@@ -21,7 +21,7 @@ class Phase22FrameTiming(unittest.TestCase):
 
     def test_audio_and_saves_are_not_skipped(self):
         self.assertIn('SameBoyNative.nativeStep(inputMask,', ACTIVITY)
-        self.assertIn('audio.write(pendingMusic.data(),,', ACTIVITY)
+        self.assertIn('audio.write(pendingMusic.data(),', ACTIVITY)
         self.assertIn('music.transform(samples,audioCount,acceleratedSamples)', ACTIVITY)
         self.assertIn('pendingMusic.consumed(written)', ACTIVITY)
         self.assertIn('pendingMusic.append(acceleratedSamples,count)', ACTIVITY)
