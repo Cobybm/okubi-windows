@@ -1,7 +1,7 @@
 name: OKUBI Phase89 - Android Universal APK with Speed and Music
 on:
   push:
-    branches: [feat/okubi-phase89-speed-audio-android-universal]
+    branches: [feat/okubi-phase89-audio-installability]
   pull_request:
     branches: [feat/okubi-phase88-speed-audio-android-universal]
   workflow_dispatch:
@@ -39,7 +39,6 @@ jobs:
           grep -F "applicationId 'bo.nexoplay.app.unified'" android-app/app/build.gradle
           grep -F "applicationIdSuffix '.qa89'" android-app/app/build.gradle
           grep -F "minSdk 26" android-app/app/build.gradle
-          grep -F "applicationIdSuffix '.qa89'" android-app/app/build.gradle
   android-qa89-apk:
     name: Build universal Android QA89 with speed+media and all four native ABIs
     runs-on: ubuntu-latest
@@ -120,7 +119,7 @@ jobs:
       - name: Upload unsigned-for-release QA artifact (debug signature only)
         uses: actions/upload-artifact@v4
         with:
-          name: OKUBI-PHASE88-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          name: OKUBI-PHASE89-ANDROID-UNIVERSAL-APK-NOT-STABLE
           path: build/okubi-android-artifact/*
           if-no-files-found: error
           retention-days: 14
