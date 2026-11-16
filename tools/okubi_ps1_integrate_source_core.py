@@ -47,8 +47,8 @@ def verify_artifact(core: Path, recipe: Path) -> dict:
     evidence = regular(core / "BUILD-PROVENANCE.txt", 50, 4096).read_text("utf-8")
     sums = regular(core / "PS1-CORE-SHA256SUMS.txt", 70, 512).read_text("ascii")
     tokens = sums.split()
-    if len(tokens) < 2 or not re.fullmatch("[0-9a-f]{64}", tokens[0]) \\
-            or not tokens[1].endswith(DLL) or digest(dll) != tokens[0]:
+    if (len(tokens) < 2 or not re.fullmatch("[0-9a-f]{64}", tokens[0])
+            or not tokens[1].endswith(DLL) or digest(dll) != tokens[0]):
         raise CheckError("ps1_artifact_hash_mismatch")
     if PINNED not in evidence or REPO not in evidence or "GPL-2.0" not in evidence:
         raise CheckError("ps1_corresponding_source_metadata_mismatch")
