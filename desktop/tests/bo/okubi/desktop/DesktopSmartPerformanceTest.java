@@ -61,9 +61,9 @@ public final class DesktopSmartPerformanceTest {
         check(DesktopSmartPerformance.suggestConsole("Game.cue")
                 == DesktopSmartPerformance.Console.PS1, "CUE maps to PS1.");
         check(DesktopSmartPerformance.suggestConsole("Game.iso")
-                == DesktopSmartPerformance.Console.PS2, "ISO defaults to PS2.");
+                == null, "ISO is ambiguous between PlayStation consoles.");
         check(DesktopSmartPerformance.suggestConsole("Game.chd")
-                == DesktopSmartPerformance.Console.PS1, "CHD defaults to PS1.");
+                == null, "CHD is ambiguous between PlayStation consoles.");
         check(DesktopSmartPerformance.suggestConsole("EBOOT.BIN")
                 == DesktopSmartPerformance.Console.PS3, "Only EBOOT.BIN maps PS3.");
         check(!DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS3,
@@ -72,6 +72,18 @@ public final class DesktopSmartPerformanceTest {
                 "Game.iso"), "Ambiguous ISO can be explicitly classified as PS1.");
         check(!DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS1,
                 "Game.exe"), "Never accept executable as a game.");
+        check(DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS1,
+                "Game.ccd"), "DuckStation recognizes CCD.");
+        check(DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS1,
+                "Game.bin"), "User may select PS1 BIN explicitly.");
+        check(DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS2,
+                "Game.zso"), "PCSX2 recognizes ZSO.");
+        check(DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS2,
+                "Game.cue"), "PCSX2 accepts PS2 CD CUE.");
+        check(DesktopSmartPerformance.suggestConsole("Game.pbp") == null,
+                "PBP may mean PSP or PS1.");
+        check(!DesktopSmartPerformance.acceptedFile(DesktopSmartPerformance.Console.PS1,
+                "EBOOT.BIN"), "PS3 EBOOT not routed as PS1 BIN.");
         System.out.println("DesktopSmartPerformanceTest: PASS");
     }
 }
