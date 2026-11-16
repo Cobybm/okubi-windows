@@ -87,6 +87,7 @@ public final class EmbeddedPlayerWindow {
         this.afterLaunch = afterLaunch;
         this.statistics = statistics;
         window = new JFrame("OKUBI · " + game.title());
+        window.setIconImage(DesktopOkubiLogo.icon(64));
         window.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
         window.setMinimumSize(new Dimension(720, 450));
         window.setSize(990, 760);
@@ -433,7 +434,11 @@ public final class EmbeddedPlayerWindow {
         javax.swing.JLabel brand = new javax.swing.JLabel("OKUBI 遊  ·  MÚSICA Y AUDIO");
         brand.setFont(new Font("Segoe UI",Font.BOLD,17));
         brand.setForeground(PINK);
-        panel.add(brand,BorderLayout.NORTH);
+        JPanel brandRow = new JPanel(new BorderLayout(10,0));
+        brandRow.setOpaque(false);
+        brandRow.add(new DesktopOkubiLogo(54),BorderLayout.WEST);
+        brandRow.add(brand,BorderLayout.CENTER);
+        panel.add(brandRow,BorderLayout.NORTH);
         JPanel media = new JPanel(new java.awt.GridLayout(2,3,6,6));
         media.setOpaque(false);
         media.add(new CinemaButton("◀ ANTERIOR",false,()->sendSystemMedia(0)));
