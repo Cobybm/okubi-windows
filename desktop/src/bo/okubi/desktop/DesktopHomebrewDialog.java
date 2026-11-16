@@ -123,14 +123,8 @@ public final class DesktopHomebrewDialog {
                     if (!dialog.isDisplayable()) return;
                     try {
                         DesktopHomebrewDownloads.Receipt receipt = get();
+                        state.setText("DESCARGA VERIFICADA · importando a la biblioteca");
                         onImported.accept(receipt.file());
-                        state.setText("JUEGO IMPORTADO · SHA-256 verificado");
-                        JOptionPane.showMessageDialog(dialog,
-                                "Juego disponible en tu biblioteca:\n"
-                                + receipt.file().getFileName()
-                                + "\nSHA-256: " + receipt.sha256(),
-                                "OKUBI · Importación completa",
-                                JOptionPane.INFORMATION_MESSAGE);
                     } catch (Exception failure) {
                         Throwable cause = failure.getCause() == null ? failure : failure.getCause();
                         state.setText("No se pudo completar la descarga.");
