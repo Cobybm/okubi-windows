@@ -1192,7 +1192,7 @@ public final class OkubiGameBoyActivity extends Activity {
                 + ("SNES".equals(system) ? " U/I = X/Y." : "");
         String padGuide = "MANDO: cruceta o stick = mover; A/B = acciones; "
                 + "START/SELECT = menús. " + shoulder;
-        new AlertDialog.Builder(this)
+        AlertDialog controlDialog = new AlertDialog.Builder(this)
             .setTitle(firstRun ? "OKUBI · Tus controles al empezar" : "OKUBI · Ver controles")
             .setMessage(keyboard + "\n\n" + padGuide + "\n\n" + status
                     + "\n\nLos controles táctiles siguen disponibles. "
@@ -1205,6 +1205,13 @@ public final class OkubiGameBoyActivity extends Activity {
                 endDialog();
             })
             .show();
+        if (firstRun) {
+            // Present briefly, then return to gameplay even with only a
+            // Bluetooth controller (no touchscreen tap required).
+            controlDialog.getWindow().getDecorView().postDelayed(() -> {
+                if (!isFinishing() && controlDialog.isShowing()) controlDialog.dismiss();
+            }, 8000);
+        }
     }
 
     private void chooseBatterySave() {
