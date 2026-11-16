@@ -1,8 +1,9 @@
-OKUBI QA86 — Windows (VERSIÓN DE PRUEBA)
+OKUBI QA87 — Windows (VERSIÓN DE PRUEBA)
 ========================================
 
-Esta aplicación se instala con un solo ejecutable.
+Esta aplicación se instala con un solo ejecutable. Es una actualización de QA86.
 Al finalizar, puedes abrir OKUBI desde el menú Inicio como "OKUBI QA86".
+La versión de instalación 1.0.13.87 mejora la detección de errores de inicio.
 
 IMPORTANTE:
 - Es una versión de pruebas, NO la versión estable 1.0.
@@ -10,7 +11,9 @@ IMPORTANTE:
 - Nunca desinstala ni sobrescribe OKUBI normal o versiones QA anteriores.
 - Los nuevos guardados y ajustes se almacenan en un perfil exclusivo QA86
   dentro de AppData Local, separado de las partidas anteriores.
-- Aunque desinstales QA86, sus datos de prueba no se borran automáticamente.
+- Si ya instalaste QA86, QA87 conserva los mismos datos de prueba: no borra
+  ni migra tus partidas, favoritos o configuración de QA86.
+- Aunque desinstales QA87, sus datos de prueba no se borran automáticamente.
 - Incluye emuladores GB/GBC/GBA/SNES Windows compilados desde fuentes verificadas,
   sus avisos de licencia y los archivos de código fuente correspondientes.
 - No contiene ROMs, BIOS, partidas, cuentas ni contraseñas.
