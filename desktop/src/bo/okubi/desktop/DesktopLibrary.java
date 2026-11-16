@@ -24,7 +24,8 @@ import java.util.Properties;
 public final class DesktopLibrary {
     public enum Console {
         GB("Game Boy"), GBC("Game Boy Color"),
-        GBA("Game Boy Advance"), SNES("Super Nintendo");
+        GBA("Game Boy Advance"), SNES("Super Nintendo"),
+        PS1("PlayStation 1");
         public final String label;
         Console(String label) { this.label = label; }
 
@@ -85,10 +86,29 @@ public final class DesktopLibrary {
         if (console == null) throw new IOException("Formato no compatible: " + safe.getFileName());
         if (!Files.isRegularFile(safe) || !Files.isReadable(safe))
             throw new IOException("No se puede leer la ROM: " + safe);
+        return addConfirmedGame(safe, console);
+    }
+
+    /** Disc formats overlap PS1/PS2/PSP. Never guess automatically. */
+    public synchronized boolean addConfirmedGame(Path selected, Console confirmed)
+            throws IOException {
+        if (selected == null || confirmed == null)
+            throw new IOException("Selecciona juego y consola.");
+        Path safe = selected.toAbsolutePath().normalize();
+        if (confirmed == Console.PS1) {
+            if (!DesktopPs1Disc.isSupported(safe))
+                throw new IOException("Selecciona una imagen PS1 compatible, preferentemente CUE o CHD.");
+            if (DesktopPs1Disc.requiresCompanions(safe))
+                DesktopPs1Disc.validateCompanions(safe);
+        } else if (Console.fromFile(safe) != confirmed) {
+            throw new IOException("El archivo no corresponde a " + confirmed.label);
+        }
+        if (!Files.isRegularFile(safe) || !Files.isReadable(safe))
+            throw new IOException("No se puede leer el archivo seleccionado.");
         String key = safe.toString();
         if (games.containsKey(key)) return false;
         if (games.size() >= 2000) throw new IOException("Límite de biblioteca alcanzado.");
-        games.put(key, new Game(safe, console, false, 0));
+        games.put(key, new Game(safe, confirmed, false, 0));
         save();
         return true;
     }
@@ -198,6 +218,8 @@ public final class DesktopLibrary {
             try {
                 Path rom = Path.of(path).toAbsolutePath().normalize();
                 Console console = Console.fromFile(rom);
+                if ("PS1".equals(values.getProperty(prefix + "console"))
+                        && DesktopPs1Disc.isSupported(rom)) console = Console.PS1;
                 if (console == null) continue;
                 long played;
                 try { played = Math.max(0, Long.parseLong(values.getProperty(prefix + "played", "0"))); }
@@ -227,6 +249,7 @@ public final class DesktopLibrary {
         for (Game game : games.values()) {
             String prefix = "game." + i++ + ".";
             values.setProperty(prefix + "path", game.rom.toString());
+            values.setProperty(prefix + "console", game.console.name());
             values.setProperty(prefix + "favorite", Boolean.toString(game.favorite));
             values.setProperty(prefix + "played", Long.toString(game.lastPlayed));
         }
