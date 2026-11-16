@@ -1,0 +1,115 @@
+name: OKUBI PlayStation Format Router - Source QA
+on:
+  push:
+    branches:
+      - feat/okubi-playstation-format-router
+  workflow_dispatch:
+
+concurrency:
+  group: okubi-playstation-format-source
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows-java:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Compile complete Windows application
+        run: |
+          mkdir -p build/phase1/classes build/phase1/tests
+          find desktop/src -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -d build/phase1/classes retro-module/java/bo/nexoplay/app/retro/OkubiSaveArchive.java
+      - name: Compile controls, homebrew safety and regression tests
+        run: |
+          find desktop/tests -name '*.java' -print0 | xargs -0 javac -encoding UTF-8 -cp build/phase1/classes -d build/phase1/tests
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.controls.ControlGuideRegistryTest
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.DesktopHomebrewDownloadsTest
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.DesktopLibraryTest
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.DesktopSmartSaveGuardTest
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.DesktopSmartPerformanceTest
+          java -ea -cp build/phase1/classes:build/phase1/tests bo.okubi.desktop.DesktopPlaystationFormatAdvisorTest
+      - name: Validate Android walkthrough and PC game links
+        run: python3 -m unittest discover -s tools/tests -p 'test_okubi_onboarding_catalog.py' -v
+      - name: Static product and license contract
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('catalog/free-games.v1.json')
+          data=json.loads(p.read_text(encoding='utf-8'))
+          assert data['schema_version']==1
+          assert all(x.get('rom_download_url') is None for x in json.loads(
+              Path('catalog/series/god-of-war.v1.json').read_text(encoding='utf-8'))['games'])
+          src=Path('desktop/src/bo/okubi/desktop/DesktopHomebrewDownloads.java').read_text()
+          assert 'followRedirects(HttpClient.Redirect.NEVER)' in src
+          print('PASS - legal metadata and no HTTP redirects')
+          PY
+
+  android-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install SDK used by Android app
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Integrate existing Android Java retro source without replacing APK
+        run: python3 retro-module/integrate.py --repo . --output build/okubi-android
+      - name: Compile Android Java for QA identity only
+        working-directory: build/okubi-android
+        run: gradle :app:compileDebugJavaWithJavac -PokubiTourIsolated=true --no-daemon
+      - name: Verify spotlight overlay and real Android source installed in build
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          app=Path('build/okubi-android/app/src/main/java/bo/nexoplay/app')
+          tour=(app/'OkubiGuidedTour.java').read_text(encoding='utf-8')
+          main=(app/'MainActivity.java').read_text(encoding='utf-8')
+          assert 'Path.FillType.EVEN_ODD' in tour
+          assert 'guidedOverlay.showStep' in main
+          assert '"▶ VOLVER A VER EL TUTORIAL"' in main
+          print('PASS - interactive tour bundled in Android source')
+          PY
+      - name: Verify Android label and gamepad/keyboard guide wiring
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('build/okubi-android/app/build.gradle').read_text(encoding='utf-8')
+          src=Path('build/okubi-android/app/src/main/java/bo/nexoplay/app/retro/OkubiGameBoyActivity.java').read_text(encoding='utf-8')
+          assert "OKUBI QA57" not in p and "OKUBI 遊" in p
+          assert 'maybeShowFirstRunControls' in src
+          assert 'KEYCODE_J' in src and 'KEYCODE_BUTTON_A' in src
+          print('PASS - Android launcher name and first-run input guide present')
+          PY
+      - name: Verify Android PlayStation format advisor and import button
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          base=Path('build/okubi-android/app/src/main/java/bo/nexoplay/app')
+          advisor=(base/'OkubiPlaystationFiles.java').read_text(encoding='utf-8')
+          main=(base/'MainActivity.java').read_text(encoding='utf-8')
+          assert 'PSP' in advisor and 'PS Vita' in advisor and 'PS3' in advisor
+          assert 'REQUEST_PLAY_FORMAT_INSPECT' in main
+          assert 'OkubiPlaystationFiles.describe' in main
+          print('PASS: Android PlayStation inspector compiled in live application')
+          PY
+      - name: Run portable Android regression suite
+        run: python3 -m unittest discover -s retro-module/tests -v
