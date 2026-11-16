@@ -42,10 +42,8 @@ class Ps1GameLaunchSafety(unittest.TestCase):
             'OkubiPs1ExternalLauncher.createIntent(document)',
             '"▶ JUGAR PS1 CON DUCKSTATION"',
             'tourTargets.put("discover_ps1",playPs1)',
-            'new TourStep(Screen.DISCOVER,"discover_ps1"',
-            'ACCESS_DENIED_HERE_ONLY' # removed below
+            'new TourStep(Screen.DISCOVER,"discover_ps1"'
         ):
-            if expected.startswith('ACCESS_DENIED_HERE'):continue
             self.assertIn(expected,MAIN)
         self.assertIn('conserva juntos todos sus archivos',MAIN)
 
