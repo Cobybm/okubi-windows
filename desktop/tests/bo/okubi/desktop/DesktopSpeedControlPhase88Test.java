@@ -17,8 +17,8 @@ public final class DesktopSpeedControlPhase88Test {
         check(DesktopSpeedControl.frameInterval(base,0)==base,"normal cadence");
         check(DesktopSpeedControl.frameInterval(base,1)==Math.round(base/1.25),"1.25");
         check(DesktopSpeedControl.frameInterval(base,2)==Math.round(base/1.5),"1.5");
-        check(DesktopSpeedControl.frameInterval(base,3)==Math.round(base/2),"2x");
-        check(DesktopSpeedControl.frameInterval(base,4)==Math.round(base/3),"3x");
+        check(DesktopSpeedControl.frameInterval(base,3)==Math.round(base/2.0),"2x");
+        check(DesktopSpeedControl.frameInterval(base,4)==Math.round(base/3.0),"3x");
         check(DesktopSpeedControl.present(4,3),"3x video subset");
         check(!DesktopSpeedControl.present(4,4),"3x skip video, not core");
 
