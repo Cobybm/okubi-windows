@@ -1,0 +1,138 @@
+name: OKUBI Phase93 - Android Universal APK with Stereo Safety
+on:
+  push:
+    branches: [feat/okubi-phase93-android-universal-apk]
+  pull_request:
+    branches: [fix/okubi-phase92-android-stereo-queue-alignment]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: okubi-phase93-android-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+jobs:
+  audio-regression:
+    name: Android universal, speed, music and save-safety tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android source regression tests
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s retro-module/tests -v
+          mkdir -p build/phase93-tests
+          javac -encoding UTF-8 -d build/phase93-tests \
+            retro-module/java/bo/nexoplay/app/retro/RetroSpeedControl.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/RetroSpeedControlTest.java
+          java -ea -cp build/phase93-tests bo.nexoplay.app.retro.RetroSpeedControlTest
+          javac -encoding UTF-8 -d build/phase93-tests \
+            retro-module/java/bo/nexoplay/app/retro/RetroPcmQueue.java \
+            retro-module/tests/java/bo/nexoplay/app/retro/RetroPcmQueueTest.java
+          java -ea -cp build/phase93-tests bo.nexoplay.app.retro.RetroPcmQueueTest
+          grep -F "applicationId 'bo.nexoplay.app.unified'" android-app/app/build.gradle
+          grep -F "applicationIdSuffix '.qa93'" android-app/app/build.gradle
+          grep -F "minSdk 26" android-app/app/build.gradle
+  android-qa93-apk:
+    name: Build universal Android QA93 with speed+media and all four native ABIs
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android build tools
+        uses: android-actions/setup-android@v4
+      - name: Install pinned SDK/NDK/CMake versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;27.2.12479018' 'cmake;3.22.1'
+      - name: Configure Gradle 8.11.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Integrate existing editable Android app and retro engine
+        run: python3 retro-module/integrate.py --repo . --output build/okubi-android
+      - name: Verify integrated audio safety and QA93 isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          worker=build/okubi-android/app/src/main/java/bo/nexoplay/app/retro/OkubiGameBoyActivity.java
+          fifo=build/okubi-android/app/src/main/java/bo/nexoplay/app/retro/RetroPcmQueue.java
+          grep -F 'if ((written & 1) != 0 || written > pendingMusic.size())' "$worker"
+          grep -F 'writtenShorts & 1' "$fifo"
+          grep -F "applicationIdSuffix '.qa93'" build/okubi-android/app/build.gradle
+      - name: Build pinned SameBoy source (MIT)
+        run: python3 retro-module/build_sameboy.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Build pinned mGBA source (MPL-2.0)
+        run: python3 retro-module/build_mgba.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Build pinned Supafaust source (GPL-2.0+)
+        run: python3 retro-module/build_supafaust.py --repo . --output build/okubi-android --ndk "$ANDROID_HOME/ndk/27.2.12479018"
+      - name: Verify all expected compiled core ABIs and source licenses
+        shell: bash
+        run: |
+          set -euo pipefail
+          for abi in arm64-v8a armeabi-v7a x86 x86_64; do
+            for core in sameboy mgba supafaust; do
+              test -s "build/okubi-android/app/src/main/jniLibs/$abi/lib${core}_libretro_android.so"
+            done
+          done
+          test -s build/okubi-android/app/src/main/assets/licenses/SameBoy-LICENSE.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/mGBA-LICENSE.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-GPL-2.0.txt
+          test -s build/okubi-android/app/src/main/assets/licenses/Supafaust-SOURCE.txt
+      - name: Assemble separate QA APK (never replace canonical app)
+        working-directory: build/okubi-android
+        run: gradle :app:assembleDebug -PokubiQaPhase93=true --no-daemon --stacktrace
+      - name: Verify APK identity, signature, allowed contents and ZIP integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/okubi-android-artifact
+          APK=build/okubi-android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "name='bo.nexoplay.app.unified.qa93'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$APK"
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile
+          f=Path('build/okubi-android/app/build/outputs/apk/debug/app-debug.apk')
+          with zipfile.ZipFile(f) as z:
+              members=z.namelist()
+              assert z.testzip() is None, 'corrupt APK'
+              assert 'AndroidManifest.xml' in members and 'classes.dex' in members
+              for abi in ('arm64-v8a','armeabi-v7a','x86','x86_64'):
+                  for core in ('sameboy','mgba','supafaust'):
+                      assert f'lib/{abi}/lib{core}_libretro_android.so' in members
+                  assert f'lib/{abi}/libokubi_sameboy_bridge.so' in members
+              for license in ('mGBA-LICENSE.txt','Supafaust-GPL-2.0.txt','Supafaust-SOURCE.txt'):
+                  assert f'assets/licenses/{license}' in members
+              deny=('.gba','.gb','.gbc','.sav','.srm','.jks','.keystore','.p12','.pfx')
+              assert not any(m.lower().endswith(deny) or m.startswith('assets/personal-roms/') for m in members)
+          print('PASS: APK isolated and contents checked; real phone QA remains pending')
+          PY
+          cp "$APK" build/okubi-android-artifact/OKUBI-Android-QA93-Universal.apk
+          cd build/okubi-android-artifact
+          sha256sum OKUBI-Android-QA93-Universal.apk > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+      - name: Upload unsigned-for-release QA artifact (debug signature only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: OKUBI-PHASE93-ANDROID-UNIVERSAL-APK-NOT-STABLE
+          path: build/okubi-android-artifact/*
+          if-no-files-found: error
+          retention-days: 14
+
