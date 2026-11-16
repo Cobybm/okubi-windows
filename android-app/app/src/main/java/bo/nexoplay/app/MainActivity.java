@@ -84,6 +84,9 @@ public final class MainActivity extends Activity {
             "Toca este botón para buscar de nuevo los juegos instalados en tu Android y agregarlos a la biblioteca."),
         new TourStep(Screen.DISCOVER,"discover_homebrew","Explorar juegos gratuitos",
             "Aquí encontrarás homebrew y juegos que sus autores ofrecen legalmente. Podrás descargar los compatibles."),
+        new TourStep(Screen.DISCOVER,"discover_psp","Juegos de PSP",
+            "Selecciona tu copia ISO, CSO, CHD o EBOOT.PBP y OKUBI abrirá "
+            + "PPSSPP si está instalado. Tus partidas permanecen en el emulador."),
         new TourStep(Screen.DISCOVER,"nav_retro","Tus consolas",
             "En RETRO están los emuladores y las opciones de importar, abrir o configurar tus juegos clásicos."),
         new TourStep(Screen.RETRO,"retro_catalog","Descargas retro",
@@ -743,6 +746,7 @@ public final class MainActivity extends Activity {
         TextView playPsp=CinemaUi.action(this,"▶ JUGAR PSP CON PPSSPP",true);
         body.addView(playPsp,lp(-1,-2));
         playPsp.setContentDescription("Jugar una copia PSP en la app oficial PPSSPP");
+        tourTargets.put("discover_psp",playPsp);
         playPsp.setOnClickListener(v->selectPspGame());
         body.addView(gap(5));
         body.addView(text("Necesita PPSSPP instalado. Formatos: ISO, CSO, CHD o EBOOT.PBP. "
